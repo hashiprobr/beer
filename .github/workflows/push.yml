@@ -1,0 +1,28 @@
+name: Continuous Integration
+on: push
+jobs:
+  test:
+    name: Testing
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: actions/checkout@v2
+        with:
+          repository: hashiprobr/django-mvp-meta
+      - uses: actions/checkout@v2
+        with:
+          path: core
+      - run: pip install -r requirements.txt
+      - run: pip install -r test_requirements.txt
+      - run: pip install -r core/requirements.txt
+      - run: ./services.py dev -d
+      - run: ./services.py localmanage migrate
+      - run: HEADLESS=1 ./services.py localmanage test
+      - run: ./services.py down
+      - run: ./services.py test -d
+      - run: ./services.py localmanage collectstatic --noinput
+      - run: ./services.py remotemanage migrate
+      - run: ./services.py remotemanage test
+      - run: ./services.py down

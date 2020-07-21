@@ -1,0 +1,142 @@
+---
+kind: pipeline
+type: ssh
+name: Staging
+
+server:
+  host:
+    from_secret: host
+  user:
+    from_secret: user
+  ssh_key:
+    from_secret: ssh_key
+
+clone:
+  disable: true
+
+steps:
+  - name: clone
+    environment:
+      STAGE_USER:
+        from_secret: user
+      GITHUB_REPOSITORY:
+        from_secret: github_repository
+    commands:
+      - PATH=/home/$STAGE_USER/meta/env/bin:$PATH
+      - cd /home/$STAGE_USER/meta
+      - rm -rf core
+      - git clone https://github.com/$GITHUB_REPOSITORY core
+      - pip install -r core/requirements.txt
+
+  - name: deploy
+    environment:
+      IMAGE_NAME: stage
+      BROKER_HOST: broker
+      BROKER_PORT: 6379
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+      DATABASE_NAME: stage
+      STAGE_HOST:
+        from_secret: host
+      STAGE_USER:
+        from_secret: user
+      SECRET_KEY:
+        from_secret: secret_key
+      ALLOWED_HOSTS:
+        from_secret: host
+      DATABASE_USER:
+        from_secret: stage_database_user
+      DATABASE_PASSWORD:
+        from_secret: stage_database_password
+      FILESTORE_HOST:
+        from_secret: host
+      AWS_ACCESS_KEY_ID:
+        from_secret: stage_filestore_user
+      AWS_SECRET_ACCESS_KEY:
+        from_secret: stage_filestore_password
+    commands:
+      - PATH=/home/$STAGE_USER/meta/env/bin:$PATH
+      - cd /home/$STAGE_USER/meta
+      - ./services.py down
+      - ./services.py test -d
+      - AWS_S3_ENDPOINT_URL=https://$FILESTORE_HOST:9000 ./services.py localmanage collectstatic --noinput
+      - ./services.py remotemanage migrate
+
+trigger:
+  branch:
+    - master
+  event:
+    - push
+
+---
+kind: pipeline
+type: ssh
+name: Production
+
+server:
+  host:
+    from_secret: host
+  user:
+    from_secret: user
+  ssh_key:
+    from_secret: ssh_key
+
+clone:
+  disable: true
+
+steps:
+  - name: build
+    environment:
+      IMAGE_NAME: prod
+      STAGE_USER:
+        from_secret: user
+      DATABASE_HOST:
+        from_secret: prod_database_host
+      DATABASE_PORT:
+        from_secret: prod_database_port
+      DATABASE_NAME:
+        from_secret: prod_database_name
+      DATABASE_USER:
+        from_secret: prod_database_user
+      DATABASE_PASSWORD:
+        from_secret: prod_database_password
+      STATIC_BUCKET:
+        from_secret: static_bucket
+      MEDIA_BUCKET:
+        from_secret: media_bucket
+      AWS_S3_ENDPOINT_URL:
+        from_secret: endpoint
+      AWS_ACCESS_KEY_ID:
+        from_secret: prod_filestore_user
+      AWS_SECRET_ACCESS_KEY:
+        from_secret: prod_filestore_password
+    commands:
+      - PATH=/home/$STAGE_USER/meta/env/bin:$PATH
+      - cd /home/$STAGE_USER/meta
+      - ./services.py build
+      - ./services.py prodmanage migrate
+      - ./services.py prodmanage collectstatic --noinput
+
+  - name: deploy
+    environment:
+      STAGE_USER:
+        from_secret: user
+      AWS_ECR_REPOSITORY_URI:
+        from_secret: repository_uri
+      AWS_ECS_CLUSTER_NAME:
+        from_secret: cluster_name
+      AWS_ECS_SERVICE_NAME:
+        from_secret: service_name
+    commands:
+      - export AWS_CONFIG_FILE=/home/$STAGE_USER/.aws/config
+      - export AWS_SHARED_CREDENTIALS_FILE=/home/$STAGE_USER/.aws/credentials
+      - aws ecr get-login-password --profile default | docker login --username AWS --password-stdin $AWS_ECR_REPOSITORY_URI
+      - docker tag prod:latest $AWS_ECR_REPOSITORY_URI:latest
+      - docker push $AWS_ECR_REPOSITORY_URI:latest
+      - aws ecs update-service --cluster $AWS_ECS_CLUSTER_NAME --service $AWS_ECS_SERVICE_NAME --force-new-deployment
+
+trigger:
+  branch:
+    - master
+  event:
+    - tag
