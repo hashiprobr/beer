@@ -1,0 +1,14 @@
+{% extends "registration/base.html" %}
+
+{% block js %}
+    {% load static %}
+    <script src="{% static 'js/registration.js' %}"></script>
+{% endblock %}
+
+{% block subcontent %}
+    <form class="small" method="post">
+        {% csrf_token %}
+        {% block form %}
+        {% endblock %}
+    </form>
+{% endblock %}
