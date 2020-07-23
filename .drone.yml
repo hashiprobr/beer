@@ -54,6 +54,20 @@ steps:
         from_secret: stage_filestore_user
       AWS_SECRET_ACCESS_KEY:
         from_secret: stage_filestore_password
+      EMAIL_HOST:
+        from_secret: email_host
+      EMAIL_PORT:
+        from_secret: email_port
+      EMAIL_HOST_USER:
+        from_secret: email_user
+      EMAIL_HOST_PASSWORD:
+        from_secret: email_password
+      EMAIL_USE_TLS:
+        from_secret: email_tls
+      EMAIL_USE_SSL:
+        from_secret: email_ssl
+      DEFAULT_FROM_EMAIL:
+        from_secret: email_sender
     commands:
       - PATH=/home/$STAGE_USER/meta/env/bin:$PATH
       - cd /home/$STAGE_USER/meta
