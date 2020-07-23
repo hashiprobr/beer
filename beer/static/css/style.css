@@ -49,6 +49,10 @@ input[type="submit"]:active {
     left: 1px;
 }
 
+form {
+    width: min-content;
+}
+
 label {
     display: flex;
     align-items: baseline;
@@ -62,11 +66,10 @@ label span::after {
     content: ":\a0";
 }
 label input {
-    width: 11.5rem;
+    width: 11.25rem;
 }
 
 form ul {
-    width: 11.5rem;
     margin-bottom: 1rem;
     padding-left: 1rem;
     font-size: .75rem;
@@ -97,7 +100,9 @@ form p {
     background-color: #fff2cc;
     color: #403d33;
 }
-.primary input[type="text"], input[type="email"], input[type="password"] {
+.primary input[type="text"],
+.primary input[type="email"],
+.primary input[type="password"] {
     border-color: #ccc2a3 #fff9e6 #fff9e6 #ccc2a3;
 }
 .primary input[type="submit"] {
