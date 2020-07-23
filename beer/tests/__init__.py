@@ -7,6 +7,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.wait import WebDriverWait
 from django.conf import settings
+from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 from channels.testing import ChannelsLiveServerTestCase
@@ -34,9 +35,7 @@ class ViewTestCase(IntegrationTestCase):
         return ' '.join(element.string.strip().split())
 
 
-class AcceptanceTestCase(ChannelsLiveServerTestCase):
-    serve_static = not settings.CONTAINED
-
+class AcceptanceTestCase:
     @classmethod
     def is_displayed(cls, element):
         try:
@@ -130,8 +129,14 @@ class AcceptanceTestCase(ChannelsLiveServerTestCase):
         cls.driver.quit()
         super().tearDownClass()
 
-    def get(self, url):
-        self.driver.get('{}/{}'.format(self.live_server_url, url))
+    def url(self, view_name, urlconf=None, args=None, kwargs=None, current_app=None):
+        return self.live_server_url + reverse(view_name, urlconf, args, kwargs, current_app)
+
+    def get(self, view_name, urlconf=None, args=None, kwargs=None, current_app=None):
+        self.driver.get(self.url(view_name, urlconf, args, kwargs, current_app))
+
+    def at(self, url):
+        return self.driver.current_url == url
 
     def open(self):
         self.driver.execute_script("window.open('about:blank', '_blank');")
@@ -156,3 +161,11 @@ class AcceptanceTestCase(ChannelsLiveServerTestCase):
         dir = os.path.dirname(path)
         name = os.path.basename(path)
         return os.path.join(dir, FILES_DIR, name[5:-3])
+
+
+class SyncAcceptanceTestCase(AcceptanceTestCase, StaticLiveServerTestCase):
+    pass
+
+
+class AsyncAcceptanceTestCase(AcceptanceTestCase, ChannelsLiveServerTestCase):
+    serve_static = not settings.CONTAINED
