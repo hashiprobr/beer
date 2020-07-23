@@ -7,10 +7,14 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.wait import WebDriverWait
 from django.conf import settings
-from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 from channels.testing import ChannelsLiveServerTestCase
+
+if settings.CONTAINED:
+    from django.test import LiveServerTestCase as SyncLiveServerTestCase
+else:
+    from django.contrib.staticfiles.testing import StaticLiveServerTestCase as SyncLiveServerTestCase
 
 
 FILES_DIR = 'files'
@@ -163,9 +167,9 @@ class AcceptanceTestCase:
         return os.path.join(dir, FILES_DIR, name[5:-3])
 
 
-class SyncAcceptanceTestCase(AcceptanceTestCase, StaticLiveServerTestCase):
+class AcceptanceSyncTestCase(AcceptanceTestCase, SyncLiveServerTestCase):
     pass
 
 
-class AsyncAcceptanceTestCase(AcceptanceTestCase, ChannelsLiveServerTestCase):
+class AcceptanceAsyncTestCase(AcceptanceTestCase, ChannelsLiveServerTestCase):
     serve_static = not settings.CONTAINED

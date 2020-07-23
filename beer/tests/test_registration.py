@@ -1,10 +1,10 @@
 from django.contrib.auth.models import User
 from django.core import mail
 
-from . import SyncAcceptanceTestCase, reverse
+from . import AcceptanceSyncTestCase, reverse
 
 
-class AuthenticationTests(SyncAcceptanceTestCase):
+class AuthenticationTests(AcceptanceSyncTestCase):
     username = 'u'
     other_username = 'ou'
 

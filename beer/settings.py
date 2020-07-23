@@ -175,14 +175,14 @@ if CONTAINED or COLLECTING:
     AWS_DEFAULT_ACL = None
 
     STATICFILES_STORAGE = BASE_NAME + '.filestore.StaticRemoteStorage'
-else:
-    STATIC_URL = '/{}/{}/'.format(STATIC_BUCKET, VERSION)
 
 
 if CONTAINED and not TESTING:
     AWS_S3_OVERRIDE_URL = env.str('AWS_S3_OVERRIDE_URL', '')
 else:
     AWS_S3_OVERRIDE_URL = ''
+
+    STATIC_URL = '/{}/{}/'.format(STATIC_BUCKET, VERSION)
 
 
 if CONTAINED:
