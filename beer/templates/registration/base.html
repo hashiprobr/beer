@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block css %}
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/registration.css' %}">
+{% endblock %}
+
+{% block content %}
+    <main class="card primary">
+        <h2 class="head small">
+            {% block subtitle %}{% endblock %}
+        </h2>
+        {% block subcontent %}
+        {% endblock %}
+    </main>
+{% endblock %}

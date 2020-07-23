@@ -74,7 +74,7 @@ ROOT_URLCONF = BASE_NAME + '.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_PATH, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -175,14 +175,14 @@ if CONTAINED or COLLECTING:
     AWS_DEFAULT_ACL = None
 
     STATICFILES_STORAGE = BASE_NAME + '.filestore.StaticRemoteStorage'
-else:
-    STATIC_URL = '/{}/{}/'.format(STATIC_BUCKET, VERSION)
 
 
 if CONTAINED and not TESTING:
     AWS_S3_OVERRIDE_URL = env.str('AWS_S3_OVERRIDE_URL', '')
 else:
     AWS_S3_OVERRIDE_URL = ''
+
+    STATIC_URL = '/{}/{}/'.format(STATIC_BUCKET, VERSION)
 
 
 if CONTAINED:
@@ -232,3 +232,23 @@ LOGGING = {
         'level': 'WARNING',
     },
 }
+
+
+EMAIL_HOST = env.str('EMAIL_HOST', 'localhost')
+
+EMAIL_PORT = env.int('EMAIL_PORT', 1025)
+
+EMAIL_HOST_USER = env.str('EMAIL_HOST_USER', '')
+
+EMAIL_HOST_PASSWORD = env.str('EMAIL_HOST_PASSWORD', '')
+
+EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', False)
+
+EMAIL_USE_SSL = env.bool('EMAIL_USE_SSL', False)
+
+DEFAULT_FROM_EMAIL = env.str('DEFAULT_FROM_EMAIL', 'webmaster@localhost')
+
+
+LOGIN_URL = '/login'
+
+LOGIN_REDIRECT_URL = '/'
