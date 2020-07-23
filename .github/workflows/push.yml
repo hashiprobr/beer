@@ -18,10 +18,12 @@ jobs:
       - run: pip install -r test_requirements.txt
       - run: pip install -r core/requirements.txt
       - run: ./services.py dev -d
+      - run: ./services.py test
       - run: ./services.py localmanage migrate
       - run: HEADLESS=1 ./services.py localmanage test
       - run: ./services.py down
       - run: ./services.py test -d
+      - run: ./services.py dev
       - run: ./services.py localmanage collectstatic --noinput
       - run: ./services.py remotemanage migrate
       - run: ./services.py remotemanage test
