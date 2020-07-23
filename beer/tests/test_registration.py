@@ -131,51 +131,51 @@ class AuthenticationTests(AcceptanceSyncTestCase):
     def testDoesNotChangePasswordWithWeakNewPasswords(self):
         user = User.objects.create_user(self.username, self.email, self.password)
         self.changePassword(self.password, self.weak_password, self.weak_password)
-        self.login(self.username, self.other_password)
+        self.login(self.username, self.weak_password)
         self.waitBlocks()
 
     def testResetsPassword(self):
-        user = User.objects.create_user(self.username, email=self.email, password=self.password)
+        user = User.objects.create_user(self.username, self.email, self.password)
         self.sendLink(self.email)
         self.resetPassword(self.other_password, self.other_password)
         self.login(self.username, self.other_password)
         self.waitAllows()
 
     def testDoesNotSendLinkIfEmailDoesNotExist(self):
-        user = User.objects.create_user(self.username, email=self.email, password=self.password)
+        user = User.objects.create_user(self.username, self.email, self.password)
         self.sendLink(self.other_email)
         self.assertFalse(mail.outbox)
 
     def testDoesNotOpenLinkWithWrongCredentials(self):
-        user = User.objects.create_user(self.username, email=self.email, password=self.password)
+        user = User.objects.create_user(self.username, self.email, self.password)
         self.sendLink(self.email)
         self.driver.get(self.url('password_reset_confirm', args=[self.uidb64, self.token]))
         self.waitMessage()
 
     def testDoesNotOpenLinkWithExpiredCredentials(self):
-        user = User.objects.create_user(self.username, email=self.email, password=self.password)
+        user = User.objects.create_user(self.username, self.email, self.password)
         self.sendLink(self.email)
         self.resetPassword(self.other_password, self.other_password)
         self.openLink()
         self.waitMessage()
 
     def testDoesNotResetPasswordWithDifferentNewPassword1(self):
-        user = User.objects.create_user(self.username, email=self.email, password=self.password)
+        user = User.objects.create_user(self.username, self.email, self.password)
         self.sendLink(self.email)
         self.resetPassword(self.password, self.other_password)
         self.login(self.username, self.other_password)
         self.waitBlocks()
 
     def testDoesNotResetPasswordWithDifferentNewPassword2(self):
-        user = User.objects.create_user(self.username, email=self.email, password=self.password)
+        user = User.objects.create_user(self.username, self.email, self.password)
         self.sendLink(self.email)
         self.resetPassword(self.other_password, self.password)
         self.login(self.username, self.other_password)
         self.waitBlocks()
 
     def testDoesNotResetPasswordWithWeakNewPasswords(self):
-        user = User.objects.create_user(self.username, email=self.email, password=self.password)
+        user = User.objects.create_user(self.username, self.email, self.password)
         self.sendLink(self.email)
         self.resetPassword(self.weak_password, self.weak_password)
-        self.login(self.username, self.other_password)
+        self.login(self.username, self.weak_password)
         self.waitBlocks()
