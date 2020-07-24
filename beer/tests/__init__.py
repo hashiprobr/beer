@@ -127,6 +127,7 @@ class AcceptanceTestCase:
             options.add_argument('headless')
             options.add_argument('no-sandbox')
         cls.driver = cls.extend(Chrome(chrome_options=options))
+        cls.driver.at = lambda url: cls.driver.current_url == url
 
     @classmethod
     def tearDownClass(cls):
@@ -136,11 +137,11 @@ class AcceptanceTestCase:
     def url(self, view_name, urlconf=None, args=None, kwargs=None, current_app=None):
         return self.live_server_url + reverse(view_name, urlconf, args, kwargs, current_app)
 
+    def at(self, view_name, urlconf=None, args=None, kwargs=None, current_app=None):
+        return self.driver.at(self.url(view_name, urlconf, args, kwargs, current_app))
+
     def get(self, view_name, urlconf=None, args=None, kwargs=None, current_app=None):
         self.driver.get(self.url(view_name, urlconf, args, kwargs, current_app))
-
-    def at(self, url):
-        return self.driver.current_url == url
 
     def open(self):
         self.driver.execute_script("window.open('about:blank', '_blank');")
