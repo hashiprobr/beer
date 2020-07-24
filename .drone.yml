@@ -19,23 +19,16 @@ steps:
     environment:
       STAGE_USER:
         from_secret: user
-      GITHUB_REPOSITORY:
-        from_secret: github_repository
     commands:
       - PATH=/home/$STAGE_USER/meta/env/bin:$PATH
       - cd /home/$STAGE_USER/meta
       - rm -rf core
-      - git clone https://github.com/$GITHUB_REPOSITORY core
+      - git clone https://github.com/$DRONE_REPO core
       - pip install -r core/requirements.txt
 
   - name: deploy
     environment:
       IMAGE_NAME: stage
-      BROKER_HOST: broker
-      BROKER_PORT: 6379
-      DATABASE_HOST: db
-      DATABASE_PORT: 5432
-      DATABASE_NAME: stage
       STAGE_HOST:
         from_secret: host
       STAGE_USER:
@@ -44,6 +37,8 @@ steps:
         from_secret: secret_key
       ALLOWED_HOSTS:
         from_secret: host
+      DATABASE_NAME:
+        from_secret: database_name
       DATABASE_USER:
         from_secret: stage_database_user
       DATABASE_PASSWORD:
@@ -105,11 +100,11 @@ steps:
       STAGE_USER:
         from_secret: user
       DATABASE_HOST:
-        from_secret: prod_database_host
+        from_secret: database_host
       DATABASE_PORT:
-        from_secret: prod_database_port
+        from_secret: database_port
       DATABASE_NAME:
-        from_secret: prod_database_name
+        from_secret: database_name
       DATABASE_USER:
         from_secret: prod_database_user
       DATABASE_PASSWORD:
@@ -119,7 +114,7 @@ steps:
       MEDIA_BUCKET:
         from_secret: media_bucket
       AWS_S3_ENDPOINT_URL:
-        from_secret: endpoint
+        from_secret: filestore_url
       AWS_ACCESS_KEY_ID:
         from_secret: prod_filestore_user
       AWS_SECRET_ACCESS_KEY:
