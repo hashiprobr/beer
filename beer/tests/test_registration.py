@@ -20,7 +20,7 @@ class AuthenticationTests(AcceptanceSyncTestCase):
 
 
     def atLogin(self, next):
-        return self.at('{}?next={}'.format(self.url('login'), reverse(next)))
+        return self.driver.at('{}?next={}'.format(self.url('login'), reverse(next)))
 
     def waitBlocks(self):
         self.get('index')
@@ -38,9 +38,9 @@ class AuthenticationTests(AcceptanceSyncTestCase):
         submit.click()
 
     def waitAllows(self):
-        self.wait(5, self.at, self.url('index'))
+        self.wait(5, self.at, 'index')
         self.get('password_change')
-        self.wait(5, self.at, self.url('password_change'))
+        self.wait(5, self.at, 'password_change')
 
     def changePassword(self, old_password, new_password1, new_password2):
         self.login(self.username, self.password)
@@ -107,6 +107,8 @@ class AuthenticationTests(AcceptanceSyncTestCase):
     def testChangesPassword(self):
         user = User.objects.create_user(self.username, self.email, self.password)
         self.changePassword(self.password, self.other_password, self.other_password)
+        self.login(self.username, self.password)
+        self.waitBlocks()
         self.login(self.username, self.other_password)
         self.waitAllows()
 
@@ -115,29 +117,39 @@ class AuthenticationTests(AcceptanceSyncTestCase):
         self.changePassword(self.other_password, self.other_password, self.other_password)
         self.login(self.username, self.other_password)
         self.waitBlocks()
+        self.login(self.username, self.password)
+        self.waitAllows()
 
     def testDoesNotChangePasswordWithDifferentNewPassword1(self):
         user = User.objects.create_user(self.username, self.email, self.password)
         self.changePassword(self.password, self.password, self.other_password)
         self.login(self.username, self.other_password)
         self.waitBlocks()
+        self.login(self.username, self.password)
+        self.waitAllows()
 
     def testDoesNotChangePasswordWithDifferentNewPassword2(self):
         user = User.objects.create_user(self.username, self.email, self.password)
         self.changePassword(self.password, self.other_password, self.password)
         self.login(self.username, self.other_password)
         self.waitBlocks()
+        self.login(self.username, self.password)
+        self.waitAllows()
 
     def testDoesNotChangePasswordWithWeakNewPasswords(self):
         user = User.objects.create_user(self.username, self.email, self.password)
         self.changePassword(self.password, self.weak_password, self.weak_password)
         self.login(self.username, self.weak_password)
         self.waitBlocks()
+        self.login(self.username, self.password)
+        self.waitAllows()
 
     def testResetsPassword(self):
         user = User.objects.create_user(self.username, self.email, self.password)
         self.sendLink(self.email)
         self.resetPassword(self.other_password, self.other_password)
+        self.login(self.username, self.password)
+        self.waitBlocks()
         self.login(self.username, self.other_password)
         self.waitAllows()
 
@@ -149,7 +161,7 @@ class AuthenticationTests(AcceptanceSyncTestCase):
     def testDoesNotOpenLinkWithWrongCredentials(self):
         user = User.objects.create_user(self.username, self.email, self.password)
         self.sendLink(self.email)
-        self.driver.get(self.url('password_reset_confirm', args=[self.uidb64, self.token]))
+        self.get('password_reset_confirm', args=[self.uidb64, self.token])
         self.waitMessage()
 
     def testDoesNotOpenLinkWithExpiredCredentials(self):
@@ -165,6 +177,8 @@ class AuthenticationTests(AcceptanceSyncTestCase):
         self.resetPassword(self.password, self.other_password)
         self.login(self.username, self.other_password)
         self.waitBlocks()
+        self.login(self.username, self.password)
+        self.waitAllows()
 
     def testDoesNotResetPasswordWithDifferentNewPassword2(self):
         user = User.objects.create_user(self.username, self.email, self.password)
@@ -172,6 +186,8 @@ class AuthenticationTests(AcceptanceSyncTestCase):
         self.resetPassword(self.other_password, self.password)
         self.login(self.username, self.other_password)
         self.waitBlocks()
+        self.login(self.username, self.password)
+        self.waitAllows()
 
     def testDoesNotResetPasswordWithWeakNewPasswords(self):
         user = User.objects.create_user(self.username, self.email, self.password)
@@ -179,3 +195,5 @@ class AuthenticationTests(AcceptanceSyncTestCase):
         self.resetPassword(self.weak_password, self.weak_password)
         self.login(self.username, self.weak_password)
         self.waitBlocks()
+        self.login(self.username, self.password)
+        self.waitAllows()
