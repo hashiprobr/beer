@@ -1,7 +1,14 @@
-{% extends "base.html" %}
+{% extends "malt/base.html" %}
 
-{% block title %}Version{% endblock %}
+{% block title %}Home{% endblock %}
 
-{% block content %}
-    {{ version }}
+{% block subtitle %}Home{% endblock %}
+
+{% block subcontent %}
+    <h2>
+        Version
+    </h2>
+    <p>
+        {{ version }}
+    </p>
 {% endblock %}

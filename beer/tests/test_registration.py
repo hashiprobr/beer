@@ -78,7 +78,7 @@ class AuthenticationTests(AcceptanceSyncTestCase):
         submit.click()
 
     def waitMessage(self):
-        self.wait(5, self.driver.find_one, 'p.small')
+        self.wait(5, self.driver.find_one, '.card > p')
 
 
     def testBlocks(self):

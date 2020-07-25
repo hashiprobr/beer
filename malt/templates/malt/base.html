@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block css %}
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'malt/css/style.css' %}">
+{% endblock %}
+
+{% block content %}
+    <nav>
+        <ul class="trail">
+            <li><a href="{% url 'index' %}">Home</a></li>
+            {% if course %}
+                <li>🡒</li>
+                <li><a href="{% url course.href %}">{{ course.text }}</a></li>
+                {% if page %}
+                    <li>🡒</li>
+                    <li><a href="{% url page.href %}">{{ page.text }}</a></li>
+                {% endif %}
+            {% endif %}
+        </ul>
+        <div class="profile">
+            <p>
+                {{ user.get_username }}
+            </p>
+            <ul>
+                <li><a href="{% url 'password_change' %}">Change password</a></li>
+                <li><a href="{% url 'logout' %}">Logout</a></li>
+            </ul>
+        </div>
+    </nav>
+    <div class="deck">
+        {% block header %}
+        {% endblock %}
+        <main class="card primary large">
+            <h1>
+                {% block subtitle %}{% endblock %}
+            </h1>
+            {% block subcontent %}
+            {% endblock %}
+        </main>
+        {% block footer %}
+        {% endblock %}
+    </div>
+{% endblock %}

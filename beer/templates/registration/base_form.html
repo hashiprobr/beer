@@ -6,7 +6,7 @@
 {% endblock %}
 
 {% block subcontent %}
-    <form class="small" method="post">
+    <form method="post">
         {% csrf_token %}
         {% block form %}
         {% endblock %}
