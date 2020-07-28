@@ -42,12 +42,10 @@ class PrivateLocalStorage(LocalStorage):
 
 
 class RemoteStorage(OverwriteStorage, S3Boto3Storage):
-    override_url = settings.AWS_S3_OVERRIDE_URL
-
     def url(self, name, parameters=None, expire=None):
         url = super().url(name, parameters, expire)
-        if self.override_url:
-            url = url.replace(self.endpoint_url, self.override_url)
+        if settings.AWS_S3_OVERRIDE_URL:
+            url = url.replace(settings.AWS_S3_ENDPOINT_URL, settings.AWS_S3_OVERRIDE_URL)
         return url
 
     def post(self, name, redirect):
