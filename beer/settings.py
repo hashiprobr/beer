@@ -168,6 +168,8 @@ PRIVATE_LOCATION = 'private'
 if CONTAINED or COLLECTING:
     AWS_S3_ENDPOINT_URL = env.str('AWS_S3_ENDPOINT_URL', 'http://localhost:9000')
 
+    AWS_S3_REGION_NAME = env.str('AWS_S3_REGION_NAME', 'us-east-1')
+
     AWS_ACCESS_KEY_ID = env.str('AWS_ACCESS_KEY_ID', 'filestore')
 
     AWS_SECRET_ACCESS_KEY = env.str('AWS_SECRET_ACCESS_KEY', 'filestore')

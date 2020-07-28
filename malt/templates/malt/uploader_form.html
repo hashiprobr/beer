@@ -1,0 +1,15 @@
+{% extends 'malt/uploader.html' %}
+
+{% block img %}
+    {% load static %}
+    <img src="{% static 'throbber.gif' %}" title="https://icon-library.net/icon/progress-icon-gif-8.html">
+{% endblock %}
+
+{% block element %}
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="{% url 'upload' %}">
+        <input type="hidden" name="method" value="{{ method }}">
+        <input type="file" name="file">
+    </form>
+{% endblock %}
