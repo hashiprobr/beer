@@ -1,4 +1,5 @@
 import os
+import shutil
 
 from django.conf import settings
 from django.core.files.storage import FileSystemStorage
@@ -16,6 +17,12 @@ class OverwriteStorage:
 
 
 class LocalStorage(OverwriteStorage, FileSystemStorage):
+    def clear(self):
+        try:
+            shutil.rmtree(self.location)
+        except FileNotFoundError:
+            pass
+
     def post(self, name, redirect):
         body = {
             'action': self.action(),
@@ -42,6 +49,9 @@ class PrivateLocalStorage(LocalStorage):
 
 
 class RemoteStorage(OverwriteStorage, S3Boto3Storage):
+    def clear(self):
+        self.bucket.objects.delete()
+
     def url(self, name, parameters=None, expire=None):
         url = super().url(name, parameters, expire)
         if settings.AWS_S3_OVERRIDE_URL:
