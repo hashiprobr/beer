@@ -146,6 +146,8 @@ USE_L10N = True
 USE_TZ = True
 
 
+FILE_UPLOAD_MAX_TEMP_SIZE = 26214400
+
 FILE_UPLOAD_HANDLERS = [
     BASE_NAME + '.uphandler.ChannelMemoryFileUploadHandler',
     BASE_NAME + '.uphandler.ChannelTemporaryFileUploadHandler',
@@ -167,6 +169,8 @@ PRIVATE_LOCATION = 'private'
 
 if CONTAINED or COLLECTING:
     AWS_S3_ENDPOINT_URL = env.str('AWS_S3_ENDPOINT_URL', 'http://localhost:9000')
+
+    AWS_S3_REGION_NAME = env.str('AWS_S3_REGION_NAME', 'us-east-1')
 
     AWS_ACCESS_KEY_ID = env.str('AWS_ACCESS_KEY_ID', 'filestore')
 

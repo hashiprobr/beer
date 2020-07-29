@@ -16,6 +16,8 @@ if settings.CONTAINED:
 else:
     from django.contrib.staticfiles.testing import StaticLiveServerTestCase as SyncLiveServerTestCase
 
+from .. import public_storage, private_storage
+
 
 FILES_DIR = 'files'
 
@@ -25,7 +27,10 @@ class UnitTestCase(SimpleTestCase):
 
 
 class IntegrationTestCase(TestCase):
-    pass
+    def _pre_setup(self):
+        public_storage.clear()
+        private_storage.clear()
+        super()._pre_setup()
 
 
 class ViewTestCase(IntegrationTestCase):

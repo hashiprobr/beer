@@ -1,4 +1,5 @@
-from django.core.files.uploadhandler import TemporaryFileUploadHandler, MemoryFileUploadHandler
+from django.conf import settings
+from django.core.files.uploadhandler import TemporaryFileUploadHandler, MemoryFileUploadHandler, StopUpload
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
@@ -39,6 +40,8 @@ class ChannelTemporaryFileUploadHandler(ChannelFileUploadHandler, TemporaryFileU
     def receive_data_chunk(self, raw_data, start):
         super().receive_data_chunk(raw_data, start)
         self.partial = min(self.partial + self.chunk_size, self.total)
+        if self.partial > settings.FILE_UPLOAD_MAX_TEMP_SIZE:
+            raise StopUpload()
         progress = int(100 * (self.partial / self.total) + 0.5)
         if progress > self.progress:
             self.progress = progress
