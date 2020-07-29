@@ -161,7 +161,7 @@ class AuthenticationTests(AcceptanceSyncTestCase):
     def testDoesNotOpenLinkWithWrongCredentials(self):
         user = User.objects.create_user(self.username, self.email, self.password)
         self.sendLink(self.email)
-        self.get('password_reset_confirm', args=[self.uidb64, self.token])
+        self.get('password_reset_confirm', kwargs={'uidb64': self.uidb64, 'token': self.token})
         self.waitMessage()
 
     def testDoesNotOpenLinkWithExpiredCredentials(self):

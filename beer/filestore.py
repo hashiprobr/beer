@@ -59,8 +59,12 @@ class RemoteStorage(OverwriteStorage, S3Boto3Storage):
         return url
 
     def post(self, name, redirect):
+        if settings.AWS_S3_OVERRIDE_URL:
+            url = settings.AWS_S3_OVERRIDE_URL
+        else:
+            url = settings.AWS_S3_ENDPOINT_URL
         key = '{}/{}'.format(self.location, name)
-        return sign_post(self.bucket_name, key, redirect)
+        return sign_post(url, self.bucket_name, key, redirect)
 
 
 class StaticRemoteStorage(RemoteStorage):

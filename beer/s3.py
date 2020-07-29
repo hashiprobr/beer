@@ -12,7 +12,7 @@ def sign(key, msg):
     return hmac.digest(key, msg, sha256)
 
 
-def sign_post(bucket, key, redirect):
+def sign_post(url, bucket, key, redirect):
     now = datetime.now(timezone.utc)
     then = now + timedelta(minutes=1)
     date_time = now.strftime('%Y%m%dT%H%M%SZ')
@@ -43,7 +43,7 @@ def sign_post(bucket, key, redirect):
     signature = sign(signing_key, string_to_sign)
 
     body = {
-        'action': '{}/{}'.format(settings.AWS_S3_ENDPOINT_URL, bucket),
+        'action': '{}/{}'.format(url, bucket),
         'key': key,
         'policy': string_to_sign.decode('utf-8'),
         'x-amz-signature': signature.hex(),

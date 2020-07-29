@@ -1,8 +1,11 @@
+from urllib.parse import quote, parse_qs
+
 from django.conf import settings
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponseNotFound, HttpResponseBadRequest, HttpResponseRedirect, HttpResponse, JsonResponse
 from django.urls import reverse
 from django.views import generic
+from shortuuid import uuid
 
 from beer import public_storage, private_storage
 
@@ -25,41 +28,80 @@ class View(*AUTH_MIXINS, generic.View):
 
 class UploadView(View):
     def post(self, request, *args, **kwargs):
+        body = request.POST.dict()
+
         try:
-            method = request.POST['method']
+            method = body.pop('method')
+            name = body.pop('name')
         except KeyError:
             return HttpResponseBadRequest()
+
         if method == 'code':
-            body = {
-                'action': reverse('upload_code'),
-                CSRF_KEY: request.POST[CSRF_KEY],
-            }
+            body['action'] = reverse('upload_code'),
             return JsonResponse(body)
+
         if method == 'asset':
             try:
-                name = request.POST['name']
+                folder_pk = body['folder_pk']
             except KeyError:
                 return HttpResponseBadRequest()
-            redirect = '{}://{}{}'.format(request.scheme, request.get_host(), reverse('upload_asset_complete'))
-            body = public_storage.post('{}/{}'.format(request.user.get_username(), name), redirect)
+
+            uid = uuid()
+            print(name, folder_pk, uid)
+
+            name = '{}/assets/{}'.format(request.user.get_username(), uid)
+            redirect = '{}://{}{}'.format(request.scheme, request.get_host(), reverse('upload_asset_confirm'))
+            body = public_storage.post(name, redirect)
+
+            if body['action'].startswith('/'):
+                body[CSRF_KEY] = request.POST[CSRF_KEY]
             return JsonResponse(body)
+
         return HttpResponseNotFound()
 
 
 class UploadCodeView(View):
     def post(self, request, *args, **kwargs):
+        if len(request.FILES) != 1:
+            return HttpResponseBadRequest()
+
+        try:
+            file = request.FILES['file']
+        except KeyError:
+            return HttpResponseBadRequest()
+
+        body = request.POST.dict()
+        del body[CSRF_KEY]
+
+        for key, value in body.items():
+            print(key, value)
+        print(file)
+
         return HttpResponse('code')
 
 
 class UploadAssetView(View):
     def post(self, request, *args, **kwargs):
         if settings.CONTAINED:
-            try:
-                redirect = request.POST['success_action_redirect']
-            except KeyError:
-                return HttpResponseBadRequest()
-            return HttpResponseRedirect(redirect)
-        return HttpResponseNotFound()
+            return HttpResponseNotFound()
+
+        try:
+            key = request.POST['key']
+            redirect = request.POST['success_action_redirect']
+        except KeyError:
+            return HttpResponseBadRequest()
+
+        if len(request.FILES) != 1:
+            return HttpResponseBadRequest()
+
+        try:
+            file = request.FILES['file']
+        except KeyError:
+            return HttpResponseBadRequest()
+
+        self.storage.save(key, file)
+
+        return HttpResponseRedirect('{}?key={}'.format(redirect, quote(key, encoding='utf-8')))
 
 
 class UploadAssetPublicView(UploadAssetView):
@@ -70,8 +112,23 @@ class UploadAssetPrivateView(UploadAssetView):
     storage = private_storage
 
 
-class UploadAssetCompleteView(View):
+class UploadAssetConfirmView(View):
     def get(self, request, *args, **kwargs):
+        body = parse_qs(request.META['QUERY_STRING'], encoding='utf-8')
+
+        try:
+            key = body['key']
+        except KeyError:
+            return HttpResponseBadRequest()
+
+        try:
+            paths = key[0].split('/')
+            uid = paths[-1]
+        except IndexError:
+            return HttpResponseBadRequest()
+
+        print(uid)
+
         return HttpResponse('asset')
 
 
