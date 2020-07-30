@@ -40,7 +40,7 @@ class Producer extends WebSocket {
 class UploadProducer extends Producer {
     static bind(suffix, form) {
         let Class = this;
-        form.addEventListener('submit', function(event) {
+        form.addEventListener('submit', function (event) {
             event.preventDefault();
             new Class(suffix, form);
         });

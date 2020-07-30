@@ -52,25 +52,25 @@ async function upload(ps, form) {
 function connectDragSignals(source, target) {
     let counter = 0;
 
-    source.addEventListener('dragenter', function() {
+    source.addEventListener('dragenter', function () {
         if (counter === 0) {
             target.classList.add('drag');
         }
         counter++;
     });
 
-    source.addEventListener('dragleave', function() {
+    source.addEventListener('dragleave', function () {
         counter--;
         if (counter === 0) {
             target.classList.remove('drag');
         }
     });
 
-    source.addEventListener('dragover', function(event) {
+    source.addEventListener('dragover', function (event) {
         event.preventDefault();
     });
 
-    source.addEventListener('drop', function(event) {
+    source.addEventListener('drop', function (event) {
         event.preventDefault();
 
         let input = target.querySelector('input[type="file"]');
@@ -84,7 +84,7 @@ function connectDragSignals(source, target) {
 }
 
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     let body = document.querySelector('body');
     let uploaders = document.querySelectorAll('.uploader');
 
@@ -103,12 +103,12 @@ document.addEventListener('DOMContentLoaded', function() {
         let form = uploader.querySelector('form');
         let input = uploader.querySelector('input[type="file"]');
 
-        uploader.addEventListener('click', function() {
+        uploader.addEventListener('click', function () {
             input.dispatchEvent(new MouseEvent('click'));
         });
 
         if (form === null) {
-            input.addEventListener('change', function() {
+            input.addEventListener('change', function () {
                 if (input.files.length > 0) {
                     ps[0].textContent = 'File:';
                     ps[1].textContent = input.files[0].name;
@@ -120,7 +120,7 @@ document.addEventListener('DOMContentLoaded', function() {
             let span = uploader.querySelector('span');
             let img = uploader.querySelector('img');
 
-            input.addEventListener('change', function() {
+            input.addEventListener('change', function () {
                 uploader.disabled = true;
 
                 span.classList.add('hidden');
