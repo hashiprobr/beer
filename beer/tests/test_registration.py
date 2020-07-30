@@ -18,7 +18,6 @@ class AuthenticationTests(AcceptanceSyncTestCase):
     uidb64 = 'u'
     token = 't'
 
-
     def atLogin(self, next):
         return self.driver.at('{}?next={}'.format(self.url('login'), reverse(next)))
 
@@ -79,7 +78,6 @@ class AuthenticationTests(AcceptanceSyncTestCase):
 
     def waitMessage(self):
         self.wait(5, self.driver.find_one, '.card > p')
-
 
     def testBlocks(self):
         self.waitBlocks()
