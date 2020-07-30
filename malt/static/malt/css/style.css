@@ -26,6 +26,7 @@ nav a:hover {
 .profile p {
     padding: .5rem 1rem;
     white-space: nowrap;
+    user-select: none;
 }
 .profile p::before {
     content: "\25be\a0";
