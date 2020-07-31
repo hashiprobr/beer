@@ -1,18 +1,35 @@
 from urllib.parse import quote, parse_qs
 
 from django.conf import settings
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import HttpResponseNotFound, HttpResponseBadRequest, HttpResponseRedirect, HttpResponse, JsonResponse
-from django.urls import reverse
+from django.contrib.auth import get_user_model
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.core.paginator import EmptyPage, Paginator
+from django.http import Http404, HttpResponseNotFound, HttpResponseBadRequest, HttpResponseRedirect, HttpResponse, JsonResponse
+from django.urls import reverse, reverse_lazy
 from django.views import generic
 from shortuuid import uuid
 
 from beer import public_storage, private_storage
 
+from .models import PowerUser
+from .forms import UserAddForm
+
+User = get_user_model()
+
+
+PAGE_SIZE = 50
 
 CSRF_KEY = 'csrfmiddlewaretoken'
 
-AUTH_MIXINS = [LoginRequiredMixin]
+
+class UserIsSuperMixin(UserPassesTestMixin):
+    def test_func(self):
+        return self.request.user.is_superuser
+
+
+class UserIsPowerMixin(UserPassesTestMixin):
+    def test_func(self):
+        return PowerUser.objects.filter(user=self.request.user).exists()
 
 
 class TemplateDebugMixin:
@@ -22,11 +39,93 @@ class TemplateDebugMixin:
         return context
 
 
-class View(*AUTH_MIXINS, generic.View):
+class TemplateView(TemplateDebugMixin, generic.TemplateView):
     pass
 
 
-class UploadView(View):
+class FormView(TemplateDebugMixin, generic.FormView):
+    pass
+
+
+class PowerView(LoginRequiredMixin, UserIsPowerMixin, generic.View):
+    pass
+
+
+class UserManageView(LoginRequiredMixin, UserIsSuperMixin, FormView):
+    form_class = UserAddForm
+    template_name = 'malt/user_manage.html'
+    success_url = reverse_lazy('user_manage')
+
+    def form_valid(self, form):
+        for username, kwargs in form.users.items():
+            user = User.objects.create_user(username, **kwargs)
+            if form.promote:
+                power_user = PowerUser(user=user)
+                power_user.save()
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        users = User.objects.all().order_by('username')
+        paginator = Paginator(users, PAGE_SIZE)
+        try:
+            number = int(self.request.GET.get('page'))
+            users = paginator.page(number)
+        except (TypeError, EmptyPage):
+            users = paginator.page(1)
+        power = [user for user in users if PowerUser.objects.filter(user=user).exists()]
+        context['users'] = users
+        context['power'] = power
+        return context
+
+
+class UserEditView(LoginRequiredMixin, UserIsSuperMixin, generic.edit.UpdateView):
+    model = User
+    fields = ['first_name', 'last_name']
+    template_name = 'malt/user_edit.html'
+    success_url = reverse_lazy('user_manage')
+
+
+class UserRemoveView(LoginRequiredMixin, UserIsSuperMixin, generic.edit.DeleteView):
+    model = User
+    template_name = 'malt/user_delete.html'
+    success_url = reverse_lazy('user_manage')
+
+
+class UserChangeView(LoginRequiredMixin, UserIsSuperMixin, TemplateView):
+    def get_user(self, kwargs):
+        try:
+            return User.objects.get(pk=kwargs['pk'])
+        except User.DoesNotExist:
+            raise Http404
+
+    def post(self, request, *args, **kwargs):
+        user = self.get_user(kwargs)
+        self.change(user)
+        return HttpResponseRedirect(reverse('user_manage'))
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['user'] = self.get_user(kwargs)
+        return context
+
+
+class UserPromoteView(UserChangeView):
+    template_name = 'malt/user_promote.html'
+
+    def change(self, user):
+        power_user = PowerUser(user=user)
+        power_user.save()
+
+
+class UserDemoteView(UserChangeView):
+    template_name = 'malt/user_demote.html'
+
+    def change(self, user):
+        PowerUser.objects.filter(user=user).delete()
+
+
+class UploadView(PowerView):
     def post(self, request, *args, **kwargs):
         body = request.POST.dict()
 
@@ -60,7 +159,7 @@ class UploadView(View):
         return HttpResponseNotFound()
 
 
-class UploadCodeView(View):
+class UploadCodeView(PowerView):
     def post(self, request, *args, **kwargs):
         if len(request.FILES) != 1:
             return HttpResponseBadRequest()
@@ -80,7 +179,7 @@ class UploadCodeView(View):
         return HttpResponse('code')
 
 
-class UploadAssetView(View):
+class UploadAssetView(PowerView):
     def post(self, request, *args, **kwargs):
         if settings.CONTAINED:
             return HttpResponseNotFound()
@@ -112,7 +211,7 @@ class UploadAssetPrivateView(UploadAssetView):
     storage = private_storage
 
 
-class UploadAssetConfirmView(View):
+class UploadAssetConfirmView(PowerView):
     def get(self, request, *args, **kwargs):
         body = parse_qs(request.META['QUERY_STRING'], encoding='utf-8')
 
@@ -121,8 +220,9 @@ class UploadAssetConfirmView(View):
         except KeyError:
             return HttpResponseBadRequest()
 
+        paths = key[0].split('/')
+
         try:
-            paths = key[0].split('/')
             uid = paths[-1]
         except IndexError:
             return HttpResponseBadRequest()
@@ -132,11 +232,7 @@ class UploadAssetConfirmView(View):
         return HttpResponse('asset')
 
 
-class TemplateView(*AUTH_MIXINS, TemplateDebugMixin, generic.TemplateView):
-    pass
-
-
-class IndexView(TemplateView):
+class IndexView(LoginRequiredMixin, TemplateView):
     template_name = 'malt/index.html'
 
     def get_context_data(self, **kwargs):

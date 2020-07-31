@@ -1,0 +1,77 @@
+{% extends 'malt/user.html' %}
+
+{% block subcontent %}
+    <h2>
+        Edit/remove
+    </h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Username</th>
+                <th>Email</th>
+                <th></th>
+                <th></th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for user in users %}
+            <tr>
+                <td>{{ user.username }}</td>
+                <td>{{ user.email }}</td>
+                <td><a href="{% url 'user_edit' pk=user.pk %}">edit</a></td>
+                <td><a href="{% url 'user_remove' pk=user.pk %}">remove</a></td>
+                {% if user in power %}
+                    <td><a href="{% url 'user_demote' pk=user.pk %}">demote</a></td>
+                {% else %}
+                    <td><a href="{% url 'user_promote' pk=user.pk %}">promote</a></td>
+                {% endif %}
+            </tr>
+        {% endfor %}
+        </tbody>
+        <caption>
+            {% if users.has_previous %}
+                <a href="?page={{ users.previous_page_number }}">🡨</a>
+            {% else %}
+                🡨
+            {% endif %}
+            {{ users.number }} of {{ users.paginator.num_pages }}
+            {% if users.has_next %}
+                <a href="?page={{ users.next_page_number }}">🡪</a>
+            {% else %}
+                🡪
+            {% endif %}
+        </caption>
+    </table>
+    <h2>
+        Add list
+    </h2>
+    <form class="add" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        {{ form.non_field_errors }}
+
+        <label for="{{ form.file.id_for_label }}">
+            <span>{{ form.file.label }}</span>
+            {% include 'malt/uploader_input.html' with input=form.file %}
+        </label>
+
+        {{ form.file.errors }}
+
+        <label for="{{ form.domain.id_for_label }}">
+            <span>{{ form.domain.label }}</span>
+            {{ form.domain }}
+        </label>
+
+        {{ form.domain.errors }}
+
+        <label class="boolean" for="{{ form.promote.id_for_label }}">
+            {{ form.promote }}
+            <span>{{ form.promote.label }}</span>
+        </label>
+
+        {{ form.promote.errors }}
+
+        <input type="submit" value="Add">
+    </form>
+{% endblock %}

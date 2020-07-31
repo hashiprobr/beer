@@ -103,7 +103,8 @@ document.addEventListener('DOMContentLoaded', function () {
         let form = uploader.querySelector('form');
         let input = uploader.querySelector('input[type="file"]');
 
-        uploader.addEventListener('click', function () {
+        uploader.addEventListener('click', function (event) {
+            event.preventDefault();
             input.dispatchEvent(new MouseEvent('click'));
         });
 
