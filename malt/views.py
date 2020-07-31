@@ -103,7 +103,7 @@ class UserManageView(LoginRequiredMixin, UserIsSuperMixin, FormView):
             users = paginator.page(number)
         except (TypeError, EmptyPage):
             users = paginator.page(1)
-        users.power = [user for user in users if PowerUser.objects.filter(user=user).exists()]
+        users.power = PowerUser.objects.filter(user__in=users).values_list('user', flat=True)
         context['users'] = users
         return context
 
