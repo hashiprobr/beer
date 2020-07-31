@@ -3,6 +3,7 @@ from urllib.parse import quote, parse_qs
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.core.cache import cache
 from django.core.paginator import EmptyPage, Paginator
 from django.http import Http404, HttpResponseNotFound, HttpResponseBadRequest, HttpResponseRedirect, HttpResponse, JsonResponse
 from django.urls import reverse, reverse_lazy
@@ -22,6 +23,15 @@ PAGE_SIZE = 50
 CSRF_KEY = 'csrfmiddlewaretoken'
 
 
+def is_poweruser(user):
+    key = user.username + '/power'
+    power = cache.get(key)
+    if power is None:
+        power = PowerUser.objects.filter(user=user).exists()
+        cache.set(key, power)
+    return power
+
+
 class UserIsSuperMixin(UserPassesTestMixin):
     def test_func(self):
         return self.request.user.is_superuser
@@ -29,7 +39,12 @@ class UserIsSuperMixin(UserPassesTestMixin):
 
 class UserIsPowerMixin(UserPassesTestMixin):
     def test_func(self):
-        return PowerUser.objects.filter(user=self.request.user).exists()
+        return is_poweruser(self.request.user)
+
+
+class UserIsMemberMixin(UserPassesTestMixin):
+    def test_func(self):
+        return True
 
 
 class TemplateDebugMixin:
@@ -48,6 +63,21 @@ class FormView(TemplateDebugMixin, generic.FormView):
 
 
 class PowerView(LoginRequiredMixin, UserIsPowerMixin, generic.View):
+    pass
+
+
+class MaltView(TemplateView):
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['power'] = is_poweruser(self.request.user)
+        return context
+
+
+class PublicMaltView(LoginRequiredMixin, MaltView):
+    pass
+
+
+class PrivateMaltView(LoginRequiredMixin, UserIsMemberMixin, MaltView):
     pass
 
 
@@ -73,9 +103,8 @@ class UserManageView(LoginRequiredMixin, UserIsSuperMixin, FormView):
             users = paginator.page(number)
         except (TypeError, EmptyPage):
             users = paginator.page(1)
-        power = [user for user in users if PowerUser.objects.filter(user=user).exists()]
+        users.power = [user for user in users if PowerUser.objects.filter(user=user).exists()]
         context['users'] = users
-        context['power'] = power
         return context
 
 
@@ -101,6 +130,7 @@ class UserChangeView(LoginRequiredMixin, UserIsSuperMixin, TemplateView):
 
     def post(self, request, *args, **kwargs):
         user = self.get_user(kwargs)
+        cache.set(user.username + '/power', self.value)
         self.change(user)
         return HttpResponseRedirect(reverse('user_manage'))
 
@@ -111,6 +141,7 @@ class UserChangeView(LoginRequiredMixin, UserIsSuperMixin, TemplateView):
 
 
 class UserPromoteView(UserChangeView):
+    value = True
     template_name = 'malt/user_promote.html'
 
     def change(self, user):
@@ -119,6 +150,7 @@ class UserPromoteView(UserChangeView):
 
 
 class UserDemoteView(UserChangeView):
+    value = False
     template_name = 'malt/user_demote.html'
 
     def change(self, user):
@@ -232,7 +264,7 @@ class UploadAssetConfirmView(PowerView):
         return HttpResponse('asset')
 
 
-class IndexView(LoginRequiredMixin, TemplateView):
+class IndexView(PublicMaltView):
     template_name = 'malt/index.html'
 
     def get_context_data(self, **kwargs):

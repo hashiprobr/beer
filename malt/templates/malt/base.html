@@ -25,8 +25,9 @@
                 {% endif %}
             {% endif %}
         </ul>
-        {% block plugin %}
-        {% endblock %}
+        {% if power %}
+            {% include 'malt/uploader_form.html' with method='code' %}
+        {% endif %}
         <div class="profile">
             <p>
                 {{ request.user.get_username }}
