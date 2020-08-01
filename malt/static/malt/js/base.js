@@ -75,8 +75,10 @@ function connectDragSignals(source, target) {
 
         let input = target.querySelector('input[type="file"]');
 
-        input.files = event.dataTransfer.files;
-        input.dispatchEvent(new Event('change'));
+        if (event.dataTransfer.files.length > 0) {
+            input.files = event.dataTransfer.files;
+            input.dispatchEvent(new Event('change'));
+        }
 
         counter = 0;
         target.classList.remove('drag');
@@ -103,7 +105,8 @@ document.addEventListener('DOMContentLoaded', function () {
         let form = uploader.querySelector('form');
         let input = uploader.querySelector('input[type="file"]');
 
-        uploader.addEventListener('click', function () {
+        uploader.addEventListener('click', function (event) {
+            event.preventDefault();
             input.dispatchEvent(new MouseEvent('click'));
         });
 

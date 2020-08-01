@@ -253,6 +253,13 @@ EMAIL_USE_SSL = env.bool('EMAIL_USE_SSL', False)
 DEFAULT_FROM_EMAIL = env.str('DEFAULT_FROM_EMAIL', 'webmaster@localhost')
 
 
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    },
+}
+
+
 LOGIN_URL = '/login'
 
 LOGIN_REDIRECT_URL = '/'
