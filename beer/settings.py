@@ -255,7 +255,8 @@ DEFAULT_FROM_EMAIL = env.str('DEFAULT_FROM_EMAIL', 'webmaster@localhost')
 
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'BACKEND': 'django.core.cache.backends.memcached.PyLibMCCache',
+        'LOCATION': '{}:{}'.format(env.str('CACHE_HOST', 'localhost'), env.int('CACHE_PORT', 11210)),
     },
 }
 
