@@ -25,15 +25,15 @@ class Brewery(Brewer):
         try:
             text = content.decode('utf-8')
         except UnicodeDecodeError:
-            self.history.append('The file seems to be binary.')
+            self.history.append('File seems to be binary.')
             return None
-        self.history.append('The file does not seem to be binary.')
+        self.history.append('File does not seem to be binary.')
 
         lines = text.split('\n')
 
-        for i, line in enumerate(lines):
+        for i, line in enumerate(lines, 1):
             if line.strip() == '...':
-                self.history.append('Separator found in line {}.'.format(i + 1))
+                self.history.append('Separator found in line {}.'.format(i))
 
                 try:
                     meta = yaml.load('\n'.join(lines[:i]))
@@ -82,12 +82,12 @@ class Brewery(Brewer):
         try:
             Yeast = YEASTS[type]
         except KeyError:
-            self.raiseBrewError('The file is not an yeast and {} is not editable.'.format(type))
+            self.raiseBrewError('File is not an yeast and {} is not editable.'.format(type))
 
         try:
             clean_meta = Yeast.clean(meta)
         except YeastError as error:
-            self.raiseBrewError('Page not valid')
+            self.raiseBrewError('Page not valid.')
 
         yeast = Yeast(clean_meta)
 
