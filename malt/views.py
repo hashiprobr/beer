@@ -6,6 +6,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.cache import cache
 from django.core.paginator import EmptyPage, Paginator
 from django.http import Http404, HttpResponseNotFound, HttpResponseBadRequest, HttpResponseRedirect, HttpResponse, JsonResponse
+from django.template.response import TemplateResponse
 from django.urls import reverse, reverse_lazy
 from django.views import generic
 from shortuuid import uuid
@@ -14,6 +15,8 @@ from beer import public_storage, private_storage
 
 from .models import PowerUser
 from .forms import UserAddForm
+from .brewing import BrewError
+from .brewery import Brewery
 
 User = get_user_model()
 
@@ -59,6 +62,14 @@ class TemplateView(TemplateDebugMixin, generic.TemplateView):
 
 
 class FormView(TemplateDebugMixin, generic.FormView):
+    pass
+
+
+class UpdateView(TemplateDebugMixin, generic.edit.UpdateView):
+    pass
+
+
+class DeleteView(TemplateDebugMixin, generic.edit.DeleteView):
     pass
 
 
@@ -108,14 +119,14 @@ class UserManageView(LoginRequiredMixin, UserIsSuperMixin, FormView):
         return context
 
 
-class UserEditView(LoginRequiredMixin, UserIsSuperMixin, generic.edit.UpdateView):
+class UserEditView(LoginRequiredMixin, UserIsSuperMixin, UpdateView):
     model = User
     fields = ['first_name', 'last_name']
     template_name = 'malt/user_edit.html'
     success_url = reverse_lazy('user_manage')
 
 
-class UserRemoveView(LoginRequiredMixin, UserIsSuperMixin, generic.edit.DeleteView):
+class UserRemoveView(LoginRequiredMixin, UserIsSuperMixin, DeleteView):
     model = User
     template_name = 'malt/user_delete.html'
     success_url = reverse_lazy('user_manage')
@@ -193,22 +204,22 @@ class UploadView(PowerView):
 
 class UploadCodeView(PowerView):
     def post(self, request, *args, **kwargs):
-        if len(request.FILES) != 1:
-            return HttpResponseBadRequest()
+        meta = request.POST.dict()
+
+        del meta[CSRF_KEY]
+
+        brewery = Brewery()
 
         try:
-            file = request.FILES['file']
-        except KeyError:
-            return HttpResponseBadRequest()
+            url = brewery.brew(request.FILES, meta)
+        except BrewError as error:
+            context = {
+                'power': is_poweruser(self.request.user),
+                'error': error,
+            }
+            return TemplateResponse(request, 'malt/error.html', context)
 
-        body = request.POST.dict()
-        del body[CSRF_KEY]
-
-        for key, value in body.items():
-            print(key, value)
-        print(file)
-
-        return HttpResponse('code')
+        return HttpResponseRedirect(url)
 
 
 class UploadAssetView(PowerView):

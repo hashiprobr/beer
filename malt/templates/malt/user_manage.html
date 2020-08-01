@@ -15,19 +15,19 @@
             </tr>
         </thead>
         <tbody>
-        {% for user in users %}
-            <tr>
-                <td>{{ user.username }}</td>
-                <td>{{ user.email }}</td>
-                <td><a href="{% url 'user_edit' pk=user.pk %}">edit</a></td>
-                <td><a href="{% url 'user_remove' pk=user.pk %}">remove</a></td>
-                {% if user.pk in users.power %}
-                    <td><a href="{% url 'user_demote' pk=user.pk %}">demote</a></td>
-                {% else %}
-                    <td><a href="{% url 'user_promote' pk=user.pk %}">promote</a></td>
-                {% endif %}
-            </tr>
-        {% endfor %}
+            {% for user in users %}
+                <tr>
+                    <td>{{ user.username }}</td>
+                    <td>{{ user.email }}</td>
+                    <td><a href="{% url 'user_edit' pk=user.pk %}">edit</a></td>
+                    <td><a href="{% url 'user_remove' pk=user.pk %}">remove</a></td>
+                    {% if user.pk in users.power %}
+                        <td><a href="{% url 'user_demote' pk=user.pk %}">demote</a></td>
+                    {% else %}
+                        <td><a href="{% url 'user_promote' pk=user.pk %}">promote</a></td>
+                    {% endif %}
+                </tr>
+            {% endfor %}
         </tbody>
         <caption>
             {% if users.has_previous %}

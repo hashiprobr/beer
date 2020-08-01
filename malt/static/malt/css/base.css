@@ -7,23 +7,23 @@ thead {
     border-bottom: 1px solid #000000;
     background-color: #ffffff;
 }
-th {
-    padding: .5rem 1rem;
-    text-align: left;
-    font-weight: bold;
-}
 tbody tr:nth-child(odd) {
     background-color: #efefef;
 }
 tbody tr:nth-child(even) {
     background-color: #ffffff;
 }
+th {
+    padding: .5rem 1rem;
+    text-align: left;
+    font-weight: bold;
+}
 td {
     padding: .5rem 1rem;
 }
 caption {
     caption-side: bottom;
-    padding-top: .5rem;
+    padding: .5rem 1rem;
 }
 
 nav {

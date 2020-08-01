@@ -36,11 +36,11 @@ form {
     width: 22.5rem;
 }
 
-.add .uploader:not(.boolean) span::after {
+.add label .uploader span::after {
     content: normal;
 }
 
-.add .uploader:not(.boolean) p {
+.uploader p {
     margin: 0;
     padding: 0;
 }
