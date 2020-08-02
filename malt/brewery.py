@@ -73,7 +73,7 @@ class Brewery(Brewer):
         self.history.append('Separator not found.')
         return None
 
-    def priming(self, meta, sugars):
+    def prime(self, meta, sugars):
         try:
             type = meta.pop('view_name')
         except KeyError:
@@ -136,11 +136,11 @@ class Brewery(Brewer):
                 if yeasts:
                     return yeasts[0].ferment(sugars)
                 else:
-                    return self.priming(meta, sugars)
+                    return self.prime(meta, sugars)
 
         yeast = self.grow(name, content)
 
         if yeast is None:
-            return self.priming(meta, [(name, BytesIO(content))])
+            return self.prime(meta, [(name, BytesIO(content))])
         else:
             return yeast.ferment()
