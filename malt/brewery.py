@@ -82,7 +82,7 @@ class Brewery(Brewer):
         try:
             Yeast = YEASTS[type]
         except KeyError:
-            self.raiseBrewError('File is not an yeast and {} is not editable.'.format(type))
+            self.raiseBrewError('File is not an yeast and page is not editable.')
 
         try:
             clean_meta = Yeast.clean(meta)
