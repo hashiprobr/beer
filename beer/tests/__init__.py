@@ -22,11 +22,20 @@ from .. import public_storage, private_storage
 FILES_DIR = 'files'
 
 
-class UnitTestCase(SimpleTestCase):
+class TestMixin:
+    @classmethod
+    def files_dir(cls, __file__):
+        path = os.path.abspath(__file__)
+        dir = os.path.dirname(path)
+        name = os.path.basename(path)
+        return os.path.join(dir, FILES_DIR, name[5:-3])
+
+
+class UnitTestCase(TestMixin, SimpleTestCase):
     pass
 
 
-class IntegrationTestCase(TestCase):
+class IntegrationTestCase(TestMixin, TestCase):
     def _pre_setup(self):
         public_storage.clear()
         private_storage.clear()
@@ -166,16 +175,10 @@ class AcceptanceTestCase:
     def text(self, element):
         return ' '.join(element.text.strip().split())
 
-    def files_dir(self, __file__):
-        path = os.path.abspath(__file__)
-        dir = os.path.dirname(path)
-        name = os.path.basename(path)
-        return os.path.join(dir, FILES_DIR, name[5:-3])
 
-
-class AcceptanceSyncTestCase(AcceptanceTestCase, SyncLiveServerTestCase):
+class AcceptanceSyncTestCase(TestMixin, AcceptanceTestCase, SyncLiveServerTestCase):
     pass
 
 
-class AcceptanceAsyncTestCase(AcceptanceTestCase, ChannelsLiveServerTestCase):
+class AcceptanceAsyncTestCase(TestMixin, AcceptanceTestCase, ChannelsLiveServerTestCase):
     serve_static = not settings.CONTAINED

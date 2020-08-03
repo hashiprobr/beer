@@ -22,8 +22,6 @@ class Enzyme:
 
         try:
             infos = [info for info in self.infos(archive) if self.is_file(info)]
-            if not infos:
-                raise EnzymeError('seems to be empty')
 
             size = sum(self.size(info) for info in infos)
             if size > settings.FILE_UPLOAD_MAX_TEMP_SIZE:
