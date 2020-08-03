@@ -10,10 +10,12 @@ async function upload(ps, form) {
 
     let action;
     let body = new FormData();
+    let date;
 
     for (let input of form.querySelectorAll('input')) {
         if (input.type === 'file') {
             body.append('name', input.files[0].name);
+            date = input.files[0].lastModified;
         } else {
             if (input.name === 'action') {
                 action = input.value;
@@ -30,6 +32,7 @@ async function upload(ps, form) {
     });
 
     body = await response.json();
+    body.date = date;
 
     ps[1].textContent = 'uploading...';
 

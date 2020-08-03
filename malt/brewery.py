@@ -1,7 +1,5 @@
 import yaml
 
-from io import BytesIO
-
 from yaml import YAMLError
 
 from .brewing import YeastError, Brewer
@@ -102,16 +100,19 @@ class Brewery(Brewer):
         except KeyError:
             self.raiseBrewError('The field name must be file.')
 
+        try:
+            date = int(int(meta['date']) / 1000)
+        except (KeyError, ValueError):
+            self.raiseBrewError('A timestamp is expected and its field name must be date.')
+
         name = file.name
         content = file.read()
 
         self.history.append('Received {}.'.format(name))
 
         for enzyme in ENZYMES:
-            file = BytesIO(content)
-
             try:
-                members = enzyme.convert(file)
+                members = enzyme.convert(content)
             except EnzymeError as error:
                 self.history.append('File is not a valid {} archive: {}'.format(enzyme.extension, error))
             else:
@@ -120,13 +121,13 @@ class Brewery(Brewer):
                 yeasts = []
                 sugars = []
 
-                for name, content in members:
+                for date, name, content in members:
                     self.history.append('Extracted {}.'.format(name))
 
                     yeast = self.grow(name, content)
 
                     if yeast is None:
-                        sugars.append((name, BytesIO(content)))
+                        sugars.append((date, name, content))
                     else:
                         yeasts.append(yeast)
 
@@ -141,6 +142,6 @@ class Brewery(Brewer):
         yeast = self.grow(name, content)
 
         if yeast is None:
-            return self.prime(meta, [(name, BytesIO(content))])
+            return self.prime(meta, [(date, name, content)])
         else:
             return yeast.ferment()
