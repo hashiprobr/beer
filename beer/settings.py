@@ -109,6 +109,7 @@ CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.memcached.PyLibMCCache',
         'LOCATION': '{}:{}'.format(env.str('CACHE_HOST', 'localhost'), env.int('CACHE_PORT', 11210)),
+        'KEY_PREFIX': 'test' if TESTING else '',
     },
 }
 
