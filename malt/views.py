@@ -3,7 +3,6 @@ from urllib.parse import quote, parse_qs
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.core.cache import cache
 from django.core.paginator import EmptyPage, Paginator
 from django.http import Http404, HttpResponseNotFound, HttpResponseBadRequest, HttpResponseRedirect, HttpResponse, JsonResponse
 from django.template.response import TemplateResponse
@@ -15,6 +14,7 @@ from beer import public_storage, private_storage
 
 from .models import PowerUser
 from .forms import UserAddForm
+from .caching import power_cache, member_cache
 from .brewing import BrewError
 from .brewery import Brewery
 
@@ -26,15 +26,6 @@ PAGE_SIZE = 50
 CSRF_KEY = 'csrfmiddlewaretoken'
 
 
-def is_poweruser(user):
-    key = user.username + '/power'
-    power = cache.get(key)
-    if power is None:
-        power = PowerUser.objects.filter(user=user).exists()
-        cache.set(key, power)
-    return power
-
-
 class UserIsSuperMixin(UserPassesTestMixin):
     def test_func(self):
         return self.request.user.is_superuser
@@ -42,7 +33,7 @@ class UserIsSuperMixin(UserPassesTestMixin):
 
 class UserIsPowerMixin(UserPassesTestMixin):
     def test_func(self):
-        return is_poweruser(self.request.user)
+        return power_cache.get(self.request.user)
 
 
 class UserIsMemberMixin(UserPassesTestMixin):
@@ -80,7 +71,7 @@ class PowerView(LoginRequiredMixin, UserIsPowerMixin, generic.View):
 class MaltView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['power'] = is_poweruser(self.request.user)
+        context['power'] = power_cache.get(self.request.user)
         return context
 
 
@@ -114,7 +105,7 @@ class UserManageView(LoginRequiredMixin, UserIsSuperMixin, FormView):
             users = paginator.page(number)
         except (TypeError, EmptyPage):
             users = paginator.page(1)
-        users.power = PowerUser.objects.filter(user__in=users).values_list('user', flat=True)
+        users.power_pks = PowerUser.objects.filter(user__in=users).values_list('user', flat=True)
         context['users'] = users
         return context
 
@@ -141,7 +132,7 @@ class UserChangeView(LoginRequiredMixin, UserIsSuperMixin, TemplateView):
 
     def post(self, request, *args, **kwargs):
         user = self.get_user(kwargs)
-        cache.set(user.username + '/power', self.value)
+        power_cache.set(user, self.value)
         self.change(user)
         return HttpResponseRedirect(reverse('user_manage'))
 
@@ -214,7 +205,7 @@ class UploadCodeView(PowerView):
             url = brewery.brew(request.FILES, meta)
         except BrewError as error:
             context = {
-                'power': is_poweruser(self.request.user),
+                'power': power_cache.get(self.request.user),
                 'error': error,
             }
             return TemplateResponse(request, 'malt/error.html', context)
