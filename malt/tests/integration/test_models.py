@@ -48,12 +48,12 @@ class PowerUserTests(IntegrationTestCase):
         self.create(user)
         self.assertRaisesIntegrityErrorIfCreate(user)
 
-    def testRetrievesByUserAfterCreate(self):
+    def testRetrievesAfterCreate(self):
         user = self.createUser()
         self.create(user)
         self.assertRetrieves(user)
 
-    def testDoesNotRetrieveAfterCreateAndDeleteByUser(self):
+    def testDoesNotRetrieveAfterCreateAndDelete(self):
         user = self.createUser()
         self.create(user)
         self.delete(user)
