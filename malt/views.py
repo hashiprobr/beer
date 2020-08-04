@@ -13,8 +13,8 @@ from shortuuid import uuid
 from beer import public_storage, private_storage
 
 from .models import PowerUser
-from .forms import UserAddForm
-from .caching import power_cache, member_cache
+from .forms import UserManageForm
+from .caches import power_cache, member_cache
 from .brewing import BrewError
 from .brewery import Brewery
 
@@ -84,7 +84,7 @@ class PrivateMaltView(LoginRequiredMixin, UserIsMemberMixin, MaltView):
 
 
 class UserManageView(LoginRequiredMixin, UserIsSuperMixin, FormView):
-    form_class = UserAddForm
+    form_class = UserManageForm
     template_name = 'malt/user_manage.html'
     success_url = reverse_lazy('user_manage')
 
