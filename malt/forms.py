@@ -64,6 +64,9 @@ class UserAddForm(forms.Form):
 
                 self.users[username] = kwargs
 
+        if not self.users:
+            raise ValidationError({'file': 'The file cannot be empty.'})
+
         for kwargs in self.users.values():
             del kwargs['line']
 
