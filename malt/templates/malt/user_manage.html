@@ -2,7 +2,38 @@
 
 {% block subcontent %}
     <h2>
-        Edit/remove
+        Bulk add or edit
+    </h2>
+    <form class="add" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        {{ form.non_field_errors }}
+
+        <label for="{{ form.file.id_for_label }}">
+            <span>{{ form.file.label }}</span>
+            {% include 'malt/uploader_input.html' with input=form.file %}
+        </label>
+
+        {{ form.file.errors }}
+
+        <label for="{{ form.domain.id_for_label }}">
+            <span>{{ form.domain.label }}</span>
+            {{ form.domain }}
+        </label>
+
+        {{ form.domain.errors }}
+
+        <label class="boolean" for="{{ form.promote.id_for_label }}">
+            {{ form.promote }}
+            <span>{{ form.promote.label }}</span>
+        </label>
+
+        {{ form.promote.errors }}
+
+        <input type="submit" value="Add">
+    </form>
+    <h2>
+        Edit, remove, or change
     </h2>
     <table>
         <thead>
@@ -43,35 +74,4 @@
             {% endif %}
         </caption>
     </table>
-    <h2>
-        Add list
-    </h2>
-    <form class="add" method="post" enctype="multipart/form-data">
-        {% csrf_token %}
-
-        {{ form.non_field_errors }}
-
-        <label for="{{ form.file.id_for_label }}">
-            <span>{{ form.file.label }}</span>
-            {% include 'malt/uploader_input.html' with input=form.file %}
-        </label>
-
-        {{ form.file.errors }}
-
-        <label for="{{ form.domain.id_for_label }}">
-            <span>{{ form.domain.label }}</span>
-            {{ form.domain }}
-        </label>
-
-        {{ form.domain.errors }}
-
-        <label class="boolean" for="{{ form.promote.id_for_label }}">
-            {{ form.promote }}
-            <span>{{ form.promote.label }}</span>
-        </label>
-
-        {{ form.promote.errors }}
-
-        <input type="submit" value="Add">
-    </form>
 {% endblock %}
