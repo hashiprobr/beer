@@ -90,10 +90,11 @@ class UserManageView(LoginRequiredMixin, UserIsSuperMixin, FormView):
 
     def form_valid(self, form):
         for username, kwargs in form.users.items():
-            user = User.objects.create_user(username, **kwargs)
+            user, _ = User.objects.update_or_create(username=username, defaults=kwargs)
             if form.promote:
-                power_user = PowerUser(user=user)
-                power_user.save()
+                PowerUser.objects.get_or_create(user=user)
+            else:
+                PowerUser.objects.filter(user=user).delete()
         return super().form_valid(form)
 
     def get_context_data(self, **kwargs):
