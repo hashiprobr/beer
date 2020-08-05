@@ -112,7 +112,7 @@ class UserManageView(LoginRequiredMixin, UserIsSuperMixin, FormView):
 
 class UserEditView(LoginRequiredMixin, UserIsSuperMixin, UpdateView):
     model = User
-    fields = ['first_name', 'last_name']
+    fields = ['email', 'first_name', 'last_name']
     template_name = 'malt/user_edit.html'
     success_url = reverse_lazy('user_manage')
 

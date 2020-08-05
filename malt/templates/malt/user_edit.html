@@ -9,6 +9,13 @@
 
         {{ form.non_field_errors }}
 
+        <label for="{{ form.email.id_for_label }}">
+            <span>{{ form.email.label }}</span>
+            {{ form.email }}
+        </label>
+
+        {{ form.email.errors }}
+
         <label for="{{ form.first_name.id_for_label }}">
             <span>{{ form.first_name.label }}</span>
             {{ form.first_name }}
