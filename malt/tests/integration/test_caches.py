@@ -35,21 +35,18 @@ class PowerCacheTests(IntegrationTestCase):
 
     def testIsPowerAfterCreate(self):
         user = User.objects.create_user(self.username)
-        power_user = PowerUser(user=user)
-        power_user.save()
+        PowerUser.objects.create(user=user)
         self.assertIsPower(user)
 
     def testIsNotPowerAfterCreateIfCached(self):
         user = User.objects.create_user(self.username)
-        power_user = PowerUser(user=user)
-        power_user.save()
+        PowerUser.objects.create(user=user)
         power_cache.set(user, False)
         self.assertIsNotPower(user)
 
     def testIsPowerAfterCreateIfOtherCached(self):
         user = User.objects.create_user(self.username)
         other_user = User.objects.create_user(self.other_username)
-        power_user = PowerUser(user=user)
-        power_user.save()
+        PowerUser.objects.create(user=user)
         power_cache.set(other_user, False)
         self.assertIsPower(user)

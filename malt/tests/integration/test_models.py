@@ -13,8 +13,7 @@ class PowerUserTests(IntegrationTestCase):
         return User.objects.create_user('u')
 
     def create(self, user):
-        power_user = PowerUser(user=user)
-        power_user.save()
+        PowerUser.objects.create(user=user)
 
     def retrieve(self, user):
         return PowerUser.objects.filter(user=user).exists()
