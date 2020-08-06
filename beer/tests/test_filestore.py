@@ -8,7 +8,7 @@ class StorageTests:
     name = 'n'
 
     content = b'c'
-    blank_content = b''
+    empty_content = b''
 
     def save(self, name, content):
         file = BytesIO(content)
@@ -23,29 +23,29 @@ class StorageTests:
         self.storage.delete(name)
         self.assertFalse(self.storage.exists(name))
 
-    def assertFileHasSameContentAfterSave(self, name, expected_content):
-        self.save(name, expected_content)
+    def assertFileHasSameContentAfterSave(self, name, expected):
+        self.save(name, expected)
         with self.storage.open(name, 'rb') as file:
-            actual_content = file.read()
-        self.assertEqual(expected_content, actual_content)
+            actual = file.read()
+        self.assertEqual(expected, actual)
 
     def testFileExistsAfterSave(self):
         self.assertFileExistsAfterSave(self.name, self.content)
 
-    def testFileWithBlankContentExistsAfterSave(self):
-        self.assertFileExistsAfterSave(self.name, self.blank_content)
+    def testFileWithEmptyContentExistsAfterSave(self):
+        self.assertFileExistsAfterSave(self.name, self.empty_content)
 
     def testFileDoesNotExistAfterSaveAndDelete(self):
         self.assertFileDoesNotExistAfterSaveAndDelete(self.name, self.content)
 
-    def testFileWithBlankContentDoesNotExistAfterSaveAndDelete(self):
-        self.assertFileDoesNotExistAfterSaveAndDelete(self.name, self.blank_content)
+    def testFileWithEmptyContentDoesNotExistAfterSaveAndDelete(self):
+        self.assertFileDoesNotExistAfterSaveAndDelete(self.name, self.empty_content)
 
     def testFileHasSameContentAfterSave(self):
         self.assertFileHasSameContentAfterSave(self.name, self.content)
 
-    def testFileWithBlankContentHasSameContentAfterSave(self):
-        self.assertFileHasSameContentAfterSave(self.name, self.blank_content)
+    def testFileWithEmptyContentHasSameContentAfterSave(self):
+        self.assertFileHasSameContentAfterSave(self.name, self.empty_content)
 
 
 class PublicStorageTests(StorageTests, IntegrationTestCase):

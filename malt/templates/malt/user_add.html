@@ -1,0 +1,42 @@
+{% extends 'malt/user.html' %}
+
+{% block subcontent %}
+    <h2>
+        Add
+    </h2>
+    <form method="post">
+        {% csrf_token %}
+
+        {{ form.non_field_errors }}
+
+        <label for="{{ form.username.id_for_label }}">
+            <span>{{ form.username.label }}</span>
+            {{ form.username }}
+        </label>
+
+        {{ form.username.errors }}
+
+        <label for="{{ form.email.id_for_label }}">
+            <span>{{ form.email.label }}</span>
+            {{ form.email }}
+        </label>
+
+        {{ form.email.errors }}
+
+        <label for="{{ form.first_name.id_for_label }}">
+            <span>{{ form.first_name.label }}</span>
+            {{ form.first_name }}
+        </label>
+
+        {{ form.first_name.errors }}
+
+        <label for="{{ form.last_name.id_for_label }}">
+            <span>{{ form.last_name.label }}</span>
+            {{ form.last_name }}
+        </label>
+
+        {{ form.last_name.errors }}
+
+        <input type="submit" value="Save">
+    </form>
+{% endblock %}

@@ -34,6 +34,7 @@
             </p>
             <ul>
                 {% if request.user.is_superuser %}
+                    <li><a href="{% url 'user_add' %}">Add user</a></li>
                     <li><a href="{% url 'user_manage' %}">Manage users</a></li>
                 {% endif %}
                 <li><a href="{% url 'password_change' %}">Change password</a></li>

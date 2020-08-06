@@ -3,18 +3,19 @@ from urllib.parse import quote, parse_qs
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.core.cache import cache
 from django.core.paginator import EmptyPage, Paginator
-from django.http import Http404, HttpResponseNotFound, HttpResponseBadRequest, HttpResponseRedirect, HttpResponse, JsonResponse
-from django.template.response import TemplateResponse
+from django.http import HttpResponseNotFound, HttpResponseBadRequest, HttpResponseRedirect, HttpResponse, JsonResponse
 from django.urls import reverse, reverse_lazy
 from django.views import generic
+from django.views.generic.base import ContextMixin, TemplateResponseMixin
+from django.views.generic.detail import SingleObjectTemplateResponseMixin, BaseDetailView
 from shortuuid import uuid
 
 from beer import public_storage, private_storage
 
 from .models import PowerUser
-from .forms import UserAddForm
+from .forms import UserManageForm
+from .caches import power_cache, member_cache
 from .brewing import BrewError
 from .brewery import Brewery
 
@@ -26,15 +27,6 @@ PAGE_SIZE = 50
 CSRF_KEY = 'csrfmiddlewaretoken'
 
 
-def is_poweruser(user):
-    key = user.username + '/power'
-    power = cache.get(key)
-    if power is None:
-        power = PowerUser.objects.filter(user=user).exists()
-        cache.set(key, power)
-    return power
-
-
 class UserIsSuperMixin(UserPassesTestMixin):
     def test_func(self):
         return self.request.user.is_superuser
@@ -42,7 +34,7 @@ class UserIsSuperMixin(UserPassesTestMixin):
 
 class UserIsPowerMixin(UserPassesTestMixin):
     def test_func(self):
-        return is_poweruser(self.request.user)
+        return power_cache.get(self.request.user)
 
 
 class UserIsMemberMixin(UserPassesTestMixin):
@@ -50,59 +42,39 @@ class UserIsMemberMixin(UserPassesTestMixin):
         return True
 
 
-class TemplateDebugMixin:
+class PowerMixin:
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['power'] = power_cache.get(self.request.user)
+        return context
+
+
+class DebugMixin:
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['debug'] = settings.TEMPLATE_DEBUG
         return context
 
 
-class TemplateView(TemplateDebugMixin, generic.TemplateView):
-    pass
+class UserAddView(LoginRequiredMixin, UserIsSuperMixin, DebugMixin, generic.edit.CreateView):
+    model = User
+    fields = ['username', 'email', 'first_name', 'last_name']
+    template_name = 'malt/user_add.html'
+    success_url = reverse_lazy('user_manage')
 
 
-class FormView(TemplateDebugMixin, generic.FormView):
-    pass
-
-
-class UpdateView(TemplateDebugMixin, generic.edit.UpdateView):
-    pass
-
-
-class DeleteView(TemplateDebugMixin, generic.edit.DeleteView):
-    pass
-
-
-class PowerView(LoginRequiredMixin, UserIsPowerMixin, generic.View):
-    pass
-
-
-class MaltView(TemplateView):
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['power'] = is_poweruser(self.request.user)
-        return context
-
-
-class PublicMaltView(LoginRequiredMixin, MaltView):
-    pass
-
-
-class PrivateMaltView(LoginRequiredMixin, UserIsMemberMixin, MaltView):
-    pass
-
-
-class UserManageView(LoginRequiredMixin, UserIsSuperMixin, FormView):
-    form_class = UserAddForm
+class UserManageView(LoginRequiredMixin, UserIsSuperMixin, DebugMixin, generic.FormView):
+    form_class = UserManageForm
     template_name = 'malt/user_manage.html'
     success_url = reverse_lazy('user_manage')
 
     def form_valid(self, form):
         for username, kwargs in form.users.items():
-            user = User.objects.create_user(username, **kwargs)
+            user, _ = User.objects.update_or_create(username=username, defaults=kwargs)
             if form.promote:
-                power_user = PowerUser(user=user)
-                power_user.save()
+                PowerUser.objects.get_or_create(user=user)
+            else:
+                PowerUser.objects.filter(user=user).delete()
         return super().form_valid(form)
 
     def get_context_data(self, **kwargs):
@@ -114,41 +86,32 @@ class UserManageView(LoginRequiredMixin, UserIsSuperMixin, FormView):
             users = paginator.page(number)
         except (TypeError, EmptyPage):
             users = paginator.page(1)
-        users.power = PowerUser.objects.filter(user__in=users).values_list('user', flat=True)
+        users.power_pks = PowerUser.objects.filter(user__in=users).values_list('user', flat=True)
         context['users'] = users
         return context
 
 
-class UserEditView(LoginRequiredMixin, UserIsSuperMixin, UpdateView):
+class UserEditView(LoginRequiredMixin, UserIsSuperMixin, DebugMixin, generic.edit.UpdateView):
     model = User
-    fields = ['first_name', 'last_name']
+    fields = ['username', 'email', 'first_name', 'last_name']
     template_name = 'malt/user_edit.html'
     success_url = reverse_lazy('user_manage')
 
 
-class UserRemoveView(LoginRequiredMixin, UserIsSuperMixin, DeleteView):
+class UserRemoveView(LoginRequiredMixin, UserIsSuperMixin, DebugMixin, generic.edit.DeleteView):
     model = User
     template_name = 'malt/user_delete.html'
     success_url = reverse_lazy('user_manage')
 
 
-class UserChangeView(LoginRequiredMixin, UserIsSuperMixin, TemplateView):
-    def get_user(self, kwargs):
-        try:
-            return User.objects.get(pk=kwargs['pk'])
-        except User.DoesNotExist:
-            raise Http404
+class UserChangeView(LoginRequiredMixin, UserIsSuperMixin, DebugMixin, SingleObjectTemplateResponseMixin, BaseDetailView):
+    model = User
 
     def post(self, request, *args, **kwargs):
-        user = self.get_user(kwargs)
-        cache.set(user.username + '/power', self.value)
+        user = self.get_object()
+        power_cache.set(user, self.value)
         self.change(user)
         return HttpResponseRedirect(reverse('user_manage'))
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['user'] = self.get_user(kwargs)
-        return context
 
 
 class UserPromoteView(UserChangeView):
@@ -156,8 +119,7 @@ class UserPromoteView(UserChangeView):
     template_name = 'malt/user_promote.html'
 
     def change(self, user):
-        power_user = PowerUser(user=user)
-        power_user.save()
+        PowerUser.objects.get_or_create(user=user)
 
 
 class UserDemoteView(UserChangeView):
@@ -166,6 +128,10 @@ class UserDemoteView(UserChangeView):
 
     def change(self, user):
         PowerUser.objects.filter(user=user).delete()
+
+
+class PowerView(LoginRequiredMixin, UserIsPowerMixin, generic.View):
+    pass
 
 
 class UploadView(PowerView):
@@ -202,7 +168,9 @@ class UploadView(PowerView):
         return HttpResponseNotFound()
 
 
-class UploadCodeView(PowerView):
+class UploadCodeView(LoginRequiredMixin, UserIsPowerMixin, PowerMixin, DebugMixin, ContextMixin, TemplateResponseMixin, generic.View):
+    template_name = 'malt/error.html'
+
     def post(self, request, *args, **kwargs):
         meta = request.POST.dict()
 
@@ -213,11 +181,9 @@ class UploadCodeView(PowerView):
         try:
             url = brewery.brew(request.FILES, meta)
         except BrewError as error:
-            context = {
-                'power': is_poweruser(self.request.user),
-                'error': error,
-            }
-            return TemplateResponse(request, 'malt/error.html', context)
+            context = self.get_context_data(**kwargs)
+            context['error'] = error
+            return self.render_to_response(context)
 
         return HttpResponseRedirect(url)
 
@@ -275,10 +241,18 @@ class UploadAssetConfirmView(PowerView):
         return HttpResponse('asset')
 
 
-class IndexView(PublicMaltView):
+class TemplateView(PowerMixin, DebugMixin, generic.TemplateView):
+    pass
+
+
+class IndexView(LoginRequiredMixin, TemplateView):
     template_name = 'malt/index.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['version'] = '{}.{}'.format(settings.VERSION, settings.PATCH_VERSION)
         return context
+
+
+class MaltView(LoginRequiredMixin, UserIsMemberMixin, TemplateView):
+    pass

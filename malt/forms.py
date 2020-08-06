@@ -1,11 +1,8 @@
 from django import forms
-from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 
-User = get_user_model()
 
-
-class UserAddForm(forms.Form):
+class UserManageForm(forms.Form):
     file = forms.FileField(label='List')
     domain = forms.CharField(label='Domain', required=False)
     promote = forms.BooleanField(label='Promote all users in the list.', required=False)
@@ -36,8 +33,6 @@ class UserAddForm(forms.Form):
 
                 if username in self.users:
                     self.raiseValidationErrorFile(i, 'username already seen in line {}'.format(self.users[username]['line']))
-                if User.objects.filter(username=username).exists():
-                    self.raiseValidationErrorFile(i, 'username already exists')
 
                 kwargs = {
                     'line': i,
@@ -63,6 +58,9 @@ class UserAddForm(forms.Form):
                     kwargs['last_name'] = ' '.join(words[3:])
 
                 self.users[username] = kwargs
+
+        if not self.users:
+            raise ValidationError({'file': 'The file cannot be empty.'})
 
         for kwargs in self.users.values():
             del kwargs['line']

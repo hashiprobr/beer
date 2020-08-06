@@ -19,21 +19,14 @@ class Brewer:
 class Yeast(Brewer):
     expected = []
 
-    @classmethod
-    def clean(cls, meta):
+    def clean(self, meta):
         clean_meta = {}
-        for key, type in cls.expected:
+        for key in self.expected:
             try:
                 value = meta[key]
             except KeyError:
                 raise YeastError('expected ' + key)
-            if not isinstance(value, type):
-                raise YeastError('{} must be {}'.format(key, type.__name__))
+            if not isinstance(value, str):
+                raise YeastError(key + ' must be a string')
             clean_meta[key] = value
         return clean_meta
-
-    def __init__(self, meta, data=None, name=None):
-        super().__init__()
-        self.meta = meta
-        self.data = data
-        self.name = name

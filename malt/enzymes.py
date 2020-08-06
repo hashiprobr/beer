@@ -1,5 +1,6 @@
 import tarfile
 
+from io import BytesIO
 from tarfile import TarError
 from zipfile import BadZipFile, ZipFile
 
@@ -11,7 +12,9 @@ class EnzymeError(Exception):
 
 
 class Enzyme:
-    def convert(self, file):
+    def convert(self, content):
+        file = BytesIO(content)
+
         try:
             archive = self.open(file)
         except self.Error:
@@ -19,14 +22,12 @@ class Enzyme:
 
         try:
             infos = [info for info in self.infos(archive) if self.is_file(info)]
-            if not infos:
-                raise EnzymeError('seems to be empty')
 
             size = sum(self.size(info) for info in infos)
             if size > settings.FILE_UPLOAD_MAX_TEMP_SIZE:
                 raise EnzymeError('cannot have more than 25MB uncompressed')
 
-            return [(self.name(info), self.read(archive, info)) for info in infos]
+            return [(self.date(info), self.name(info), self.read(archive, info)) for info in infos]
         finally:
             self.close(archive)
 
@@ -46,6 +47,9 @@ class ZipEnzyme(Enzyme):
 
     def size(self, info):
         return info.file_size
+
+    def date(self, info):
+        return None
 
     def name(self, info):
         return info.filename
@@ -72,6 +76,9 @@ class TarEnzyme(Enzyme):
 
     def size(self, info):
         return info.size
+
+    def date(self, info):
+        return info.mtime
 
     def name(self, info):
         return info.name

@@ -1,3 +1,4 @@
+import json
 import os
 
 from bs4 import BeautifulSoup
@@ -7,6 +8,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.wait import WebDriverWait
 from django.conf import settings
+from django.core.cache import cache
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 from channels.testing import ChannelsLiveServerTestCase
@@ -22,26 +24,59 @@ from .. import public_storage, private_storage
 FILES_DIR = 'files'
 
 
-class UnitTestCase(SimpleTestCase):
+class FilesMixin:
+    @classmethod
+    def files_dir(cls, __file__):
+        path = os.path.abspath(__file__)
+        dir = os.path.dirname(path)
+        name = os.path.basename(path)
+        return os.path.join(dir, FILES_DIR, name[5:-3])
+
+
+class ClearMixin:
+    def _pre_setup(self):
+        private_storage.clear()
+        public_storage.clear()
+        super()._pre_setup()
+        cache.clear()
+
+
+class UnitTestCase(FilesMixin, SimpleTestCase):
     pass
 
 
-class IntegrationTestCase(TestCase):
-    def _pre_setup(self):
-        public_storage.clear()
-        private_storage.clear()
-        super()._pre_setup()
+class IntegrationTestCase(FilesMixin, ClearMixin, TestCase):
+    pass
 
 
 class ViewTestCase(IntegrationTestCase):
-    def html(self, urlconf=None, args=None, kwargs=None, current_app=None):
-        url = reverse(self.view_name, urlconf, args, kwargs, current_app)
-        response = self.client.get(url)
-        self.assertEqual(200, response.status_code)
+    def url(self, urlconf=None, args=None, kwargs=None, current_app=None):
+        return reverse(self.view_name, urlconf, args, kwargs, current_app)
+
+    def get(self, urlconf=None, args=None, kwargs=None, current_app=None):
+        return self.client.get(self.url(urlconf, args, kwargs, current_app))
+
+    def get_status(self, urlconf=None, args=None, kwargs=None, current_app=None):
+        response = self.get(urlconf, args, kwargs, current_app)
+        return response.status_code
+
+    def get_html(self, urlconf=None, args=None, kwargs=None, current_app=None):
+        response = self.get(urlconf, args, kwargs, current_app)
         return BeautifulSoup(response.content, 'html.parser')
 
+    def post(self, urlconf=None, args=None, kwargs=None, current_app=None, data=None):
+        return self.client.post(self.url(urlconf, args, kwargs, current_app), data)
+
+    def post_status(self, urlconf=None, args=None, kwargs=None, current_app=None, data=None):
+        response = self.post(urlconf, args, kwargs, current_app, data)
+        return response.status_code
+
+    def post_json(self, urlconf=None, args=None, kwargs=None, current_app=None, data=None):
+        response = self.post(urlconf, args, kwargs, current_app, data)
+        return json.loads(response.content)
+
     def string(self, element):
-        return ' '.join(element.string.strip().split())
+        return ' '.join(''.join(element.find_all(text=True)).strip().split())
 
 
 class AcceptanceTestCase:
@@ -166,16 +201,10 @@ class AcceptanceTestCase:
     def text(self, element):
         return ' '.join(element.text.strip().split())
 
-    def files_dir(self, __file__):
-        path = os.path.abspath(__file__)
-        dir = os.path.dirname(path)
-        name = os.path.basename(path)
-        return os.path.join(dir, FILES_DIR, name[5:-3])
 
-
-class AcceptanceSyncTestCase(AcceptanceTestCase, SyncLiveServerTestCase):
+class AcceptanceSyncTestCase(FilesMixin, ClearMixin, AcceptanceTestCase, SyncLiveServerTestCase):
     pass
 
 
-class AcceptanceAsyncTestCase(AcceptanceTestCase, ChannelsLiveServerTestCase):
+class AcceptanceAsyncTestCase(FilesMixin, ClearMixin, AcceptanceTestCase, ChannelsLiveServerTestCase):
     serve_static = not settings.CONTAINED

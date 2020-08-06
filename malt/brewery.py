@@ -1,13 +1,9 @@
 import yaml
 
-from io import BytesIO
-
 from yaml import YAMLError
 
 from .brewing import YeastError, Brewer
 from .enzymes import EnzymeError, ZipEnzyme, TarEnzyme
-
-from ale.yeasts import NodeYeast
 
 
 ENZYMES = [
@@ -16,12 +12,11 @@ ENZYMES = [
 ]
 
 YEASTS = {
-    'node': NodeYeast,
 }
 
 
 class Brewery(Brewer):
-    def grow(self, name, content):
+    def grow(self, content, yeasts=YEASTS):
         try:
             text = content.decode('utf-8')
         except UnicodeDecodeError:
@@ -31,12 +26,12 @@ class Brewery(Brewer):
 
         lines = text.split('\n')
 
-        for i, line in enumerate(lines, 1):
+        for i, line in enumerate(lines):
             if line.strip() == '...':
-                self.history.append('Separator found in line {}.'.format(i))
+                self.history.append('Separator found in line {}.'.format(i + 1))
 
                 try:
-                    meta = yaml.load('\n'.join(lines[:i]))
+                    meta = yaml.load('\n'.join(lines[:i]), Loader=yaml.Loader)
                 except YAMLError as error:
                     self.history.append('Preamble is not valid YAML: {}'.format(error))
                     return None
@@ -55,45 +50,43 @@ class Brewery(Brewer):
                 self.history.append('Preamble has a type.')
 
                 try:
-                    Yeast = YEASTS[type]
+                    yeast = yeasts[type]
                 except KeyError:
                     self.history.append('Preamble type {} does not exist.'.format(type))
                     return None
                 self.history.append('Preamble type {} exists.'.format(type))
 
                 try:
-                    clean_meta = Yeast.clean(meta)
+                    clean_meta = yeast.clean(meta)
                 except YeastError as error:
                     self.history.append('Preamble does not describe a valid {}: {}'.format(type, error))
                     return None
                 self.history.append('Preamble describes a valid {}.'.format(type))
 
-                return Yeast(clean_meta, '\n'.join(lines[(i + 1):]), name)
+                return yeast, clean_meta, '\n'.join(lines[(i + 1):])
 
         self.history.append('Separator not found.')
         return None
 
-    def priming(self, meta, sugars):
+    def prime(self, meta, sugars, yeasts=YEASTS):
         try:
             type = meta.pop('view_name')
         except KeyError:
             self.raiseBrewError('Page not found.')
 
         try:
-            Yeast = YEASTS[type]
+            yeast = yeasts[type]
         except KeyError:
-            self.raiseBrewError('File is not an yeast and {} is not editable.'.format(type))
+            self.raiseBrewError('File does not have an yeast and page is not editable.')
 
         try:
-            clean_meta = Yeast.clean(meta)
+            clean_meta = yeast.clean(meta)
         except YeastError as error:
             self.raiseBrewError('Page not valid.')
 
-        yeast = Yeast(clean_meta)
+        return yeast.referment(clean_meta, sugars)
 
-        return yeast.referment(sugars)
-
-    def brew(self, files, meta):
+    def brew(self, files, meta, enzymes=ENZYMES, yeasts=YEASTS):
         if len(files) != 1:
             self.raiseBrewError('One file is expected and this file cannot have more than 25MB.')
 
@@ -102,45 +95,52 @@ class Brewery(Brewer):
         except KeyError:
             self.raiseBrewError('The field name must be file.')
 
+        try:
+            date = int(int(meta.pop('date')) / 1000)
+        except (KeyError, ValueError):
+            self.raiseBrewError('A timestamp is expected and its field name must be date.')
+
         name = file.name
         content = file.read()
 
         self.history.append('Received {}.'.format(name))
 
-        for enzyme in ENZYMES:
-            file = BytesIO(content)
-
+        for enzyme in enzymes:
             try:
-                members = enzyme.convert(file)
+                members = enzyme.convert(content)
             except EnzymeError as error:
                 self.history.append('File is not a valid {} archive: {}'.format(enzyme.extension, error))
             else:
                 self.history.append('File is a valid {} archive.'.format(enzyme.extension))
 
-                yeasts = []
+                inputs = {}
                 sugars = []
 
-                for name, content in members:
+                for date, name, content in members:
                     self.history.append('Extracted {}.'.format(name))
 
-                    yeast = self.grow(name, content)
+                    input = self.grow(content, yeasts)
 
-                    if yeast is None:
-                        sugars.append((name, BytesIO(content)))
+                    if input is None:
+                        sugars.append((date, name, content))
                     else:
-                        yeasts.append(yeast)
+                        inputs[name] = input
 
-                if len(yeasts) > 1:
-                    self.raiseBrewError('Multiple yeasts found: ' + ', '.join(yeast.name for yeast in yeasts))
+                if len(inputs) > 1:
+                    self.raiseBrewError('Multiple yeasts found: ' + ', '.join(inputs))
 
-                if yeasts:
-                    return yeasts[0].ferment(sugars)
+                if inputs:
+                    yeast, clean_meta, data = next(iter(inputs.values()))
+
+                    return yeast.ferment(clean_meta, data, sugars)
                 else:
-                    return self.priming(meta, sugars)
+                    return self.prime(meta, sugars, yeasts)
 
-        yeast = self.grow(name, content)
+        input = self.grow(content, yeasts)
 
-        if yeast is None:
-            return self.priming(meta, [(name, BytesIO(content))])
+        if input is None:
+            return self.prime(meta, [(date, name, content)], yeasts)
         else:
-            return yeast.ferment()
+            yeast, clean_meta, data = input
+
+            return yeast.ferment(clean_meta, data, [])
