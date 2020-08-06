@@ -56,6 +56,13 @@ class DebugMixin:
         return context
 
 
+class UserAddView(LoginRequiredMixin, UserIsSuperMixin, DebugMixin, generic.edit.CreateView):
+    model = User
+    fields = ['username', 'email', 'first_name', 'last_name']
+    template_name = 'malt/user_add.html'
+    success_url = reverse_lazy('user_manage')
+
+
 class UserManageView(LoginRequiredMixin, UserIsSuperMixin, DebugMixin, generic.FormView):
     form_class = UserManageForm
     template_name = 'malt/user_manage.html'
@@ -86,7 +93,7 @@ class UserManageView(LoginRequiredMixin, UserIsSuperMixin, DebugMixin, generic.F
 
 class UserEditView(LoginRequiredMixin, UserIsSuperMixin, DebugMixin, generic.edit.UpdateView):
     model = User
-    fields = ['email', 'first_name', 'last_name']
+    fields = ['username', 'email', 'first_name', 'last_name']
     template_name = 'malt/user_edit.html'
     success_url = reverse_lazy('user_manage')
 

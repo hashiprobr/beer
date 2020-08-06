@@ -11,6 +11,7 @@ User = get_user_model()
 class UserViewTests:
     super_username = '35fde5760c42b7bc27494710a006918c'
     username = '528070b65f32f4f785a7e4a6ba77baf5'
+    other_username = 'bba8253c7b9a27d27c8445a46c125c90'
 
     super_password = '5VShJJJu'
     password = 'PLEGZqr2'
@@ -28,6 +29,9 @@ class UserViewTests:
         User.objects.create_superuser(self.super_username, password=self.super_password)
         self.user = User.objects.create_user(self.username, password=self.password)
 
+    def kwargs(self):
+        return None
+
     def superLogin(self):
         self.client.login(username=self.super_username, password=self.super_password)
 
@@ -41,12 +45,31 @@ class UserViewTests:
         self.login()
         self.assertEquals(403, self.get_status(kwargs=self.kwargs()))
 
+    def testPostRedirects(self):
+        self.assertEquals(302, self.post_status(kwargs=self.kwargs()))
+
+    def testPostForbidsAfterLogin(self):
+        self.login()
+        self.assertEquals(403, self.post_status(kwargs=self.kwargs()))
+
+
+class UserAddViewTests(UserViewTests, ViewTestCase):
+    view_name = 'user_add'
+
+    def testPost(self):
+        self.superLogin()
+        data = {
+            'username': self.other_username,
+            'email': self.other_email,
+            'first_name': self.other_first_name,
+            'last_name': self.other_last_name,
+        }
+        self.post(kwargs=self.kwargs(), data=data)
+        self.assertTrue(User.objects.filter(**data).exists())
+
 
 class UserManageViewTests(UserViewTests, ViewTestCase):
     view_name = 'user_manage'
-
-    def kwargs(self):
-        return None
 
 
 class SingleUserViewTests(UserViewTests):
@@ -58,13 +81,6 @@ class SingleUserViewTests(UserViewTests):
         html = self.get_html(kwargs=self.kwargs())
         h2 = html.select_one('h2')
         self.assertIn(self.username, h2.string)
-
-    def testPostRedirects(self):
-        self.assertEquals(302, self.post_status(kwargs=self.kwargs()))
-
-    def testPostForbidsAfterLogin(self):
-        self.login()
-        self.assertEquals(403, self.post_status(kwargs=self.kwargs()))
 
     def singlePost(self, data=None):
         self.superLogin()
@@ -82,11 +98,13 @@ class UserEditViewTests(SingleUserViewTests, ViewTestCase):
 
         self.user.refresh_from_db()
 
+        self.assertEquals(self.username, self.user.username)
         self.assertEquals(self.email, self.user.email)
         self.assertEquals(self.first_name, self.user.first_name)
         self.assertEquals(self.last_name, self.user.last_name)
 
         self.singlePost({
+            'username': self.other_username,
             'email': self.other_email,
             'first_name': self.other_first_name,
             'last_name': self.other_last_name,
@@ -94,6 +112,7 @@ class UserEditViewTests(SingleUserViewTests, ViewTestCase):
 
         self.user.refresh_from_db()
 
+        self.assertEquals(self.other_username, self.user.username)
         self.assertEquals(self.other_email, self.user.email)
         self.assertEquals(self.other_first_name, self.user.first_name)
         self.assertEquals(self.other_last_name, self.user.last_name)
