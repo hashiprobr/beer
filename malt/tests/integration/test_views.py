@@ -28,11 +28,11 @@ class UserViewTests:
         User.objects.create_superuser(self.super_username, password=self.super_password)
         self.user = User.objects.create_user(self.username, password=self.password)
 
-    def login(self):
-        self.client.login(username=self.username, password=self.password)
-
     def superLogin(self):
         self.client.login(username=self.super_username, password=self.super_password)
+
+    def login(self):
+        self.client.login(username=self.username, password=self.password)
 
     def testGetRedirects(self):
         self.assertEquals(302, self.get_status(kwargs=self.kwargs()))
@@ -49,7 +49,7 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
         return None
 
 
-class SpecificUserViewTests(UserViewTests):
+class SingleUserViewTests(UserViewTests):
     def kwargs(self):
         return {'pk': self.user.pk}
 
@@ -66,12 +66,12 @@ class SpecificUserViewTests(UserViewTests):
         self.login()
         self.assertEquals(403, self.post_status(kwargs=self.kwargs()))
 
-    def specificPost(self, data=None):
+    def singlePost(self, data=None):
         self.superLogin()
         self.post(kwargs=self.kwargs(), data=data)
 
 
-class UserEditViewTests(SpecificUserViewTests, ViewTestCase):
+class UserEditViewTests(SingleUserViewTests, ViewTestCase):
     view_name = 'user_edit'
 
     def testPost(self):
@@ -86,7 +86,7 @@ class UserEditViewTests(SpecificUserViewTests, ViewTestCase):
         self.assertEquals(self.first_name, self.user.first_name)
         self.assertEquals(self.last_name, self.user.last_name)
 
-        self.specificPost({
+        self.singlePost({
             'email': self.other_email,
             'first_name': self.other_first_name,
             'last_name': self.other_last_name,
@@ -99,7 +99,7 @@ class UserEditViewTests(SpecificUserViewTests, ViewTestCase):
         self.assertEquals(self.other_last_name, self.user.last_name)
 
 
-class UserRemoveViewTests(SpecificUserViewTests, ViewTestCase):
+class UserRemoveViewTests(SingleUserViewTests, ViewTestCase):
     view_name = 'user_remove'
 
     def exists(self):
@@ -113,16 +113,16 @@ class UserRemoveViewTests(SpecificUserViewTests, ViewTestCase):
 
     def testPost(self):
         self.assertExists()
-        self.specificPost()
+        self.singlePost()
         self.assertDoesNotExist()
 
     def testIdempotence(self):
-        self.specificPost()
-        self.specificPost()
+        self.singlePost()
+        self.singlePost()
         self.assertDoesNotExist()
 
 
-class UserChangeViewTests(SpecificUserViewTests):
+class UserChangeViewTests(SingleUserViewTests):
     def power(self):
         return PowerUser.objects.filter(user=self.user).exists()
 
@@ -140,12 +140,12 @@ class UserPromoteViewTests(UserChangeViewTests, ViewTestCase):
 
     def testPost(self):
         self.assertNotPower()
-        self.specificPost()
+        self.singlePost()
         self.assertPower()
 
     def testIdempotence(self):
-        self.specificPost()
-        self.specificPost()
+        self.singlePost()
+        self.singlePost()
         self.assertPower()
 
 
@@ -155,11 +155,11 @@ class UserDemoteViewTests(UserChangeViewTests, ViewTestCase):
     def testPost(self):
         PowerUser.objects.create(user=self.user)
         self.assertPower()
-        self.specificPost()
+        self.singlePost()
         self.assertNotPower()
 
     def testIdempotence(self):
         PowerUser.objects.create(user=self.user)
-        self.specificPost()
-        self.specificPost()
+        self.singlePost()
+        self.singlePost()
         self.assertNotPower()
