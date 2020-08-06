@@ -6,7 +6,7 @@ from environs import Env
 env = Env()
 
 
-VERSION = '0.3'
+VERSION = '0.4'
 
 PATCH_VERSION = '0'
 
