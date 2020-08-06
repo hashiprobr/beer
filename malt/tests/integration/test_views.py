@@ -1,3 +1,7 @@
+import os
+
+from io import BytesIO
+
 from django.contrib.auth import get_user_model
 
 from beer.tests import ViewTestCase
@@ -64,12 +68,213 @@ class UserAddViewTests(UserViewTests, ViewTestCase):
             'first_name': self.other_first_name,
             'last_name': self.other_last_name,
         }
-        self.post(kwargs=self.kwargs(), data=data)
+        self.post(data=data)
         self.assertTrue(User.objects.filter(**data).exists())
 
 
 class UserManageViewTests(UserViewTests, ViewTestCase):
     view_name = 'user_manage'
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.dir = cls.files_dir(__file__)
+
+    def open(self, name):
+        path = os.path.join(self.dir, name + '.txt')
+        with open(path, 'rb') as file:
+            content = file.read()
+        return BytesIO(content)
+
+    def assertPost(self, name, domain, promote, expected):
+        self.superLogin()
+        data = {
+            'file': self.open(name),
+            'promote': promote,
+        }
+        if domain is not None:
+            data['domain'] = domain
+        self.post(data=data)
+        for values in expected:
+            try:
+                user = User.objects.get(username=values[0], email=values[1], first_name=values[2], last_name=values[3])
+            except User.DoesNotExist:
+                self.fail('User.DoesNotExist raised')
+            exists = PowerUser.objects.filter(user=user).exists()
+            if promote:
+                self.assertTrue(exists)
+            else:
+                self.assertFalse(exists)
+
+    def testPost(self):
+        name = 'base'
+        domain = 'd.com'
+        expected = [
+            ['au', 'au@d.com', 'af', 'al'],
+            ['bu', 'bu@d.com', 'bf', 'bl'],
+            ['cu', 'cu@d.com', 'cf', 'cl'],
+        ]
+        self.assertPost(name, domain, False, expected)
+        self.assertPost(name, domain, True, expected)
+
+    def testPostForOneUser(self):
+        name = 'one'
+        domain = 'd.com'
+        expected = [
+            ['au', 'au@d.com', 'af', 'al'],
+        ]
+        self.assertPost(name, domain, False, expected)
+        self.assertPost(name, domain, True, expected)
+
+    def testPostForTwoUsers(self):
+        name = 'two'
+        domain = 'd.com'
+        expected = [
+            ['au', 'au@d.com', 'af', 'al'],
+            ['bu', 'bu@d.com', 'bf', 'bl'],
+        ]
+        self.assertPost(name, domain, False, expected)
+        self.assertPost(name, domain, True, expected)
+
+    def testPostWithoutFirstLast(self):
+        name = 'noal'
+        domain = 'd.com'
+        expected = [
+            ['au', 'au@d.com', 'af', ''],
+            ['bu', 'bu@d.com', 'bf', 'bl'],
+            ['cu', 'cu@d.com', 'cf', 'cl'],
+        ]
+        self.assertPost(name, domain, False, expected)
+        self.assertPost(name, domain, True, expected)
+
+    def testPostWithoutSecondLast(self):
+        name = 'nobl'
+        domain = 'd.com'
+        expected = [
+            ['au', 'au@d.com', 'af', 'al'],
+            ['bu', 'bu@d.com', 'bf', ''],
+            ['cu', 'cu@d.com', 'cf', 'cl'],
+        ]
+        self.assertPost(name, domain, False, expected)
+        self.assertPost(name, domain, True, expected)
+
+    def testPostWithoutThirdLast(self):
+        name = 'nocl'
+        domain = 'd.com'
+        expected = [
+            ['au', 'au@d.com', 'af', 'al'],
+            ['bu', 'bu@d.com', 'bf', 'bl'],
+            ['cu', 'cu@d.com', 'cf', ''],
+        ]
+        self.assertPost(name, domain, False, expected)
+        self.assertPost(name, domain, True, expected)
+
+    def testPostWithSpace(self):
+        name = 'space'
+        domain = 'd.com'
+        expected = [
+            ['au', 'au@d.com', 'af', 'al'],
+            ['bu', 'bu@d.com', 'bf', 'bl'],
+            ['cu', 'cu@d.com', 'cf', 'cl'],
+        ]
+        self.assertPost(name, domain, False, expected)
+        self.assertPost(name, domain, True, expected)
+
+    def testPostWithExtra(self):
+        name = 'extra'
+        domain = 'd.com'
+        expected = [
+            ['au', 'au@d.com', 'af', 'am al'],
+            ['bu', 'bu@d.com', 'bf', 'bm bl'],
+            ['cu', 'cu@d.com', 'cf', 'cm cl'],
+        ]
+        self.assertPost(name, domain, False, expected)
+        self.assertPost(name, domain, True, expected)
+
+    def testPostWithEmailWithoutDomain(self):
+        name = 'email'
+        domain = None
+        expected = [
+            ['au', 'ae@ae.com', 'af', 'al'],
+            ['bu', 'be@be.com', 'bf', 'bl'],
+            ['cu', 'ce@ce.com', 'cf', 'cl'],
+        ]
+        self.assertPost(name, domain, False, expected)
+        self.assertPost(name, domain, True, expected)
+
+    def testPostWithEmailWithoutDomainForOneUser(self):
+        name = 'email-one'
+        domain = None
+        expected = [
+            ['au', 'ae@ae.com', 'af', 'al'],
+        ]
+        self.assertPost(name, domain, False, expected)
+        self.assertPost(name, domain, True, expected)
+
+    def testPostWithEmailWithoutDomainForOneUser(self):
+        name = 'email-two'
+        domain = None
+        expected = [
+            ['au', 'ae@ae.com', 'af', 'al'],
+            ['bu', 'be@be.com', 'bf', 'bl'],
+        ]
+        self.assertPost(name, domain, False, expected)
+        self.assertPost(name, domain, True, expected)
+
+    def testPostWithEmailWithoutDomainAndFirstLast(self):
+        name = 'email-noal'
+        domain = None
+        expected = [
+            ['au', 'ae@ae.com', 'af', ''],
+            ['bu', 'be@be.com', 'bf', 'bl'],
+            ['cu', 'ce@ce.com', 'cf', 'cl'],
+        ]
+        self.assertPost(name, domain, False, expected)
+        self.assertPost(name, domain, True, expected)
+
+    def testPostWithEmailWithoutDomainAndSecondLast(self):
+        name = 'email-nobl'
+        domain = None
+        expected = [
+            ['au', 'ae@ae.com', 'af', 'al'],
+            ['bu', 'be@be.com', 'bf', ''],
+            ['cu', 'ce@ce.com', 'cf', 'cl'],
+        ]
+        self.assertPost(name, domain, False, expected)
+        self.assertPost(name, domain, True, expected)
+
+    def testPostWithEmailWithoutDomainAndThirdLast(self):
+        name = 'email-nocl'
+        domain = None
+        expected = [
+            ['au', 'ae@ae.com', 'af', 'al'],
+            ['bu', 'be@be.com', 'bf', 'bl'],
+            ['cu', 'ce@ce.com', 'cf', ''],
+        ]
+        self.assertPost(name, domain, False, expected)
+        self.assertPost(name, domain, True, expected)
+
+    def testPostWithEmailAndSpaceWithoutDomain(self):
+        name = 'email-space'
+        domain = None
+        expected = [
+            ['au', 'ae@ae.com', 'af', 'al'],
+            ['bu', 'be@be.com', 'bf', 'bl'],
+            ['cu', 'ce@ce.com', 'cf', 'cl'],
+        ]
+        self.assertPost(name, domain, False, expected)
+        self.assertPost(name, domain, True, expected)
+
+    def testPostWithExtraAndSpaceWithoutDomain(self):
+        name = 'email-extra'
+        domain = None
+        expected = [
+            ['au', 'ae@ae.com', 'af', 'am al'],
+            ['bu', 'be@be.com', 'bf', 'bm bl'],
+            ['cu', 'ce@ce.com', 'cf', 'cm cl'],
+        ]
+        self.assertPost(name, domain, False, expected)
+        self.assertPost(name, domain, True, expected)
 
 
 class SingleUserViewTests(UserViewTests):
@@ -80,7 +285,7 @@ class SingleUserViewTests(UserViewTests):
         self.superLogin()
         html = self.get_html(kwargs=self.kwargs())
         h2 = html.select_one('h2')
-        self.assertIn(self.username, h2.string)
+        self.assertIn(self.username, self.string(h2))
 
     def singlePost(self, data=None):
         self.superLogin()

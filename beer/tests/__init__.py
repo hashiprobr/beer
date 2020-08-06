@@ -76,7 +76,7 @@ class ViewTestCase(IntegrationTestCase):
         return json.loads(response.content)
 
     def string(self, element):
-        return ' '.join(element.string.strip().split())
+        return ' '.join(''.join(element.find_all(text=True)).strip().split())
 
 
 class AcceptanceTestCase:
