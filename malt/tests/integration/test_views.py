@@ -211,7 +211,7 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
         self.assertPost(name, domain, False, expected)
         self.assertPost(name, domain, True, expected)
 
-    def testPostWithEmailWithoutDomainForOneUser(self):
+    def testPostWithEmailWithoutDomainForTwoUsers(self):
         name = 'email-two'
         domain = None
         expected = [
