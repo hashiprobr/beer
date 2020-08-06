@@ -124,24 +124,6 @@ class UserManageFormTests(IntegrationTestCase):
     def testNotValidWithoutThirdFirstAndTruePromote(self):
         self.assertNotValid('nocf', self.domain, True)
 
-    def testNotValidWithSameFirstAndFalsePromote(self):
-        self.assertNotValid('yesa', self.domain, False)
-
-    def testNotValidWithSameFirstAndTruePromote(self):
-        self.assertNotValid('yesa', self.domain, True)
-
-    def testNotValidWithSameSecondAndFalsePromote(self):
-        self.assertNotValid('yesb', self.domain, False)
-
-    def testNotValidWithSameSecondAndTruePromote(self):
-        self.assertNotValid('yesb', self.domain, True)
-
-    def testNotValidWithSameThirdAndFalsePromote(self):
-        self.assertNotValid('yesc', self.domain, False)
-
-    def testNotValidWithSameThirdAndTruePromote(self):
-        self.assertNotValid('yesc', self.domain, True)
-
     def testNotValidWithFirstEmailAndFalsePromote(self):
         self.assertNotValid('noae', self.domain, False)
 
@@ -159,6 +141,24 @@ class UserManageFormTests(IntegrationTestCase):
 
     def testNotValidWithThirdEmailAndTruePromote(self):
         self.assertNotValid('noce', self.domain, True)
+
+    def testNotValidWithSameFirstAndFalsePromote(self):
+        self.assertNotValid('yesa', self.domain, False)
+
+    def testNotValidWithSameFirstAndTruePromote(self):
+        self.assertNotValid('yesa', self.domain, True)
+
+    def testNotValidWithSameSecondAndFalsePromote(self):
+        self.assertNotValid('yesb', self.domain, False)
+
+    def testNotValidWithSameSecondAndTruePromote(self):
+        self.assertNotValid('yesb', self.domain, True)
+
+    def testNotValidWithSameThirdAndFalsePromote(self):
+        self.assertNotValid('yesc', self.domain, False)
+
+    def testNotValidWithSameThirdAndTruePromote(self):
+        self.assertNotValid('yesc', self.domain, True)
 
     def testValidWithSpaceAndFalsePromote(self):
         self.assertValid('space', self.domain, False)
@@ -226,24 +226,6 @@ class UserManageFormTests(IntegrationTestCase):
     def testNotValidWithEmailWithoutDomainAndThirdFirstAndTruePromote(self):
         self.assertNotValid('email-nocf', None, True)
 
-    def testNotValidWithEmailAndSameFirstWithoutDomainAndFalsePromote(self):
-        self.assertNotValid('email-yesa', None, False)
-
-    def testNotValidWithEmailAndSameFirstWithoutDomainAndTruePromote(self):
-        self.assertNotValid('email-yesa', None, True)
-
-    def testNotValidWithEmailAndSameSecondWithoutDomainAndFalsePromote(self):
-        self.assertNotValid('email-yesb', None, False)
-
-    def testNotValidWithEmailAndSameSecondWithoutDomainAndTruePromote(self):
-        self.assertNotValid('email-yesb', None, True)
-
-    def testNotValidWithEmailAndSameThirdWithoutDomainAndFalsePromote(self):
-        self.assertNotValid('email-yesc', None, False)
-
-    def testNotValidWithEmailAndSameThirdWithoutDomainAndTruePromote(self):
-        self.assertNotValid('email-yesc', None, True)
-
     def testNotValidWithoutFirstEmailAndDomainAndFalsePromote(self):
         self.assertNotValid('email-noae', None, False)
 
@@ -261,6 +243,24 @@ class UserManageFormTests(IntegrationTestCase):
 
     def testNotValidWithoutThirdEmailAndDomainAndTruePromote(self):
         self.assertNotValid('email-noce', None, True)
+
+    def testNotValidWithEmailAndSameFirstWithoutDomainAndFalsePromote(self):
+        self.assertNotValid('email-yesa', None, False)
+
+    def testNotValidWithEmailAndSameFirstWithoutDomainAndTruePromote(self):
+        self.assertNotValid('email-yesa', None, True)
+
+    def testNotValidWithEmailAndSameSecondWithoutDomainAndFalsePromote(self):
+        self.assertNotValid('email-yesb', None, False)
+
+    def testNotValidWithEmailAndSameSecondWithoutDomainAndTruePromote(self):
+        self.assertNotValid('email-yesb', None, True)
+
+    def testNotValidWithEmailAndSameThirdWithoutDomainAndFalsePromote(self):
+        self.assertNotValid('email-yesc', None, False)
+
+    def testNotValidWithEmailAndSameThirdWithoutDomainAndTruePromote(self):
+        self.assertNotValid('email-yesc', None, True)
 
     def testValidWithEmailAndSpaceWithoutDomainAndFalsePromote(self):
         self.assertValid('email-space', None, False)

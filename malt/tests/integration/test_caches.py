@@ -12,41 +12,41 @@ class PowerCacheTests(IntegrationTestCase):
     username = 'u'
     other_username = 'ou'
 
-    def assertIsPower(self, user):
+    def assertPower(self, user):
         self.assertTrue(power_cache.get(user))
 
-    def assertIsNotPower(self, user):
+    def assertNotPower(self, user):
         self.assertFalse(power_cache.get(user))
 
-    def testIsNotPowerBeforeCreate(self):
+    def testNotPowerBeforeCreate(self):
         user = User.objects.create_user(self.username)
-        self.assertIsNotPower(user)
+        self.assertNotPower(user)
 
-    def testIsPowerBeforeCreateIfCached(self):
+    def testPowerBeforeCreateIfCached(self):
         user = User.objects.create_user(self.username)
         power_cache.set(user, True)
-        self.assertIsPower(user)
+        self.assertPower(user)
 
-    def testIsNotPowerBeforeCreateIfOtherCached(self):
+    def testNotPowerBeforeCreateIfOtherCached(self):
         user = User.objects.create_user(self.username)
         other_user = User.objects.create_user(self.other_username)
         power_cache.set(other_user, True)
-        self.assertIsNotPower(user)
+        self.assertNotPower(user)
 
-    def testIsPowerAfterCreate(self):
+    def testPowerAfterCreate(self):
         user = User.objects.create_user(self.username)
         PowerUser.objects.create(user=user)
-        self.assertIsPower(user)
+        self.assertPower(user)
 
-    def testIsNotPowerAfterCreateIfCached(self):
+    def testNotPowerAfterCreateIfCached(self):
         user = User.objects.create_user(self.username)
         PowerUser.objects.create(user=user)
         power_cache.set(user, False)
-        self.assertIsNotPower(user)
+        self.assertNotPower(user)
 
-    def testIsPowerAfterCreateIfOtherCached(self):
+    def testPowerAfterCreateIfOtherCached(self):
         user = User.objects.create_user(self.username)
         other_user = User.objects.create_user(self.other_username)
         PowerUser.objects.create(user=user)
         power_cache.set(other_user, False)
-        self.assertIsPower(user)
+        self.assertPower(user)

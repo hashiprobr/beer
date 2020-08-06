@@ -72,7 +72,7 @@ class BreweryTests(UnitTestCase):
         return self.brewery.grow(self.open(name), self.MockYeasts)
 
     def prime(self, meta):
-        self.brewery.prime(meta, [], self.MockYeasts)
+        return self.brewery.prime(meta, [], self.MockYeasts)
 
     def brew(self, names, meta, enzymes):
         files = MultiValueDict()
@@ -81,18 +81,18 @@ class BreweryTests(UnitTestCase):
         return self.brewery.brew(files, meta, enzymes, self.MockYeasts)
 
     def assertGrows(self, name, expected):
-        _, _, actual = self.grow(name)
-        self.assertIsNotNone(input)
-        self.assertEquals(expected, actual)
+        _, meta, data = self.grow(name)
+        self.assertEquals(expected, (meta, data))
 
     def assertDoesNotGrow(self, name):
         self.assertIsNone(self.grow(name))
 
-    def assertPrimes(self, meta):
+    def assertPrimes(self, meta, expected):
         try:
-            self.prime(meta)
+            actual, _ = self.prime(meta)
         except BrewError:
             self.fail('BrewError raised')
+        self.assertEquals(expected, actual)
 
     def assertDoesNotPrime(self, meta):
         with self.assertRaises(BrewError):
@@ -110,16 +110,20 @@ class BreweryTests(UnitTestCase):
             self.brew(names, meta, enzymes)
 
     def testGrows(self):
-        self.assertGrows('pass.txt', 'c\n')
+        expected = {}, 'c\n'
+        self.assertGrows('pass.txt', expected)
 
     def testGrowsWithLowerSeparator(self):
-        self.assertGrows('lower-separator.txt', 'c\n...\n')
+        expected = {}, 'c\n...\n'
+        self.assertGrows('lower-separator.txt', expected)
 
     def testGrowsWithUpperSeparator(self):
-        self.assertGrows('upper-separator.txt', '...\nc\n')
+        expected = {}, '...\nc\n'
+        self.assertGrows('upper-separator.txt', expected)
 
     def testGrowsWithThreeSeparators(self):
-        self.assertGrows('three-separators.txt', '...\nc\n...\n')
+        expected = {}, '...\nc\n...\n'
+        self.assertGrows('three-separators.txt', expected)
 
     def testDoesNotGrowWithoutSeparator(self):
         self.assertDoesNotGrow('no-separator.txt')
@@ -152,7 +156,7 @@ class BreweryTests(UnitTestCase):
         self.assertDoesNotGrow('fail.txt')
 
     def testPrimes(self):
-        self.assertPrimes({'view_name': 'pass'})
+        self.assertPrimes({'view_name': 'pass'}, {})
 
     def testDoesNotPrimeWithoutType(self):
         self.assertDoesNotPrime({'mock': 'pass'})
@@ -167,6 +171,13 @@ class BreweryTests(UnitTestCase):
         names = {'file': 'pass.txt'}
         meta = {'date': 0}
         enzymes = []
+        expected = {}, 'c\n', []
+        self.assertBrews(names, meta, enzymes, expected)
+
+    def testBrewsIfRaisesEnzymeError(self):
+        names = {'file': 'pass.txt'}
+        meta = {'date': 0}
+        enzymes = [FailMockEnzyme()]
         expected = {}, 'c\n', []
         self.assertBrews(names, meta, enzymes, expected)
 
@@ -199,13 +210,6 @@ class BreweryTests(UnitTestCase):
         meta = {'date': 'O'}
         enzymes = []
         self.assertDoesNotBrew(names, meta, enzymes)
-
-    def testBrewsIfRaisesEnzymeError(self):
-        names = {'file': 'pass.txt'}
-        meta = {'date': 0}
-        enzymes = [FailMockEnzyme()]
-        expected = {}, 'c\n', []
-        self.assertBrews(names, meta, enzymes, expected)
 
     def testBrewsWithoutYeast(self):
         names = {'file': 'fail.txt'}
@@ -242,7 +246,7 @@ class BreweryTests(UnitTestCase):
         expected = {}, [(0, 'fail.txt', b'type: fail\n...\nc\n'), (0, 'wrong-type.txt', b'type: mock\n...\nc\n')]
         self.assertBrews(names, meta, enzymes, expected)
 
-    def testBrewsIfArchiveWithTwoFilesWithOneYeast(self):
+    def testBrewsIfArchiveWithTwoFilesButOneYeast(self):
         names = {'file': 'mock.zip'}
         meta = {'date': 0}
         enzymes = [self.mock(['pass.txt', 'fail.txt'])]

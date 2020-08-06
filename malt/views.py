@@ -148,7 +148,7 @@ class UserPromoteView(UserChangeView):
     template_name = 'malt/user_promote.html'
 
     def change(self, user):
-        PowerUser.objects.create(user=user)
+        PowerUser.objects.get_or_create(user=user)
 
 
 class UserDemoteView(UserChangeView):

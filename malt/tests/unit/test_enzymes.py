@@ -21,56 +21,56 @@ class EnzymeTests:
         for extension in self.extensions:
             yield self.openFile('{}.{}'.format(name, extension))
 
-    def assertRaisesEnzymeErrorWithFile(self, name):
+    def assertDoesNotConvertFile(self, name):
         content = self.openFile(name)
         with self.assertRaises(EnzymeError):
             self.enzyme.convert(content)
 
-    def assertRaisesEnzymeErrorWithArchives(self, name):
+    def assertDoesNotConvertArchives(self, name):
         for content in self.openArchives(name):
             with self.assertRaises(EnzymeError):
                 self.enzyme.convert(content)
 
-    def assertConverts(self, name, expected):
+    def assertConvertsArchives(self, name, expected):
         for content in self.openArchives(name):
             actual = [member[1] for member in self.enzyme.convert(content)]
             self.assertEqual(len(expected), len(actual))
             for expected_name, actual_name in zip(sorted(expected), sorted(actual)):
                 self.assertEqual(expected_name, actual_name)
 
-    def testRaisesEnzymeErrorWithEmptyFile(self):
-        self.assertRaisesEnzymeErrorWithFile('empty_file')
+    def testDoesNotConvertEmptyFile(self):
+        self.assertDoesNotConvertFile('empty_file')
 
-    def testRaisesEnzymeErrorWithBinaryFile(self):
-        self.assertRaisesEnzymeErrorWithFile('file.bin')
+    def testDoesNotConvertBinaryFile(self):
+        self.assertDoesNotConvertFile('file.bin')
 
-    def testRaisesEnzymeErrorWithTextFile(self):
-        self.assertRaisesEnzymeErrorWithFile('file.txt')
+    def testDoesNotConvertTextFile(self):
+        self.assertDoesNotConvertFile('file.txt')
 
-    def testRaisesEnzymeErrorWithBombArchives(self):
-        self.assertRaisesEnzymeErrorWithArchives('bomb')
+    def testDoesNotConvertBombArchives(self):
+        self.assertDoesNotConvertArchives('bomb')
 
-    def testConvertsWithEmptyFile(self):
-        self.assertConverts('empty', ['empty_file'])
+    def testConvertsArchivesWithEmptyFile(self):
+        self.assertConvertsArchives('empty', ['empty_file'])
 
-    def testConvertsWithBinaryFile(self):
-        self.assertConverts('binary', ['file.bin'])
+    def testConvertsArchivesWithBinaryFile(self):
+        self.assertConvertsArchives('binary', ['file.bin'])
 
-    def testConvertsWithTextFile(self):
-        self.assertConverts('text', ['file.txt'])
+    def testConvertsArchivesWithTextFile(self):
+        self.assertConvertsArchives('text', ['file.txt'])
 
-    def testConvertsWithZeroLevels(self):
-        self.assertConverts('zero', [])
+    def testConvertsArchivesWithZeroLevels(self):
+        self.assertConvertsArchives('zero', [])
 
-    def testConvertsWithOneLevel(self):
-        self.assertConverts('one', [
+    def testConvertsArchivesWithOneLevel(self):
+        self.assertConvertsArchives('one', [
             'empty_file',
             'file.bin',
             'file.txt',
         ])
 
-    def testConvertsWithTwoLevels(self):
-        self.assertConverts('two', [
+    def testConvertsArchivesWithTwoLevels(self):
+        self.assertConvertsArchives('two', [
             'folder/empty_file',
             'folder/file.bin',
             'folder/file.txt',
@@ -79,8 +79,8 @@ class EnzymeTests:
             'file.txt',
         ])
 
-    def testConvertsWithThreeLevels(self):
-        self.assertConverts('three', [
+    def testConvertsArchivesWithThreeLevels(self):
+        self.assertConvertsArchives('three', [
             'folder/folder/empty_file',
             'folder/folder/file.bin',
             'folder/folder/file.txt',

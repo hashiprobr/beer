@@ -90,26 +90,10 @@ TEMPLATES = [
 ASGI_APPLICATION = BASE_NAME + '.routing.application'
 
 
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-        },
-    },
-    'root': {
-        'handlers': ['console'],
-        'level': 'WARNING',
-    },
-}
-
-
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.memcached.PyLibMCCache',
         'LOCATION': '{}:{}'.format(env.str('CACHE_HOST', 'localhost'), env.int('CACHE_PORT', 11210)),
-        'KEY_PREFIX': 'test' if TESTING else '',
     },
 }
 
@@ -185,6 +169,19 @@ if TESTING:
 else:
     MEDIA_BUCKET = env.str('MEDIA_BUCKET', 'media')
 
+    LOGGING = {
+        'version': 1,
+        'disable_existing_loggers': False,
+        'handlers': {
+            'console': {
+                'class': 'logging.StreamHandler',
+            },
+        },
+        'root': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+        },
+    }
 
 PUBLIC_LOCATION = 'public'
 

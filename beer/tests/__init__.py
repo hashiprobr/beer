@@ -35,10 +35,10 @@ class FilesMixin:
 
 class ClearMixin:
     def _pre_setup(self):
-        cache.clear()
-        public_storage.clear()
         private_storage.clear()
+        public_storage.clear()
         super()._pre_setup()
+        cache.clear()
 
 
 class UnitTestCase(FilesMixin, SimpleTestCase):

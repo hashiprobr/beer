@@ -13,12 +13,15 @@ class AuthenticationTests(AcceptanceSyncTestCase):
     email = 'e@e.com'
     other_email = 'oe@oe.com'
 
-    password = 'PLEGZqr224'
-    other_password = '5VShJJJurW'
+    password = 'PLEGZqr2'
+    other_password = '5VShJJJu'
     weak_password = 'wp'
 
     uidb64 = 'u'
     token = 't'
+
+    def setUp(self):
+        User.objects.create_user(self.username, self.email, self.password)
 
     def atLogin(self, next):
         return self.driver.at('{}?next={}'.format(self.url('login'), reverse(next)))
@@ -64,7 +67,7 @@ class AuthenticationTests(AcceptanceSyncTestCase):
         submit.click()
 
     def openLink(self):
-        for word in mail.outbox[0].body.split():
+        for word in mail.outbox[0].body.strip().split():
             if word.startswith('http'):
                 self.driver.get(word)
                 return
@@ -84,28 +87,24 @@ class AuthenticationTests(AcceptanceSyncTestCase):
     def testBlocks(self):
         self.waitBlocks()
 
-    def testAllowsAfterLoggedInBlocksAfterLoggedOut(self):
-        User.objects.create_user(self.username, self.email, self.password)
+    def testAllowsAfterLoginBlocksAfterLogout(self):
         self.login(self.username, self.password)
         self.waitAllows()
         self.get('logout')
         self.waitBlocks()
 
-    def testBlocksAfterLoggedInWithWrongNonExistingCredentials(self):
-        User.objects.create_user(self.username, self.email, self.password)
+    def testBlocksAfterLoginWithWrongNonExistingCredentials(self):
         self.login(self.other_username, self.password)
         self.waitBlocks()
         self.login(self.username, self.other_password)
         self.waitBlocks()
 
-    def testBlocksAfterLoggedInWithWrongButExistingPassword(self):
-        User.objects.create_user(self.username, self.email, self.password)
+    def testBlocksAfterLoginWithWrongButExistingPassword(self):
         User.objects.create_user(self.other_username, self.email, self.other_password)
         self.login(self.username, self.other_password)
         self.waitBlocks()
 
     def testChangesPassword(self):
-        User.objects.create_user(self.username, self.email, self.password)
         self.changePassword(self.password, self.other_password, self.other_password)
         self.login(self.username, self.password)
         self.waitBlocks()
@@ -113,7 +112,6 @@ class AuthenticationTests(AcceptanceSyncTestCase):
         self.waitAllows()
 
     def testDoesNotChangePasswordWithWrongOldPassword(self):
-        User.objects.create_user(self.username, self.email, self.password)
         self.changePassword(self.other_password, self.other_password, self.other_password)
         self.login(self.username, self.other_password)
         self.waitBlocks()
@@ -121,7 +119,6 @@ class AuthenticationTests(AcceptanceSyncTestCase):
         self.waitAllows()
 
     def testDoesNotChangePasswordWithDifferentNewPassword1(self):
-        User.objects.create_user(self.username, self.email, self.password)
         self.changePassword(self.password, self.password, self.other_password)
         self.login(self.username, self.other_password)
         self.waitBlocks()
@@ -129,7 +126,6 @@ class AuthenticationTests(AcceptanceSyncTestCase):
         self.waitAllows()
 
     def testDoesNotChangePasswordWithDifferentNewPassword2(self):
-        User.objects.create_user(self.username, self.email, self.password)
         self.changePassword(self.password, self.other_password, self.password)
         self.login(self.username, self.other_password)
         self.waitBlocks()
@@ -137,7 +133,6 @@ class AuthenticationTests(AcceptanceSyncTestCase):
         self.waitAllows()
 
     def testDoesNotChangePasswordWithWeakNewPasswords(self):
-        User.objects.create_user(self.username, self.email, self.password)
         self.changePassword(self.password, self.weak_password, self.weak_password)
         self.login(self.username, self.weak_password)
         self.waitBlocks()
@@ -145,7 +140,6 @@ class AuthenticationTests(AcceptanceSyncTestCase):
         self.waitAllows()
 
     def testResetsPassword(self):
-        User.objects.create_user(self.username, self.email, self.password)
         self.sendLink(self.email)
         self.resetPassword(self.other_password, self.other_password)
         self.login(self.username, self.password)
@@ -154,25 +148,21 @@ class AuthenticationTests(AcceptanceSyncTestCase):
         self.waitAllows()
 
     def testDoesNotSendLinkIfEmailDoesNotExist(self):
-        User.objects.create_user(self.username, self.email, self.password)
         self.sendLink(self.other_email)
         self.assertFalse(mail.outbox)
 
     def testDoesNotOpenLinkWithWrongCredentials(self):
-        User.objects.create_user(self.username, self.email, self.password)
         self.sendLink(self.email)
         self.get('password_reset_confirm', kwargs={'uidb64': self.uidb64, 'token': self.token})
         self.waitMessage()
 
     def testDoesNotOpenLinkWithExpiredCredentials(self):
-        User.objects.create_user(self.username, self.email, self.password)
         self.sendLink(self.email)
         self.resetPassword(self.other_password, self.other_password)
         self.openLink()
         self.waitMessage()
 
     def testDoesNotResetPasswordWithDifferentNewPassword1(self):
-        User.objects.create_user(self.username, self.email, self.password)
         self.sendLink(self.email)
         self.resetPassword(self.password, self.other_password)
         self.login(self.username, self.other_password)
@@ -181,7 +171,6 @@ class AuthenticationTests(AcceptanceSyncTestCase):
         self.waitAllows()
 
     def testDoesNotResetPasswordWithDifferentNewPassword2(self):
-        User.objects.create_user(self.username, self.email, self.password)
         self.sendLink(self.email)
         self.resetPassword(self.other_password, self.password)
         self.login(self.username, self.other_password)
@@ -190,7 +179,6 @@ class AuthenticationTests(AcceptanceSyncTestCase):
         self.waitAllows()
 
     def testDoesNotResetPasswordWithWeakNewPasswords(self):
-        User.objects.create_user(self.username, self.email, self.password)
         self.sendLink(self.email)
         self.resetPassword(self.weak_password, self.weak_password)
         self.login(self.username, self.weak_password)
