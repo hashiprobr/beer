@@ -75,6 +75,7 @@ class UserManageView(LoginRequiredMixin, UserIsSuperMixin, MaltMixin, generic.Fo
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context['focus'] = True
         users = User.objects.all().order_by('username')
         paginator = Paginator(users, PAGE_SIZE)
         try:
@@ -84,7 +85,6 @@ class UserManageView(LoginRequiredMixin, UserIsSuperMixin, MaltMixin, generic.Fo
             users = paginator.page(1)
         users.power_pks = PowerUser.objects.filter(user__in=users).values_list('user', flat=True)
         context['users'] = users
-        context['focus'] = True
         return context
 
 
