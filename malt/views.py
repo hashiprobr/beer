@@ -42,28 +42,22 @@ class UserIsMemberMixin(UserPassesTestMixin):
         return True
 
 
-class PowerMixin:
+class MaltMixin:
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context['debug'] = settings.TEMPLATE_DEBUG
         context['power'] = power_cache.get(self.request.user)
         return context
 
 
-class DebugMixin:
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['debug'] = settings.TEMPLATE_DEBUG
-        return context
-
-
-class UserAddView(LoginRequiredMixin, UserIsSuperMixin, DebugMixin, generic.edit.CreateView):
+class UserAddView(LoginRequiredMixin, UserIsSuperMixin, MaltMixin, generic.edit.CreateView):
     model = User
     fields = ['username', 'email', 'first_name', 'last_name']
     template_name = 'malt/user_add.html'
     success_url = reverse_lazy('user_manage')
 
 
-class UserManageView(LoginRequiredMixin, UserIsSuperMixin, DebugMixin, generic.FormView):
+class UserManageView(LoginRequiredMixin, UserIsSuperMixin, MaltMixin, generic.FormView):
     form_class = UserManageForm
     template_name = 'malt/user_manage.html'
     success_url = reverse_lazy('user_manage')
@@ -93,20 +87,20 @@ class UserManageView(LoginRequiredMixin, UserIsSuperMixin, DebugMixin, generic.F
         return context
 
 
-class UserEditView(LoginRequiredMixin, UserIsSuperMixin, DebugMixin, generic.edit.UpdateView):
+class UserEditView(LoginRequiredMixin, UserIsSuperMixin, MaltMixin, generic.edit.UpdateView):
     model = User
     fields = ['username', 'email', 'first_name', 'last_name']
     template_name = 'malt/user_edit.html'
     success_url = reverse_lazy('user_manage')
 
 
-class UserRemoveView(LoginRequiredMixin, UserIsSuperMixin, DebugMixin, generic.edit.DeleteView):
+class UserRemoveView(LoginRequiredMixin, UserIsSuperMixin, MaltMixin, generic.edit.DeleteView):
     model = User
     template_name = 'malt/user_delete.html'
     success_url = reverse_lazy('user_manage')
 
 
-class UserChangeView(LoginRequiredMixin, UserIsSuperMixin, DebugMixin, SingleObjectTemplateResponseMixin, BaseDetailView):
+class UserChangeView(LoginRequiredMixin, UserIsSuperMixin, MaltMixin, SingleObjectTemplateResponseMixin, BaseDetailView):
     model = User
 
     def post(self, request, *args, **kwargs):
@@ -170,7 +164,7 @@ class UploadView(PowerView):
         return HttpResponseNotFound()
 
 
-class UploadCodeView(LoginRequiredMixin, UserIsPowerMixin, PowerMixin, DebugMixin, ContextMixin, TemplateResponseMixin, generic.View):
+class UploadCodeView(LoginRequiredMixin, UserIsPowerMixin, MaltMixin, ContextMixin, TemplateResponseMixin, generic.View):
     template_name = 'malt/error.html'
 
     def post(self, request, *args, **kwargs):
@@ -243,7 +237,7 @@ class UploadAssetConfirmView(PowerView):
         return HttpResponse('asset')
 
 
-class TemplateView(PowerMixin, DebugMixin, generic.TemplateView):
+class TemplateView(MaltMixin, generic.TemplateView):
     pass
 
 
