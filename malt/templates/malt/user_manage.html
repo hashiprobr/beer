@@ -47,7 +47,7 @@
         <tbody>
             {% for user in users %}
                 <tr>
-                    <td>{{ user.username }}</td>
+                    <td>{{ user.get_username }}</td>
                     <td>{{ user.email }}</td>
                     <td><a href="{% url 'user_edit' pk=user.pk %}">edit</a></td>
                     {% if user.pk in users.power_pks %}

@@ -222,9 +222,9 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
         name = 'base'
         domain = 'd.com'
         expected = [
-            ['au', 'au@d.com', 'af', 'al'],
-            ['bu', 'bu@d.com', 'bf', 'bl'],
-            ['cu', 'cu@d.com', 'cf', 'cl'],
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
         ]
         self.assertPostForBothPromotes(name, domain, expected)
 
@@ -232,7 +232,7 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
         name = 'one'
         domain = 'd.com'
         expected = [
-            ['au', 'au@d.com', 'af', 'al'],
+            ('au', 'au@d.com', 'af', 'al'),
         ]
         self.assertPostForBothPromotes(name, domain, expected)
 
@@ -240,8 +240,8 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
         name = 'two'
         domain = 'd.com'
         expected = [
-            ['au', 'au@d.com', 'af', 'al'],
-            ['bu', 'bu@d.com', 'bf', 'bl'],
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
         ]
         self.assertPostForBothPromotes(name, domain, expected)
 
@@ -249,9 +249,9 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
         name = 'noal'
         domain = 'd.com'
         expected = [
-            ['au', 'au@d.com', 'af', ''],
-            ['bu', 'bu@d.com', 'bf', 'bl'],
-            ['cu', 'cu@d.com', 'cf', 'cl'],
+            ('au', 'au@d.com', 'af', ''),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
         ]
         self.assertPostForBothPromotes(name, domain, expected)
 
@@ -259,9 +259,9 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
         name = 'nobl'
         domain = 'd.com'
         expected = [
-            ['au', 'au@d.com', 'af', 'al'],
-            ['bu', 'bu@d.com', 'bf', ''],
-            ['cu', 'cu@d.com', 'cf', 'cl'],
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', ''),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
         ]
         self.assertPostForBothPromotes(name, domain, expected)
 
@@ -269,9 +269,9 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
         name = 'nocl'
         domain = 'd.com'
         expected = [
-            ['au', 'au@d.com', 'af', 'al'],
-            ['bu', 'bu@d.com', 'bf', 'bl'],
-            ['cu', 'cu@d.com', 'cf', ''],
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', ''),
         ]
         self.assertPostForBothPromotes(name, domain, expected)
 
@@ -279,9 +279,9 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
         name = 'space'
         domain = 'd.com'
         expected = [
-            ['au', 'au@d.com', 'af', 'al'],
-            ['bu', 'bu@d.com', 'bf', 'bl'],
-            ['cu', 'cu@d.com', 'cf', 'cl'],
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
         ]
         self.assertPostForBothPromotes(name, domain, expected)
 
@@ -289,9 +289,9 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
         name = 'extra'
         domain = 'd.com'
         expected = [
-            ['au', 'au@d.com', 'af', 'am al'],
-            ['bu', 'bu@d.com', 'bf', 'bm bl'],
-            ['cu', 'cu@d.com', 'cf', 'cm cl'],
+            ('au', 'au@d.com', 'af', 'am al'),
+            ('bu', 'bu@d.com', 'bf', 'bm bl'),
+            ('cu', 'cu@d.com', 'cf', 'cm cl'),
         ]
         self.assertPostForBothPromotes(name, domain, expected)
 
@@ -299,9 +299,9 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
         name = 'email'
         domain = None
         expected = [
-            ['au', 'ae@ae.com', 'af', 'al'],
-            ['bu', 'be@be.com', 'bf', 'bl'],
-            ['cu', 'ce@ce.com', 'cf', 'cl'],
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
         ]
         self.assertPostForBothPromotes(name, domain, expected)
 
@@ -309,7 +309,7 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
         name = 'email-one'
         domain = None
         expected = [
-            ['au', 'ae@ae.com', 'af', 'al'],
+            ('au', 'ae@ae.com', 'af', 'al'),
         ]
         self.assertPostForBothPromotes(name, domain, expected)
 
@@ -317,8 +317,8 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
         name = 'email-two'
         domain = None
         expected = [
-            ['au', 'ae@ae.com', 'af', 'al'],
-            ['bu', 'be@be.com', 'bf', 'bl'],
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
         ]
         self.assertPostForBothPromotes(name, domain, expected)
 
@@ -326,9 +326,9 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
         name = 'email-noal'
         domain = None
         expected = [
-            ['au', 'ae@ae.com', 'af', ''],
-            ['bu', 'be@be.com', 'bf', 'bl'],
-            ['cu', 'ce@ce.com', 'cf', 'cl'],
+            ('au', 'ae@ae.com', 'af', ''),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
         ]
         self.assertPostForBothPromotes(name, domain, expected)
 
@@ -336,9 +336,9 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
         name = 'email-nobl'
         domain = None
         expected = [
-            ['au', 'ae@ae.com', 'af', 'al'],
-            ['bu', 'be@be.com', 'bf', ''],
-            ['cu', 'ce@ce.com', 'cf', 'cl'],
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', ''),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
         ]
         self.assertPostForBothPromotes(name, domain, expected)
 
@@ -346,9 +346,9 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
         name = 'email-nocl'
         domain = None
         expected = [
-            ['au', 'ae@ae.com', 'af', 'al'],
-            ['bu', 'be@be.com', 'bf', 'bl'],
-            ['cu', 'ce@ce.com', 'cf', ''],
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', ''),
         ]
         self.assertPostForBothPromotes(name, domain, expected)
 
@@ -356,9 +356,9 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
         name = 'email-space'
         domain = None
         expected = [
-            ['au', 'ae@ae.com', 'af', 'al'],
-            ['bu', 'be@be.com', 'bf', 'bl'],
-            ['cu', 'ce@ce.com', 'cf', 'cl'],
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
         ]
         self.assertPostForBothPromotes(name, domain, expected)
 
@@ -366,9 +366,9 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
         name = 'email-extra'
         domain = None
         expected = [
-            ['au', 'ae@ae.com', 'af', 'am al'],
-            ['bu', 'be@be.com', 'bf', 'bm bl'],
-            ['cu', 'ce@ce.com', 'cf', 'cm cl'],
+            ('au', 'ae@ae.com', 'af', 'am al'),
+            ('bu', 'be@be.com', 'bf', 'bm bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cm cl'),
         ]
         self.assertPostForBothPromotes(name, domain, expected)
 
@@ -431,7 +431,7 @@ class UserEditViewTests(SingleUserViewTests, ViewTestCase):
 
         self.user.refresh_from_db()
 
-        self.assertEquals(self.username, self.user.username)
+        self.assertEquals(self.username, self.user.get_username())
         self.assertEquals(self.email, self.user.email)
         self.assertEquals(self.first_name, self.user.first_name)
         self.assertEquals(self.last_name, self.user.last_name)
@@ -445,7 +445,7 @@ class UserEditViewTests(SingleUserViewTests, ViewTestCase):
 
         self.user.refresh_from_db()
 
-        self.assertEquals(self.other_username, self.user.username)
+        self.assertEquals(self.other_username, self.user.get_username())
         self.assertEquals(self.other_email, self.user.email)
         self.assertEquals(self.other_first_name, self.user.first_name)
         self.assertEquals(self.other_last_name, self.user.last_name)
