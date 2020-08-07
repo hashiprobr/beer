@@ -42,6 +42,17 @@ class UserViewTests:
     def login(self):
         self.client.login(username=self.username, password=self.password)
 
+    def power(self):
+        return PowerUser.objects.filter(user=self.user).exists()
+
+    def assertPower(self):
+        self.assertTrue(self.power())
+        self.assertTrue(power_cache.get(self.user))
+
+    def assertNotPower(self):
+        self.assertFalse(self.power())
+        self.assertFalse(power_cache.get(self.user))
+
     def testGetRedirects(self):
         self.assertEquals(302, self.get_status(kwargs=self.kwargs()))
 
@@ -97,7 +108,12 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
         self.post(data=data)
         for values in expected:
             try:
-                user = User.objects.get(username=values[0], email=values[1], first_name=values[2], last_name=values[3])
+                user = User.objects.get(
+                    username=values[0],
+                    email=values[1],
+                    first_name=values[2],
+                    last_name=values[3],
+                )
             except User.DoesNotExist:
                 self.fail('User.DoesNotExist raised')
             exists = PowerUser.objects.filter(user=user).exists()
@@ -276,6 +292,38 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
         self.assertPost(name, domain, False, expected)
         self.assertPost(name, domain, True, expected)
 
+    def testPostEdit(self):
+        self.user.email = self.email
+        self.user.first_name = self.first_name
+        self.user.last_name = self.last_name
+        self.user.save()
+
+        self.user.refresh_from_db()
+
+        self.assertEquals(self.email, self.user.email)
+        self.assertEquals(self.first_name, self.user.first_name)
+        self.assertEquals(self.last_name, self.user.last_name)
+        self.assertNotPower()
+
+        self.superLogin()
+        data = {
+            'file': BytesIO(' '.join([
+                self.username,
+                self.other_email,
+                self.other_first_name,
+                self.other_last_name,
+            ]).encode('utf-8')),
+            'promote': True,
+        }
+        self.post(data=data)
+
+        self.user.refresh_from_db()
+
+        self.assertEquals(self.other_email, self.user.email)
+        self.assertEquals(self.other_first_name, self.user.first_name)
+        self.assertEquals(self.other_last_name, self.user.last_name)
+        self.assertPower()
+
 
 class SingleUserViewTests(UserViewTests):
     def kwargs(self):
@@ -346,20 +394,7 @@ class UserRemoveViewTests(SingleUserViewTests, ViewTestCase):
         self.assertDoesNotExist()
 
 
-class UserChangeViewTests(SingleUserViewTests):
-    def power(self):
-        return PowerUser.objects.filter(user=self.user).exists()
-
-    def assertPower(self):
-        self.assertTrue(self.power())
-        self.assertTrue(power_cache.get(self.user))
-
-    def assertNotPower(self):
-        self.assertFalse(self.power())
-        self.assertFalse(power_cache.get(self.user))
-
-
-class UserPromoteViewTests(UserChangeViewTests, ViewTestCase):
+class UserPromoteViewTests(SingleUserViewTests, ViewTestCase):
     view_name = 'user_promote'
 
     def testPost(self):
@@ -373,7 +408,7 @@ class UserPromoteViewTests(UserChangeViewTests, ViewTestCase):
         self.assertPower()
 
 
-class UserDemoteViewTests(UserChangeViewTests, ViewTestCase):
+class UserDemoteViewTests(SingleUserViewTests, ViewTestCase):
     view_name = 'user_demote'
 
     def testPost(self):

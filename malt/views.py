@@ -70,7 +70,9 @@ class UserManageView(LoginRequiredMixin, UserIsSuperMixin, DebugMixin, generic.F
 
     def form_valid(self, form):
         for username, kwargs in form.users.items():
-            user, _ = User.objects.update_or_create(username=username, defaults=kwargs)
+            user, created = User.objects.update_or_create(username=username, defaults=kwargs)
+            if not created:
+                power_cache.set(user, form.promote)
             if form.promote:
                 PowerUser.objects.get_or_create(user=user)
             else:
