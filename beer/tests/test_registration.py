@@ -24,7 +24,7 @@ class AuthenticationTests(AcceptanceSyncTestCase):
         User.objects.create_user(self.username, self.email, self.password)
 
     def atLogin(self, next):
-        return self.driver.at('{}?next={}'.format(self.url('login'), reverse(next)))
+        return self.at('login', query=[('next', reverse(next))])
 
     def waitBlocks(self):
         self.get('index')
