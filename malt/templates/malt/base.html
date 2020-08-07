@@ -25,7 +25,7 @@
                 {% endif %}
             {% endif %}
         </ul>
-        {% if power %}
+        {% if power and not focus %}
             {% include 'malt/uploader_form.html' with method='code' %}
         {% endif %}
         <div class="profile">

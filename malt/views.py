@@ -84,6 +84,7 @@ class UserManageView(LoginRequiredMixin, UserIsSuperMixin, MaltMixin, generic.Fo
             users = paginator.page(1)
         users.power_pks = PowerUser.objects.filter(user__in=users).values_list('user', flat=True)
         context['users'] = users
+        context['focus'] = True
         return context
 
 
