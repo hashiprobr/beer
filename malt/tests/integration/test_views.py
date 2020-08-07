@@ -33,14 +33,14 @@ class UserViewTests:
         User.objects.create_superuser(self.super_username, password=self.super_password)
         self.user = User.objects.create_user(self.username, password=self.password)
 
-    def kwargs(self):
-        return None
-
     def superLogin(self):
         self.client.login(username=self.super_username, password=self.super_password)
 
     def login(self):
         self.client.login(username=self.username, password=self.password)
+
+    def kwargs(self):
+        return None
 
     def power(self):
         return PowerUser.objects.filter(user=self.user).exists()
@@ -122,6 +122,10 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             else:
                 self.assertFalse(exists)
 
+    def assertPostForBothPromotes(self, name, domain, expected):
+        self.assertPost(name, domain, False, expected)
+        self.assertPost(name, domain, True, expected)
+
     def testPost(self):
         name = 'base'
         domain = 'd.com'
@@ -130,8 +134,7 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             ['bu', 'bu@d.com', 'bf', 'bl'],
             ['cu', 'cu@d.com', 'cf', 'cl'],
         ]
-        self.assertPost(name, domain, False, expected)
-        self.assertPost(name, domain, True, expected)
+        self.assertPostForBothPromotes(name, domain, expected)
 
     def testPostForOneUser(self):
         name = 'one'
@@ -139,8 +142,7 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
         expected = [
             ['au', 'au@d.com', 'af', 'al'],
         ]
-        self.assertPost(name, domain, False, expected)
-        self.assertPost(name, domain, True, expected)
+        self.assertPostForBothPromotes(name, domain, expected)
 
     def testPostForTwoUsers(self):
         name = 'two'
@@ -149,8 +151,7 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             ['au', 'au@d.com', 'af', 'al'],
             ['bu', 'bu@d.com', 'bf', 'bl'],
         ]
-        self.assertPost(name, domain, False, expected)
-        self.assertPost(name, domain, True, expected)
+        self.assertPostForBothPromotes(name, domain, expected)
 
     def testPostWithoutFirstLast(self):
         name = 'noal'
@@ -160,8 +161,7 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             ['bu', 'bu@d.com', 'bf', 'bl'],
             ['cu', 'cu@d.com', 'cf', 'cl'],
         ]
-        self.assertPost(name, domain, False, expected)
-        self.assertPost(name, domain, True, expected)
+        self.assertPostForBothPromotes(name, domain, expected)
 
     def testPostWithoutSecondLast(self):
         name = 'nobl'
@@ -171,8 +171,7 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             ['bu', 'bu@d.com', 'bf', ''],
             ['cu', 'cu@d.com', 'cf', 'cl'],
         ]
-        self.assertPost(name, domain, False, expected)
-        self.assertPost(name, domain, True, expected)
+        self.assertPostForBothPromotes(name, domain, expected)
 
     def testPostWithoutThirdLast(self):
         name = 'nocl'
@@ -182,8 +181,7 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             ['bu', 'bu@d.com', 'bf', 'bl'],
             ['cu', 'cu@d.com', 'cf', ''],
         ]
-        self.assertPost(name, domain, False, expected)
-        self.assertPost(name, domain, True, expected)
+        self.assertPostForBothPromotes(name, domain, expected)
 
     def testPostWithSpace(self):
         name = 'space'
@@ -193,8 +191,7 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             ['bu', 'bu@d.com', 'bf', 'bl'],
             ['cu', 'cu@d.com', 'cf', 'cl'],
         ]
-        self.assertPost(name, domain, False, expected)
-        self.assertPost(name, domain, True, expected)
+        self.assertPostForBothPromotes(name, domain, expected)
 
     def testPostWithExtra(self):
         name = 'extra'
@@ -204,8 +201,7 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             ['bu', 'bu@d.com', 'bf', 'bm bl'],
             ['cu', 'cu@d.com', 'cf', 'cm cl'],
         ]
-        self.assertPost(name, domain, False, expected)
-        self.assertPost(name, domain, True, expected)
+        self.assertPostForBothPromotes(name, domain, expected)
 
     def testPostWithEmailWithoutDomain(self):
         name = 'email'
@@ -215,8 +211,7 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             ['bu', 'be@be.com', 'bf', 'bl'],
             ['cu', 'ce@ce.com', 'cf', 'cl'],
         ]
-        self.assertPost(name, domain, False, expected)
-        self.assertPost(name, domain, True, expected)
+        self.assertPostForBothPromotes(name, domain, expected)
 
     def testPostWithEmailWithoutDomainForOneUser(self):
         name = 'email-one'
@@ -224,8 +219,7 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
         expected = [
             ['au', 'ae@ae.com', 'af', 'al'],
         ]
-        self.assertPost(name, domain, False, expected)
-        self.assertPost(name, domain, True, expected)
+        self.assertPostForBothPromotes(name, domain, expected)
 
     def testPostWithEmailWithoutDomainForTwoUsers(self):
         name = 'email-two'
@@ -234,8 +228,7 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             ['au', 'ae@ae.com', 'af', 'al'],
             ['bu', 'be@be.com', 'bf', 'bl'],
         ]
-        self.assertPost(name, domain, False, expected)
-        self.assertPost(name, domain, True, expected)
+        self.assertPostForBothPromotes(name, domain, expected)
 
     def testPostWithEmailWithoutDomainAndFirstLast(self):
         name = 'email-noal'
@@ -245,8 +238,7 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             ['bu', 'be@be.com', 'bf', 'bl'],
             ['cu', 'ce@ce.com', 'cf', 'cl'],
         ]
-        self.assertPost(name, domain, False, expected)
-        self.assertPost(name, domain, True, expected)
+        self.assertPostForBothPromotes(name, domain, expected)
 
     def testPostWithEmailWithoutDomainAndSecondLast(self):
         name = 'email-nobl'
@@ -256,8 +248,7 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             ['bu', 'be@be.com', 'bf', ''],
             ['cu', 'ce@ce.com', 'cf', 'cl'],
         ]
-        self.assertPost(name, domain, False, expected)
-        self.assertPost(name, domain, True, expected)
+        self.assertPostForBothPromotes(name, domain, expected)
 
     def testPostWithEmailWithoutDomainAndThirdLast(self):
         name = 'email-nocl'
@@ -267,8 +258,7 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             ['bu', 'be@be.com', 'bf', 'bl'],
             ['cu', 'ce@ce.com', 'cf', ''],
         ]
-        self.assertPost(name, domain, False, expected)
-        self.assertPost(name, domain, True, expected)
+        self.assertPostForBothPromotes(name, domain, expected)
 
     def testPostWithEmailAndSpaceWithoutDomain(self):
         name = 'email-space'
@@ -278,8 +268,7 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             ['bu', 'be@be.com', 'bf', 'bl'],
             ['cu', 'ce@ce.com', 'cf', 'cl'],
         ]
-        self.assertPost(name, domain, False, expected)
-        self.assertPost(name, domain, True, expected)
+        self.assertPostForBothPromotes(name, domain, expected)
 
     def testPostWithExtraAndSpaceWithoutDomain(self):
         name = 'email-extra'
@@ -289,8 +278,7 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             ['bu', 'be@be.com', 'bf', 'bm bl'],
             ['cu', 'ce@ce.com', 'cf', 'cm cl'],
         ]
-        self.assertPost(name, domain, False, expected)
-        self.assertPost(name, domain, True, expected)
+        self.assertPostForBothPromotes(name, domain, expected)
 
     def testPostEdit(self):
         self.user.email = self.email
@@ -411,14 +399,16 @@ class UserPromoteViewTests(SingleUserViewTests, ViewTestCase):
 class UserDemoteViewTests(SingleUserViewTests, ViewTestCase):
     view_name = 'user_demote'
 
-    def testPost(self):
+    def setUp(self):
+        super().setUp()
         PowerUser.objects.create(user=self.user)
+
+    def testPost(self):
         self.assertPower()
         self.singlePost()
         self.assertNotPower()
 
     def testIdempotence(self):
-        PowerUser.objects.create(user=self.user)
         self.singlePost()
         self.singlePost()
         self.assertNotPower()
