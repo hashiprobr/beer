@@ -51,11 +51,11 @@
                 <tr>
                     <td>{{ user.get_username }}</td>
                     <td>{{ user.email }}</td>
-                    <td><a href="{% url 'user_edit' pk=user.pk %}">edit</a></td>
+                    <td><a href="{% url 'user_edit' pk=user.pk %}{{ suffix }}">edit</a></td>
                     {% if user.pk in users.power_pks %}
-                        <td><a href="{% url 'user_demote' pk=user.pk %}">demote</a></td>
+                        <td><a href="{% url 'user_demote' pk=user.pk %}{{ suffix }}">demote</a></td>
                     {% else %}
-                        <td><a href="{% url 'user_promote' pk=user.pk %}">promote</a></td>
+                        <td><a href="{% url 'user_promote' pk=user.pk %}{{ suffix }}">promote</a></td>
                     {% endif %}
                 </tr>
             {% endfor %}

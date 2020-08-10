@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.paginator import EmptyPage, Paginator
 from django.http import Http404, HttpResponseNotFound, HttpResponseBadRequest, HttpResponseRedirect, HttpResponse, JsonResponse
-from django.urls import reverse, reverse_lazy
+from django.urls import reverse
 from django.views import generic
 from django.views.generic.base import ContextMixin, TemplateResponseMixin
 from django.views.generic.detail import SingleObjectTemplateResponseMixin, BaseDetailView
@@ -77,10 +77,25 @@ class FormView(MaltMixin, generic.FormView):
     pass
 
 
-class UserManageView(LoginRequiredMixin, UserIsSuperMixin, FormView):
+class UserMixin:
+    def get_suffix(self):
+        if self.request.GET:
+            return '?' + self.request.GET.urlencode()
+        else:
+            return ''
+
+    def get_success_url(self):
+        return reverse('user_manage') + self.get_suffix()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['suffix'] = self.get_suffix()
+        return context
+
+
+class UserManageView(LoginRequiredMixin, UserIsSuperMixin, UserMixin, FormView):
     form_class = UserForm
     template_name = 'malt/user/manage.html'
-    success_url = '.'
 
     def form_valid(self, form):
         for username, kwargs in form.users.items():
@@ -108,34 +123,31 @@ class UserManageView(LoginRequiredMixin, UserIsSuperMixin, FormView):
         return context
 
 
-class UserAddView(LoginRequiredMixin, UserIsSuperMixin, MaltMixin, generic.edit.CreateView):
+class UserAddView(LoginRequiredMixin, UserIsSuperMixin, UserMixin, MaltMixin, generic.edit.CreateView):
     model = User
     fields = ['username', 'email', 'first_name', 'last_name']
     template_name = 'malt/user/add.html'
-    success_url = reverse_lazy('user_manage')
 
 
-class UserEditView(LoginRequiredMixin, UserIsSuperMixin, MaltMixin, generic.edit.UpdateView):
+class UserEditView(LoginRequiredMixin, UserIsSuperMixin, UserMixin, MaltMixin, generic.edit.UpdateView):
     model = User
     fields = ['username', 'email', 'first_name', 'last_name']
     template_name = 'malt/user/edit.html'
-    success_url = reverse_lazy('user_manage')
 
 
-class UserRemoveView(LoginRequiredMixin, UserIsSuperMixin, MaltMixin, generic.edit.DeleteView):
+class UserRemoveView(LoginRequiredMixin, UserIsSuperMixin, UserMixin, MaltMixin, generic.edit.DeleteView):
     model = User
     template_name = 'malt/user/remove.html'
-    success_url = reverse_lazy('user_manage')
 
 
-class UserChangeView(LoginRequiredMixin, UserIsSuperMixin, MaltMixin, SingleObjectTemplateResponseMixin, BaseDetailView):
+class UserChangeView(LoginRequiredMixin, UserIsSuperMixin, UserMixin, MaltMixin, SingleObjectTemplateResponseMixin, BaseDetailView):
     model = User
 
     def post(self, request, *args, **kwargs):
         user = self.get_object()
         power_cache.set(user, self.value)
         self.change(user)
-        return HttpResponseRedirect(reverse('user_manage'))
+        return HttpResponseRedirect(self.get_success_url())
 
 
 class UserPromoteView(UserChangeView):

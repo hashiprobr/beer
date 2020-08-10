@@ -621,20 +621,20 @@ class AssetManageViewTests(AssetViewTests, ViewTestCase):
         self.assertGet(3, 3)
 
 
-class PathAssetViewTests:
+class ParentAssetViewMixin:
     def setUp(self):
         super().setUp()
         self.parent = FolderAsset.objects.create(user=self.user, parent=None, name=self.parent_name)
 
 
-class AssetFolderViewTests(PathAssetViewTests, AssetManageViewTests):
+class AssetFolderViewTests(ParentAssetViewMixin, AssetManageViewTests):
     view_name = 'asset_folder'
 
     def kwargs(self):
         return {'path': self.parent.name}
 
 
-class SingleAssetViewTests(PathAssetViewTests, AssetViewTests):
+class SingleAssetViewTests(ParentAssetViewMixin, AssetViewTests):
     Asset = FolderAsset
 
     def setUp(self):

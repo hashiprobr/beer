@@ -6,7 +6,7 @@ from . import AcceptanceSyncTestCase, reverse
 User = get_user_model()
 
 
-class AuthenticationTests(AcceptanceSyncTestCase):
+class RegistrationTests(AcceptanceSyncTestCase):
     username = 'u'
     other_username = 'ou'
 
