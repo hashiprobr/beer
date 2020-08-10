@@ -4,7 +4,8 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.paginator import EmptyPage, Paginator
-from django.http import Http404, HttpResponseNotFound, HttpResponseBadRequest, HttpResponseRedirect, HttpResponse, JsonResponse
+from django.http import HttpResponseNotFound, HttpResponseBadRequest, HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views import generic
 from django.views.generic.base import ContextMixin, TemplateResponseMixin
@@ -50,14 +51,8 @@ class AssetMixin:
             user = self.request.user
             parent = None
             for name in names[:-1]:
-                try:
-                    parent = FolderAsset.objects.get(user=user, parent=parent, name=name)
-                except FolderAsset.DoesNotExist:
-                    raise Http404()
-            try:
-                asset = self.Asset.objects.get(user=user, parent=parent, name=names[-1])
-            except self.Asset.DoesNotExist:
-                raise Http404()
+                parent = get_object_or_404(FolderAsset, user=user, parent=parent, name=name)
+            asset = get_object_or_404(self.Asset, user=user, parent=parent, name=names[-1])
         return names, asset
 
 
@@ -147,7 +142,7 @@ class UserChangeView(LoginRequiredMixin, UserIsSuperMixin, UserMixin, MaltMixin,
         user = self.get_object()
         power_cache.set(user, self.value)
         self.change(user)
-        return HttpResponseRedirect(self.get_success_url())
+        return redirect(self.get_success_url())
 
 
 class UserPromoteView(UserChangeView):
@@ -221,7 +216,7 @@ class UploadCodeView(LoginRequiredMixin, UserIsPowerMixin, MaltMixin, ContextMix
             context['error'] = error
             return self.render_to_response(context)
 
-        return HttpResponseRedirect(url)
+        return redirect(url)
 
 
 class UploadAssetView(UploadView):
@@ -245,7 +240,7 @@ class UploadAssetView(UploadView):
 
         self.storage.save(key, file)
 
-        return HttpResponseRedirect('{}?key={}'.format(redirect, quote(key, encoding='utf-8')))
+        return redirect('{}?key={}'.format(redirect, quote(key, encoding='utf-8')))
 
 
 class UploadAssetPublicView(UploadAssetView):
@@ -314,7 +309,7 @@ class AssetFormView(FormView):
         names, asset = self.get_objects()
         name = form.cleaned_data['name']
         names = self.process(names, asset, name)
-        return HttpResponseRedirect(self.get_url(names))
+        return redirect(self.get_url(names))
 
 
 class AssetManageView(LoginRequiredMixin, UserIsPowerMixin, AssetViewMixin, AssetFormView):
@@ -383,7 +378,7 @@ class AssetRemoveView(LoginRequiredMixin, UserIsPowerMixin, SingleAssetViewMixin
     def post(self, request, *args, **kwargs):
         names, asset = self.get_objects()
         asset.delete()
-        return HttpResponseRedirect(self.get_url(names[:-1]))
+        return redirect(self.get_url(names[:-1]))
 
 
 class AssetRemoveFileView(AssetRemoveView):
