@@ -1,4 +1,4 @@
-{% extends 'malt/asset.html' %}
+{% extends 'malt/asset/base.html' %}
 
 {% block subtitle %}{% if parent_url %}<a href="{{ parent_url }}">../</a>{% endif %}{{ name }}/{% endblock %}
 
@@ -70,5 +70,5 @@
             </tbody>
         </table>
     {% endif %}
-    {% include 'malt/uploader_form.html' with method='asset' %}
+    {% include 'malt/uploader/form.html' with method='asset' %}
 {% endblock %}

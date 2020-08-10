@@ -1,11 +1,11 @@
-{% extends 'malt/user.html' %}
+{% extends 'malt/user/base.html' %}
 
 {% block subcontent %}
     <h2>
-        Promote {{ user.get_username }}?
+        Remove {{ user.get_username }}?
     </h2>
     <p>
-        You can revert this later if you want.
+        Please be aware that this operation is irreversible.
     </p>
     <form method="post">
         {% csrf_token %}

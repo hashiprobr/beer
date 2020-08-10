@@ -1,8 +1,8 @@
-{% extends 'malt/user.html' %}
+{% extends 'malt/user/base.html' %}
 
 {% block subcontent %}
     <h2>
-        Add
+        Edit {{ user.get_username }}
     </h2>
     <form method="post">
         {% csrf_token %}

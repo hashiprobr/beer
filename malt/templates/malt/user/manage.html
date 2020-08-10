@@ -1,4 +1,4 @@
-{% extends 'malt/user.html' %}
+{% extends 'malt/user/base.html' %}
 
 {% block subcontent %}
     <h2>
@@ -11,7 +11,7 @@
 
         <label for="{{ form.file.id_for_label }}">
             <span>{{ form.file.label }}</span>
-            {% include 'malt/uploader_input.html' with input=form.file %}
+            {% include 'malt/uploader/input.html' with input=form.file %}
         </label>
 
         {{ form.file.errors }}

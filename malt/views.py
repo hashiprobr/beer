@@ -79,7 +79,7 @@ class FormView(MaltMixin, generic.FormView):
 
 class UserManageView(LoginRequiredMixin, UserIsSuperMixin, FormView):
     form_class = UserForm
-    template_name = 'malt/user_manage.html'
+    template_name = 'malt/user/manage.html'
     success_url = '.'
 
     def form_valid(self, form):
@@ -111,20 +111,20 @@ class UserManageView(LoginRequiredMixin, UserIsSuperMixin, FormView):
 class UserAddView(LoginRequiredMixin, UserIsSuperMixin, MaltMixin, generic.edit.CreateView):
     model = User
     fields = ['username', 'email', 'first_name', 'last_name']
-    template_name = 'malt/user_add.html'
+    template_name = 'malt/user/add.html'
     success_url = reverse_lazy('user_manage')
 
 
 class UserEditView(LoginRequiredMixin, UserIsSuperMixin, MaltMixin, generic.edit.UpdateView):
     model = User
     fields = ['username', 'email', 'first_name', 'last_name']
-    template_name = 'malt/user_edit.html'
+    template_name = 'malt/user/edit.html'
     success_url = reverse_lazy('user_manage')
 
 
 class UserRemoveView(LoginRequiredMixin, UserIsSuperMixin, MaltMixin, generic.edit.DeleteView):
     model = User
-    template_name = 'malt/user_remove.html'
+    template_name = 'malt/user/remove.html'
     success_url = reverse_lazy('user_manage')
 
 
@@ -140,7 +140,7 @@ class UserChangeView(LoginRequiredMixin, UserIsSuperMixin, MaltMixin, SingleObje
 
 class UserPromoteView(UserChangeView):
     value = True
-    template_name = 'malt/user_promote.html'
+    template_name = 'malt/user/promote.html'
 
     def change(self, user):
         PowerUser.objects.get_or_create(user=user)
@@ -148,7 +148,7 @@ class UserPromoteView(UserChangeView):
 
 class UserDemoteView(UserChangeView):
     value = False
-    template_name = 'malt/user_demote.html'
+    template_name = 'malt/user/demote.html'
 
     def change(self, user):
         PowerUser.objects.filter(user=user).delete()
@@ -306,7 +306,7 @@ class AssetFormView(FormView):
 
 
 class AssetManageView(LoginRequiredMixin, UserIsPowerMixin, AssetViewMixin, AssetFormView):
-    template_name = 'malt/asset_manage.html'
+    template_name = 'malt/asset/manage.html'
 
     def update(self, kwargs, names, asset):
         kwargs['parent'] = asset
@@ -348,7 +348,7 @@ class SingleAssetViewMixin(AssetViewMixin):
 
 
 class AssetEditView(LoginRequiredMixin, UserIsPowerMixin, SingleAssetViewMixin, AssetFormView):
-    template_name = 'malt/asset_edit.html'
+    template_name = 'malt/asset/edit.html'
 
     def update(self, kwargs, names, asset):
         kwargs['initial']['name'] = names[-1]
@@ -366,7 +366,7 @@ class AssetEditFileView(AssetEditView):
 
 
 class AssetRemoveView(LoginRequiredMixin, UserIsPowerMixin, SingleAssetViewMixin, TemplateView):
-    template_name = 'malt/asset_remove.html'
+    template_name = 'malt/asset/remove.html'
 
     def post(self, request, *args, **kwargs):
         names, asset = self.get_objects()
