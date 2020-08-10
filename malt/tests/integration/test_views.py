@@ -55,18 +55,18 @@ class UserViewTests:
         self.assertFalse(power_cache.get(self.user))
 
     def testGetRedirects(self):
-        self.assertEquals(302, self.get_status(kwargs=self.kwargs()))
+        self.assertEqual(302, self.get_status(kwargs=self.kwargs()))
 
     def testGetForbidsAfterLogin(self):
         self.login()
-        self.assertEquals(403, self.get_status(kwargs=self.kwargs()))
+        self.assertEqual(403, self.get_status(kwargs=self.kwargs()))
 
     def testPostRedirects(self):
-        self.assertEquals(302, self.post_status(kwargs=self.kwargs()))
+        self.assertEqual(302, self.post_status(kwargs=self.kwargs()))
 
     def testPostForbidsAfterLogin(self):
         self.login()
-        self.assertEquals(403, self.post_status(kwargs=self.kwargs()))
+        self.assertEqual(403, self.post_status(kwargs=self.kwargs()))
 
 
 class UserManageViewTests(UserViewTests, ViewTestCase):
@@ -94,10 +94,10 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
         trs = html.select('tbody tr')
         caption = html.select_one('caption')
         arrows = [self.string(a) for a in caption.select('a')]
-        self.assertEquals(length, len(trs))
-        self.assertIs(left, '🡨' in arrows)
+        self.assertEqual(length, len(trs))
+        self.assertEqual(left, '🡨' in arrows)
         self.assertIn(center, self.string(caption))
-        self.assertIs(right, '🡪' in arrows)
+        self.assertEqual(right, '🡪' in arrows)
 
     def assertPost(self, name, domain, promote, expected):
         self.superLogin()
@@ -357,9 +357,9 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
 
         self.user.refresh_from_db()
 
-        self.assertEquals(self.email, self.user.email)
-        self.assertEquals(self.first_name, self.user.first_name)
-        self.assertEquals(self.last_name, self.user.last_name)
+        self.assertEqual(self.email, self.user.email)
+        self.assertEqual(self.first_name, self.user.first_name)
+        self.assertEqual(self.last_name, self.user.last_name)
         self.assertNotPower()
 
         self.superLogin()
@@ -376,9 +376,9 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
 
         self.user.refresh_from_db()
 
-        self.assertEquals(self.other_email, self.user.email)
-        self.assertEquals(self.other_first_name, self.user.first_name)
-        self.assertEquals(self.other_last_name, self.user.last_name)
+        self.assertEqual(self.other_email, self.user.email)
+        self.assertEqual(self.other_first_name, self.user.first_name)
+        self.assertEqual(self.other_last_name, self.user.last_name)
         self.assertPower()
 
 
@@ -423,10 +423,10 @@ class UserEditViewTests(SingleUserViewTests, ViewTestCase):
 
         self.user.refresh_from_db()
 
-        self.assertEquals(self.username, self.user.get_username())
-        self.assertEquals(self.email, self.user.email)
-        self.assertEquals(self.first_name, self.user.first_name)
-        self.assertEquals(self.last_name, self.user.last_name)
+        self.assertEqual(self.username, self.user.get_username())
+        self.assertEqual(self.email, self.user.email)
+        self.assertEqual(self.first_name, self.user.first_name)
+        self.assertEqual(self.last_name, self.user.last_name)
 
         self.singlePost({
             'username': self.other_username,
@@ -437,10 +437,10 @@ class UserEditViewTests(SingleUserViewTests, ViewTestCase):
 
         self.user.refresh_from_db()
 
-        self.assertEquals(self.other_username, self.user.get_username())
-        self.assertEquals(self.other_email, self.user.email)
-        self.assertEquals(self.other_first_name, self.user.first_name)
-        self.assertEquals(self.other_last_name, self.user.last_name)
+        self.assertEqual(self.other_username, self.user.get_username())
+        self.assertEqual(self.other_email, self.user.email)
+        self.assertEqual(self.other_first_name, self.user.first_name)
+        self.assertEqual(self.other_last_name, self.user.last_name)
 
 
 class UserRemoveViewTests(SingleUserViewTests, ViewTestCase):
@@ -519,26 +519,26 @@ class AssetViewTests:
         return None
 
     def testGetRedirects(self):
-        self.assertEquals(302, self.get_status(kwargs=self.kwargs()))
+        self.assertEqual(302, self.get_status(kwargs=self.kwargs()))
 
     def testGetForbidsAfterLogin(self):
         self.login()
-        self.assertEquals(403, self.get_status(kwargs=self.kwargs()))
+        self.assertEqual(403, self.get_status(kwargs=self.kwargs()))
 
     def testGetForbidsAfterSuperLogin(self):
         self.superLogin()
-        self.assertEquals(403, self.get_status(kwargs=self.kwargs()))
+        self.assertEqual(403, self.get_status(kwargs=self.kwargs()))
 
     def testPostRedirects(self):
-        self.assertEquals(302, self.post_status(kwargs=self.kwargs()))
+        self.assertEqual(302, self.post_status(kwargs=self.kwargs()))
 
     def testPostForbidsAfterLogin(self):
         self.login()
-        self.assertEquals(403, self.post_status(kwargs=self.kwargs()))
+        self.assertEqual(403, self.post_status(kwargs=self.kwargs()))
 
     def testPostForbidsSuperLogin(self):
         self.superLogin()
-        self.assertEquals(403, self.post_status(kwargs=self.kwargs()))
+        self.assertEqual(403, self.post_status(kwargs=self.kwargs()))
 
 
 class AssetManageViewTests(AssetViewTests, ViewTestCase):
@@ -659,12 +659,12 @@ class AssetEditViewTests(SingleAssetViewTests, ViewTestCase):
     view_name = 'asset_edit'
 
     def testPost(self):
-        self.assertEquals(self.name, self.child.name)
+        self.assertEqual(self.name, self.child.name)
         self.singlePost({
             'name': self.other_name,
         })
         self.child.refresh_from_db()
-        self.assertEquals(self.other_name, self.child.name)
+        self.assertEqual(self.other_name, self.child.name)
 
 
 class AssetEditFileViewTests(SingleAssetViewTests, ViewTestCase):
