@@ -61,7 +61,7 @@
                     <tr>
                         {% with path=prefix|append:file.name %}
                             <td><a href="">{{ file.name }}</a></td>
-                            <td></td>
+                            <td>{% if file.active %}✓{% endif %}</td>
                             <td><a href="{% url 'asset_edit_file' path=path %}">edit</a></td>
                             <td><a href="{% url 'asset_remove_file' path=path %}">remove</a></td>
                         {% endwith %}
