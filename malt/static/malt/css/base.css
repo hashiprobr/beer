@@ -97,6 +97,11 @@ nav a:hover {
     height: 100%;
 }
 
+.uploader p {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
 .uploader input[type="file"] {
     display: none;
 }

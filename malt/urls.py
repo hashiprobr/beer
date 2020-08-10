@@ -4,16 +4,22 @@ from . import views
 
 
 urlpatterns = [
+    path('user/', views.UserManageView.as_view(), name='user_manage'),
     path('user/add/', views.UserAddView.as_view(), name='user_add'),
-    path('user/manage/', views.UserManageView.as_view(), name='user_manage'),
     path('user/edit/<int:pk>/', views.UserEditView.as_view(), name='user_edit'),
     path('user/remove/<int:pk>/', views.UserRemoveView.as_view(), name='user_remove'),
     path('user/promote/<int:pk>/', views.UserPromoteView.as_view(), name='user_promote'),
     path('user/demote/<int:pk>/', views.UserDemoteView.as_view(), name='user_demote'),
-    path('upload/', views.UploadView.as_view(), name='upload'),
+    path('upload/prepare/', views.UploadPrepareView.as_view(), name='upload_prepare'),
     path('upload/code/', views.UploadCodeView.as_view(), name='upload_code'),
     path('upload/asset/public/', views.UploadAssetPublicView.as_view(), name='upload_asset_public'),
     path('upload/asset/private/', views.UploadAssetPrivateView.as_view(), name='upload_asset_private'),
     path('upload/asset/confirm/', views.UploadAssetConfirmView.as_view(), name='upload_asset_confirm'),
+    path('assets/', views.AssetManageView.as_view(), {'path': None}, name='asset_manage'),
+    path('assets/<path:path>/', views.AssetManageView.as_view(), name='asset_folder'),
+    path('edit/assets/<path:path>/', views.AssetEditView.as_view(), name='asset_edit'),
+    path('edit/file/assets/<path:path>/', views.AssetEditFileView.as_view(), name='asset_edit_file'),
+    path('remove/assets/<path:path>/', views.AssetRemoveView.as_view(), name='asset_remove'),
+    path('remove/file/assets/<path:path>/', views.AssetRemoveFileView.as_view(), name='asset_remove_file'),
     path('', views.IndexView.as_view(), name='index'),
 ]

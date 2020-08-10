@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 
 from beer.tests import ViewTestCase
 
-from ...models import PowerUser
+from ...models import PowerUser, FolderAsset, FileAsset
 from ...caches import power_cache
 from ...views import PAGE_SIZE
 
@@ -14,12 +14,12 @@ User = get_user_model()
 
 
 class UserViewTests:
-    super_username = '35fde5760c42b7bc27494710a006918c'
-    username = '528070b65f32f4f785a7e4a6ba77baf5'
-    other_username = 'bba8253c7b9a27d27c8445a46c125c90'
+    super_username = '35fde5760c42b7bc'
+    username = '528070b65f32f4f7'
+    other_username = 'bba8253c7b9a27d2'
 
-    super_password = '5VShJJJu'
-    password = 'PLEGZqr2'
+    super_password = 'sp'
+    password = 'p'
 
     email = 'e@e.com'
     other_email = 'oe@oe.com'
@@ -69,21 +69,6 @@ class UserViewTests:
         self.assertEquals(403, self.post_status(kwargs=self.kwargs()))
 
 
-class UserAddViewTests(UserViewTests, ViewTestCase):
-    view_name = 'user_add'
-
-    def testPost(self):
-        self.superLogin()
-        data = {
-            'username': self.other_username,
-            'email': self.other_email,
-            'first_name': self.other_first_name,
-            'last_name': self.other_last_name,
-        }
-        self.post(data=data)
-        self.assertTrue(User.objects.filter(**data).exists())
-
-
 class UserManageViewTests(UserViewTests, ViewTestCase):
     view_name = 'user_manage'
 
@@ -124,23 +109,15 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             data['domain'] = domain
         self.post(data=data)
         for values in expected:
-            try:
-                user = User.objects.get(
-                    username=values[0],
-                    email=values[1],
-                    first_name=values[2],
-                    last_name=values[3],
-                )
-            except User.DoesNotExist:
-                self.fail('User.DoesNotExist raised')
-            exists = PowerUser.objects.filter(user=user).exists()
-            if promote:
-                self.assertTrue(exists)
-            else:
-                self.assertFalse(exists)
+            user = User.objects.get(username=values[0], email=values[1], first_name=values[2], last_name=values[3])
+            self.assertEqual(promote, PowerUser.objects.filter(user=user).exists())
 
     def assertPostForBothPromotes(self, name, domain, expected):
         self.assertPost(name, domain, False, expected)
+        self.tearDown()
+        self._post_teardown()
+        self._pre_setup()
+        self.setUp()
         self.assertPost(name, domain, True, expected)
 
     def testPageSize(self):
@@ -405,6 +382,21 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
         self.assertPower()
 
 
+class UserAddViewTests(UserViewTests, ViewTestCase):
+    view_name = 'user_add'
+
+    def testPost(self):
+        self.superLogin()
+        data = {
+            'username': self.other_username,
+            'email': self.other_email,
+            'first_name': self.other_first_name,
+            'last_name': self.other_last_name,
+        }
+        self.post(data=data)
+        self.assertTrue(User.objects.filter(**data).exists())
+
+
 class SingleUserViewTests(UserViewTests):
     def kwargs(self):
         return {'pk': self.user.pk}
@@ -457,21 +449,10 @@ class UserRemoveViewTests(SingleUserViewTests, ViewTestCase):
     def exists(self):
         return User.objects.filter(pk=self.user.pk).exists()
 
-    def assertExists(self):
-        self.assertTrue(self.exists())
-
-    def assertDoesNotExist(self):
-        self.assertFalse(self.exists())
-
     def testPost(self):
-        self.assertExists()
+        self.assertTrue(self.exists())
         self.singlePost()
-        self.assertDoesNotExist()
-
-    def testIdempotence(self):
-        self.singlePost()
-        self.singlePost()
-        self.assertDoesNotExist()
+        self.assertFalse(self.exists())
 
 
 class UserPromoteViewTests(SingleUserViewTests, ViewTestCase):
@@ -504,3 +485,205 @@ class UserDemoteViewTests(SingleUserViewTests, ViewTestCase):
         self.singlePost()
         self.singlePost()
         self.assertNotPower()
+
+
+class AssetViewTests:
+    super_username = 'su'
+    username = 'u'
+    power_username = 'pu'
+
+    super_password = 'sp'
+    password = 'p'
+    power_password = 'pp'
+
+    parent_name = '35fde5760c42b7bc'
+    name = '528070b65f32f4f7'
+    other_name = 'bba8253c7b9a27d2'
+
+    def setUp(self):
+        User.objects.create_superuser(self.super_username, password=self.super_password)
+        User.objects.create_user(self.username, password=self.password)
+        self.user = User.objects.create_user(self.power_username, password=self.power_password)
+        PowerUser.objects.create(user=self.user)
+
+    def superLogin(self):
+        self.client.login(username=self.super_username, password=self.super_password)
+
+    def login(self):
+        self.client.login(username=self.username, password=self.password)
+
+    def powerLogin(self):
+        self.client.login(username=self.power_username, password=self.power_password)
+
+    def kwargs(self):
+        return None
+
+    def testGetRedirects(self):
+        self.assertEquals(302, self.get_status(kwargs=self.kwargs()))
+
+    def testGetForbidsAfterLogin(self):
+        self.login()
+        self.assertEquals(403, self.get_status(kwargs=self.kwargs()))
+
+    def testGetForbidsAfterSuperLogin(self):
+        self.superLogin()
+        self.assertEquals(403, self.get_status(kwargs=self.kwargs()))
+
+    def testPostRedirects(self):
+        self.assertEquals(302, self.post_status(kwargs=self.kwargs()))
+
+    def testPostForbidsAfterLogin(self):
+        self.login()
+        self.assertEquals(403, self.post_status(kwargs=self.kwargs()))
+
+    def testPostForbidsSuperLogin(self):
+        self.superLogin()
+        self.assertEquals(403, self.post_status(kwargs=self.kwargs()))
+
+
+class AssetManageViewTests(AssetViewTests, ViewTestCase):
+    view_name = 'asset_manage'
+    parent = None
+
+    def assertGet(self, num_folders, num_files):
+        for i in range(num_folders):
+            FolderAsset.objects.create(user=self.user, parent=self.parent, name='{}{}'.format(self.name, i))
+        for i in range(num_files):
+            FileAsset.objects.create(user=self.user, parent=self.parent, name='{}{}'.format(self.other_name, i))
+        self.powerLogin()
+        html = self.get_html(kwargs=self.kwargs())
+        tables = html.select('table')
+        if num_folders:
+            folder_trs = tables[0].select('tbody tr')
+            if num_files:
+                self.assertEqual(2, len(tables))
+                file_trs = tables[1].select('tbody tr')
+            else:
+                self.assertEqual(1, len(tables))
+                file_trs = []
+        else:
+            folder_trs = []
+            if num_files:
+                self.assertEqual(1, len(tables))
+                file_trs = tables[0].select('tbody tr')
+            else:
+                self.assertEqual(0, len(tables))
+                file_trs = []
+        self.assertEqual(num_folders, len(folder_trs))
+        self.assertEqual(num_files, len(file_trs))
+
+    def testGetForZeroFoldersAndZeroFiles(self):
+        self.assertGet(0, 0)
+
+    def testGetForZeroFoldersAndOneFile(self):
+        self.assertGet(0, 1)
+
+    def testGetForZeroFoldersAndTwoFiles(self):
+        self.assertGet(0, 2)
+
+    def testGetForZeroFoldersAndThreeFiles(self):
+        self.assertGet(0, 3)
+
+    def testGetForOneFolderAndZeroFiles(self):
+        self.assertGet(1, 0)
+
+    def testGetForOneFolderAndOneFile(self):
+        self.assertGet(1, 1)
+
+    def testGetForOneFolderAndTwoFiles(self):
+        self.assertGet(1, 2)
+
+    def testGetForOneFolderAndThreeFiles(self):
+        self.assertGet(1, 3)
+
+    def testGetForTwoFoldersAndZeroFiles(self):
+        self.assertGet(2, 0)
+
+    def testGetForTwoFoldersAndOneFile(self):
+        self.assertGet(2, 1)
+
+    def testGetForTwoFoldersAndTwoFiles(self):
+        self.assertGet(2, 2)
+
+    def testGetForTwoFoldersAndThreeFiles(self):
+        self.assertGet(2, 3)
+
+    def testGetForThreeFoldersAndZeroFiles(self):
+        self.assertGet(3, 0)
+
+    def testGetForThreeFoldersAndOneFile(self):
+        self.assertGet(3, 1)
+
+    def testGetForThreeFoldersAndTwoFiles(self):
+        self.assertGet(3, 2)
+
+    def testGetForThreeFoldersAndThreeFiles(self):
+        self.assertGet(3, 3)
+
+
+class PathAssetViewTests:
+    def setUp(self):
+        super().setUp()
+        self.parent = FolderAsset.objects.create(user=self.user, parent=None, name=self.parent_name)
+
+
+class AssetFolderViewTests(PathAssetViewTests, AssetManageViewTests):
+    view_name = 'asset_folder'
+
+    def kwargs(self):
+        return {'path': self.parent.name}
+
+
+class SingleAssetViewTests(PathAssetViewTests, AssetViewTests):
+    Asset = FolderAsset
+
+    def setUp(self):
+        super().setUp()
+        self.child = self.Asset.objects.create(user=self.user, parent=self.parent, name=self.name)
+
+    def kwargs(self):
+        return {'path': '{}/{}'.format(self.parent.name, self.name)}
+
+    def testGet(self):
+        self.powerLogin()
+        html = self.get_html(kwargs=self.kwargs())
+        h2 = html.select_one('h2')
+        self.assertIn(self.name, self.string(h2))
+
+    def singlePost(self, data=None):
+        self.powerLogin()
+        self.post(kwargs=self.kwargs(), data=data)
+
+
+class AssetEditViewTests(SingleAssetViewTests, ViewTestCase):
+    view_name = 'asset_edit'
+
+    def testPost(self):
+        self.assertEquals(self.name, self.child.name)
+        self.singlePost({
+            'name': self.other_name,
+        })
+        self.child.refresh_from_db()
+        self.assertEquals(self.other_name, self.child.name)
+
+
+class AssetEditFileViewTests(SingleAssetViewTests, ViewTestCase):
+    view_name = 'asset_edit_file'
+    Asset = FileAsset
+
+
+class AssetRemoveViewTests(SingleAssetViewTests, ViewTestCase):
+    view_name = 'asset_remove'
+
+    def exists(self):
+        return self.Asset.objects.filter(user=self.user, parent=self.parent, name=self.name).exists()
+
+    def testPost(self):
+        self.assertTrue(self.exists())
+        self.singlePost()
+        self.assertFalse(self.exists())
+
+
+class AssetRemoveFileViewTests(SingleAssetViewTests, ViewTestCase):
+    view_name = 'asset_remove_file'
+    Asset = FileAsset

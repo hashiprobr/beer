@@ -1,0 +1,3 @@
+{% extends 'malt/asset.html' %}
+
+{% block subtitle %}{% if grandparent_url %}<a href="{{ grandparent_url }}">../</a>{% endif %}<a href="{{ parent_url }}">{{ parent_name }}</a>/{% endblock %}

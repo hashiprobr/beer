@@ -1,0 +1,14 @@
+{% extends 'malt/asset_single.html' %}
+
+{% block subcontent %}
+    <h2>
+        Remove {{ name }}?
+    </h2>
+    <p>
+        Please be aware that this operation is irreversible.
+    </p>
+    <form method="post">
+        {% csrf_token %}
+        <input type="submit" value="Confirm">
+    </form>
+{% endblock %}

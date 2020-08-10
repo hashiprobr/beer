@@ -1,0 +1,74 @@
+{% extends 'malt/asset.html' %}
+
+{% block subtitle %}{% if parent_url %}<a href="{{ parent_url }}">../</a>{% endif %}{{ name }}/{% endblock %}
+
+{% block subcontent %}
+    {% load malt %}
+    <h2>
+        Folders
+    </h2>
+    {% if folders %}
+        <table class="asset">
+            <thead>
+                <tr>
+                    <td>Name</td>
+                    <td></td>
+                    <td></td>
+                </tr>
+            </thead>
+            <tbody>
+                {% for folder in folders %}
+                    <tr>
+                        {% with path=prefix|append:folder.name %}
+                            <td><a href="{% url 'asset_folder' path=path %}">{{ folder.name }}</a></td>
+                            <td><a href="{% url 'asset_edit' path=path %}">edit</a></td>
+                            <td><a href="{% url 'asset_remove' path=path %}">remove</a></td>
+                        {% endwith %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+    <form method="post">
+        {% csrf_token %}
+
+        {{ form.non_field_errors }}
+
+        <label for="{{ form.name.id_for_label }}">
+            <span>{{ form.name.label }}</span>
+            {{ form.name }}
+        </label>
+
+        {{ form.name.errors }}
+
+        <input type="submit" value="Add">
+    </form>
+    <h2>
+        Files
+    </h2>
+    {% if files %}
+        <table class="asset">
+            <thead>
+                <tr>
+                    <td>Name</td>
+                    <td>Active</td>
+                    <td></td>
+                    <td></td>
+                </tr>
+            </thead>
+            <tbody>
+                {% for file in files %}
+                    <tr>
+                        {% with path=prefix|append:file.name %}
+                            <td><a href="">{{ file.name }}</a></td>
+                            <td></td>
+                            <td><a href="{% url 'asset_edit_file' path=path %}">edit</a></td>
+                            <td><a href="{% url 'asset_remove_file' path=path %}">remove</a></td>
+                        {% endwith %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+    {% include 'malt/uploader_form.html' with method='asset' %}
+{% endblock %}

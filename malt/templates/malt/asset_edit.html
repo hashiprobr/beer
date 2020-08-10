@@ -1,0 +1,21 @@
+{% extends 'malt/asset_single.html' %}
+
+{% block subcontent %}
+    <h2>
+        Edit {{ name }}
+    </h2>
+    <form method="post">
+        {% csrf_token %}
+
+        {{ form.non_field_errors }}
+
+        <label for="{{ form.name.id_for_label }}">
+            <span>{{ form.name.label }}</span>
+            {{ form.name }}
+        </label>
+
+        {{ form.name.errors }}
+
+        <input type="submit" value="Save">
+    </form>
+{% endblock %}
