@@ -112,14 +112,6 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             user = User.objects.get(username=values[0], email=values[1], first_name=values[2], last_name=values[3])
             self.assertEqual(promote, PowerUser.objects.filter(user=user).exists())
 
-    def assertPostForBothPromotes(self, name, domain, expected):
-        self.assertPost(name, domain, False, expected)
-        self.tearDown()
-        self._post_teardown()
-        self._pre_setup()
-        self.setUp()
-        self.assertPost(name, domain, True, expected)
-
     def testPageSize(self):
         self.assertLessEqual(4, PAGE_SIZE)
 
@@ -195,7 +187,7 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
     def testGetForThreePagesWithPageFour(self):
         self.assertGet(3 * PAGE_SIZE, 4, PAGE_SIZE, False, '1 of 3', True)
 
-    def testPost(self):
+    def testPostWithFalsePromote(self):
         name = 'base'
         domain = 'd.com'
         expected = [
@@ -203,26 +195,53 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             ('bu', 'bu@d.com', 'bf', 'bl'),
             ('cu', 'cu@d.com', 'cf', 'cl'),
         ]
-        self.assertPostForBothPromotes(name, domain, expected)
+        self.assertPost(name, domain, False, expected)
 
-    def testPostForOneUser(self):
+    def testPostWithTruePromote(self):
+        name = 'base'
+        domain = 'd.com'
+        expected = [
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
+        ]
+        self.assertPost(name, domain, True, expected)
+
+    def testPostForOneUserAndFalsePromote(self):
         name = 'one'
         domain = 'd.com'
         expected = [
             ('au', 'au@d.com', 'af', 'al'),
         ]
-        self.assertPostForBothPromotes(name, domain, expected)
+        self.assertPost(name, domain, False, expected)
 
-    def testPostForTwoUsers(self):
+    def testPostForOneUserAndTruePromote(self):
+        name = 'one'
+        domain = 'd.com'
+        expected = [
+            ('au', 'au@d.com', 'af', 'al'),
+        ]
+        self.assertPost(name, domain, True, expected)
+
+    def testPostForTwoUsersAndFalsePromote(self):
         name = 'two'
         domain = 'd.com'
         expected = [
             ('au', 'au@d.com', 'af', 'al'),
             ('bu', 'bu@d.com', 'bf', 'bl'),
         ]
-        self.assertPostForBothPromotes(name, domain, expected)
+        self.assertPost(name, domain, False, expected)
 
-    def testPostWithoutFirstLast(self):
+    def testPostForTwoUsersAndTruePromote(self):
+        name = 'two'
+        domain = 'd.com'
+        expected = [
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+        ]
+        self.assertPost(name, domain, True, expected)
+
+    def testPostWithoutFirstLastAndFalsePromote(self):
         name = 'noal'
         domain = 'd.com'
         expected = [
@@ -230,9 +249,19 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             ('bu', 'bu@d.com', 'bf', 'bl'),
             ('cu', 'cu@d.com', 'cf', 'cl'),
         ]
-        self.assertPostForBothPromotes(name, domain, expected)
+        self.assertPost(name, domain, False, expected)
 
-    def testPostWithoutSecondLast(self):
+    def testPostWithoutFirstLastAndTruePromote(self):
+        name = 'noal'
+        domain = 'd.com'
+        expected = [
+            ('au', 'au@d.com', 'af', ''),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
+        ]
+        self.assertPost(name, domain, True, expected)
+
+    def testPostWithoutSecondLastAndFalsePromote(self):
         name = 'nobl'
         domain = 'd.com'
         expected = [
@@ -240,9 +269,19 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             ('bu', 'bu@d.com', 'bf', ''),
             ('cu', 'cu@d.com', 'cf', 'cl'),
         ]
-        self.assertPostForBothPromotes(name, domain, expected)
+        self.assertPost(name, domain, False, expected)
 
-    def testPostWithoutThirdLast(self):
+    def testPostWithoutSecondLastAndTruePromote(self):
+        name = 'nobl'
+        domain = 'd.com'
+        expected = [
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', ''),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
+        ]
+        self.assertPost(name, domain, True, expected)
+
+    def testPostWithoutThirdLastAndFalsePromote(self):
         name = 'nocl'
         domain = 'd.com'
         expected = [
@@ -250,9 +289,19 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             ('bu', 'bu@d.com', 'bf', 'bl'),
             ('cu', 'cu@d.com', 'cf', ''),
         ]
-        self.assertPostForBothPromotes(name, domain, expected)
+        self.assertPost(name, domain, False, expected)
 
-    def testPostWithSpace(self):
+    def testPostWithoutThirdLastAndTruePromote(self):
+        name = 'nocl'
+        domain = 'd.com'
+        expected = [
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', ''),
+        ]
+        self.assertPost(name, domain, True, expected)
+
+    def testPostWithSpaceAndFalsePromote(self):
         name = 'space'
         domain = 'd.com'
         expected = [
@@ -260,9 +309,19 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             ('bu', 'bu@d.com', 'bf', 'bl'),
             ('cu', 'cu@d.com', 'cf', 'cl'),
         ]
-        self.assertPostForBothPromotes(name, domain, expected)
+        self.assertPost(name, domain, False, expected)
 
-    def testPostWithExtra(self):
+    def testPostWithSpaceAndTruePromote(self):
+        name = 'space'
+        domain = 'd.com'
+        expected = [
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
+        ]
+        self.assertPost(name, domain, True, expected)
+
+    def testPostWithExtraAndFalsePromote(self):
         name = 'extra'
         domain = 'd.com'
         expected = [
@@ -270,9 +329,19 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             ('bu', 'bu@d.com', 'bf', 'bm bl'),
             ('cu', 'cu@d.com', 'cf', 'cm cl'),
         ]
-        self.assertPostForBothPromotes(name, domain, expected)
+        self.assertPost(name, domain, False, expected)
 
-    def testPostWithEmailWithoutDomain(self):
+    def testPostWithExtraAndTruePromote(self):
+        name = 'extra'
+        domain = 'd.com'
+        expected = [
+            ('au', 'au@d.com', 'af', 'am al'),
+            ('bu', 'bu@d.com', 'bf', 'bm bl'),
+            ('cu', 'cu@d.com', 'cf', 'cm cl'),
+        ]
+        self.assertPost(name, domain, True, expected)
+
+    def testPostWithEmailWithoutDomainAndFalsePromote(self):
         name = 'email'
         domain = None
         expected = [
@@ -280,26 +349,53 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             ('bu', 'be@be.com', 'bf', 'bl'),
             ('cu', 'ce@ce.com', 'cf', 'cl'),
         ]
-        self.assertPostForBothPromotes(name, domain, expected)
+        self.assertPost(name, domain, False, expected)
 
-    def testPostWithEmailWithoutDomainForOneUser(self):
+    def testPostWithEmailWithoutDomainAndTruePromote(self):
+        name = 'email'
+        domain = None
+        expected = [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
+        ]
+        self.assertPost(name, domain, True, expected)
+
+    def testPostWithEmailWithoutDomainForOneUserAndFalsePromote(self):
         name = 'email-one'
         domain = None
         expected = [
             ('au', 'ae@ae.com', 'af', 'al'),
         ]
-        self.assertPostForBothPromotes(name, domain, expected)
+        self.assertPost(name, domain, False, expected)
 
-    def testPostWithEmailWithoutDomainForTwoUsers(self):
+    def testPostWithEmailWithoutDomainForOneUserAndTruePromote(self):
+        name = 'email-one'
+        domain = None
+        expected = [
+            ('au', 'ae@ae.com', 'af', 'al'),
+        ]
+        self.assertPost(name, domain, True, expected)
+
+    def testPostWithEmailWithoutDomainForTwoUsersAndFalsePromote(self):
         name = 'email-two'
         domain = None
         expected = [
             ('au', 'ae@ae.com', 'af', 'al'),
             ('bu', 'be@be.com', 'bf', 'bl'),
         ]
-        self.assertPostForBothPromotes(name, domain, expected)
+        self.assertPost(name, domain, False, expected)
 
-    def testPostWithEmailWithoutDomainAndFirstLast(self):
+    def testPostWithEmailWithoutDomainForTwoUsersAndTruePromote(self):
+        name = 'email-two'
+        domain = None
+        expected = [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+        ]
+        self.assertPost(name, domain, True, expected)
+
+    def testPostWithEmailWithoutDomainAndFirstLastAndFalsePromote(self):
         name = 'email-noal'
         domain = None
         expected = [
@@ -307,9 +403,19 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             ('bu', 'be@be.com', 'bf', 'bl'),
             ('cu', 'ce@ce.com', 'cf', 'cl'),
         ]
-        self.assertPostForBothPromotes(name, domain, expected)
+        self.assertPost(name, domain, False, expected)
 
-    def testPostWithEmailWithoutDomainAndSecondLast(self):
+    def testPostWithEmailWithoutDomainAndFirstLastAndTruePromote(self):
+        name = 'email-noal'
+        domain = None
+        expected = [
+            ('au', 'ae@ae.com', 'af', ''),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
+        ]
+        self.assertPost(name, domain, True, expected)
+
+    def testPostWithEmailWithoutDomainAndSecondLastAndFalsePromote(self):
         name = 'email-nobl'
         domain = None
         expected = [
@@ -317,9 +423,19 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             ('bu', 'be@be.com', 'bf', ''),
             ('cu', 'ce@ce.com', 'cf', 'cl'),
         ]
-        self.assertPostForBothPromotes(name, domain, expected)
+        self.assertPost(name, domain, False, expected)
 
-    def testPostWithEmailWithoutDomainAndThirdLast(self):
+    def testPostWithEmailWithoutDomainAndSecondLastAndTruePromote(self):
+        name = 'email-nobl'
+        domain = None
+        expected = [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', ''),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
+        ]
+        self.assertPost(name, domain, True, expected)
+
+    def testPostWithEmailWithoutDomainAndThirdLastAndFalsePromote(self):
         name = 'email-nocl'
         domain = None
         expected = [
@@ -327,9 +443,19 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             ('bu', 'be@be.com', 'bf', 'bl'),
             ('cu', 'ce@ce.com', 'cf', ''),
         ]
-        self.assertPostForBothPromotes(name, domain, expected)
+        self.assertPost(name, domain, False, expected)
 
-    def testPostWithEmailAndSpaceWithoutDomain(self):
+    def testPostWithEmailWithoutDomainAndThirdLastAndTruePromote(self):
+        name = 'email-nocl'
+        domain = None
+        expected = [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', ''),
+        ]
+        self.assertPost(name, domain, True, expected)
+
+    def testPostWithEmailAndSpaceWithoutDomainAndFalsePromote(self):
         name = 'email-space'
         domain = None
         expected = [
@@ -337,9 +463,19 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             ('bu', 'be@be.com', 'bf', 'bl'),
             ('cu', 'ce@ce.com', 'cf', 'cl'),
         ]
-        self.assertPostForBothPromotes(name, domain, expected)
+        self.assertPost(name, domain, False, expected)
 
-    def testPostWithExtraAndSpaceWithoutDomain(self):
+    def testPostWithEmailAndSpaceWithoutDomainAndTruePromote(self):
+        name = 'email-space'
+        domain = None
+        expected = [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
+        ]
+        self.assertPost(name, domain, True, expected)
+
+    def testPostWithEmailAndExtraWithoutDomainAndFalsePromote(self):
         name = 'email-extra'
         domain = None
         expected = [
@@ -347,7 +483,17 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             ('bu', 'be@be.com', 'bf', 'bm bl'),
             ('cu', 'ce@ce.com', 'cf', 'cm cl'),
         ]
-        self.assertPostForBothPromotes(name, domain, expected)
+        self.assertPost(name, domain, False, expected)
+
+    def testPostWithEmailAndExtraWithoutDomainAndTruePromote(self):
+        name = 'email-extra'
+        domain = None
+        expected = [
+            ('au', 'ae@ae.com', 'af', 'am al'),
+            ('bu', 'be@be.com', 'bf', 'bm bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cm cl'),
+        ]
+        self.assertPost(name, domain, True, expected)
 
     def testPostEdit(self):
         self.user.email = self.email
