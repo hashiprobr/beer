@@ -49,10 +49,10 @@ class PassFailMockYeast(PassMockYeast):
 
 class PassPassMockYeast(PassMockYeast):
     def ferment(self, meta, data, sugars):
-        pass
+        return None
 
     def referment(self, meta, sugars):
-        pass
+        return None
 
 
 class BrewingTests:
