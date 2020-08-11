@@ -178,7 +178,7 @@ class FailMockPrimer(GypsyBrewer):
 
 class PassMockPrimer(GypsyBrewer):
     def prime(self, meta, sugars, yeasts):
-        pass
+        return None
 
 
 class BreweryTests(BrewingTests, UnitTestCase):
