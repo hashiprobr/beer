@@ -15,8 +15,13 @@ YEASTS = {
 }
 
 
-class Brewery(Brewer):
-    def grow(self, content, yeasts=YEASTS):
+class GypsyBrewer(Brewer):
+    def __init__(self, history):
+        self.history = history
+
+
+class Grower(GypsyBrewer):
+    def grow(self, content, yeasts):
         try:
             text = content.decode('utf-8')
         except UnicodeDecodeError:
@@ -68,7 +73,9 @@ class Brewery(Brewer):
         self.history.append('Separator not found.')
         return None
 
-    def prime(self, meta, sugars, yeasts=YEASTS):
+
+class Primer(GypsyBrewer):
+    def prime(self, meta, sugars, yeasts):
         try:
             type = meta.pop('view_name')
         except KeyError:
@@ -86,7 +93,12 @@ class Brewery(Brewer):
 
         return yeast.referment(clean_meta, sugars)
 
-    def brew(self, files, meta, enzymes=ENZYMES, yeasts=YEASTS):
+
+class Brewery(Brewer):
+    def brew(self, files, meta, enzymes=ENZYMES, yeasts=YEASTS, Grower=Grower, Primer=Primer):
+        grower = Grower(self.history)
+        primer = Primer(self.history)
+
         if len(files) != 1:
             self.raiseBrewError('One file is expected and this file cannot have more than 25MB.')
 
@@ -110,36 +122,36 @@ class Brewery(Brewer):
                 members = enzyme.convert(content)
             except EnzymeError as error:
                 self.history.append('File is not a valid {} archive: {}'.format(enzyme.extension, error))
-            else:
-                self.history.append('File is a valid {} archive.'.format(enzyme.extension))
+                continue
+            self.history.append('File is a valid {} archive.'.format(enzyme.extension))
 
-                inputs = {}
-                sugars = []
+            inputs = {}
+            sugars = []
 
-                for date, name, content in members:
-                    self.history.append('Extracted {}.'.format(name))
+            for date, name, content in members:
+                self.history.append('Extracted {}.'.format(name))
 
-                    input = self.grow(content, yeasts)
+                input = grower.grow(content, yeasts)
 
-                    if input is None:
-                        sugars.append((date, name, content))
-                    else:
-                        inputs[name] = input
-
-                if len(inputs) > 1:
-                    self.raiseBrewError('Multiple yeasts found: ' + ', '.join(inputs))
-
-                if inputs:
-                    yeast, clean_meta, data = next(iter(inputs.values()))
-
-                    return yeast.ferment(clean_meta, data, sugars)
+                if input is None:
+                    sugars.append((date, name, content))
                 else:
-                    return self.prime(meta, sugars, yeasts)
+                    inputs[name] = input
 
-        input = self.grow(content, yeasts)
+            if len(inputs) > 1:
+                self.raiseBrewError('Multiple yeasts found: ' + ', '.join(inputs))
+
+            if inputs:
+                yeast, clean_meta, data = next(iter(inputs.values()))
+
+                return yeast.ferment(clean_meta, data, sugars)
+            else:
+                return primer.prime(meta, sugars, yeasts)
+
+        input = grower.grow(content, yeasts)
 
         if input is None:
-            return self.prime(meta, [(date, name, content)], yeasts)
+            return primer.prime(meta, [(date, name, content)], yeasts)
         else:
             yeast, clean_meta, data = input
 

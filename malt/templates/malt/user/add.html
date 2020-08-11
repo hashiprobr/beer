@@ -1,6 +1,6 @@
-{% extends 'malt/user.html' %}
+{% extends 'malt/user/single.html' %}
 
-{% block subcontent %}
+{% block subbody %}
     <h2>
         Add
     </h2>
@@ -37,6 +37,6 @@
 
         {{ form.last_name.errors }}
 
-        <input type="submit" value="Save">
+        <input type="submit" value="Add">
     </form>
 {% endblock %}

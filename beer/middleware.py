@@ -6,7 +6,7 @@ class HealthMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        if request.META['PATH_INFO'] == '/ping':
+        if request.path_info == '/ping':
             return HttpResponse(b'pong')
         else:
             return self.get_response(request)

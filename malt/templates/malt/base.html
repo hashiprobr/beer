@@ -10,23 +10,25 @@
 {% block js %}
     {% load static %}
     <script src="{% static 'malt/js/base.js' %}"></script>
+    {% block subjs %}
+    {% endblock %}
 {% endblock %}
 
-{% block content %}
+{% block body %}
     <nav>
-        <ul class="trail">
+        <ul>
             <li><a href="{% url 'index' %}">Home</a></li>
             {% if course %}
                 <li>🡒</li>
-                <li><a href="{% url course.href %}">{{ course.text }}</a></li>
+                <li><a href="{% url course.url %}">{{ course.title }}</a></li>
                 {% if page %}
                     <li>🡒</li>
-                    <li><a href="{% url page.href %}">{{ page.text }}</a></li>
+                    <li><a href="{% url page.url %}">{{ page.title }}</a></li>
                 {% endif %}
             {% endif %}
         </ul>
-        {% if power %}
-            {% include 'malt/uploader_form.html' with method='code' %}
+        {% if power and not focus %}
+            {% include 'malt/uploader/form.html' with method='code' %}
         {% endif %}
         <div class="profile">
             <p>
@@ -36,6 +38,9 @@
                 {% if request.user.is_superuser %}
                     <li><a href="{% url 'user_add' %}">Add user</a></li>
                     <li><a href="{% url 'user_manage' %}">Manage users</a></li>
+                {% endif %}
+                {% if power %}
+                    <li><a href="{% url 'asset_manage' %}">Manage assets</a></li>
                 {% endif %}
                 <li><a href="{% url 'password_change' %}">Change password</a></li>
                 <li><a href="{% url 'logout' %}">Logout</a></li>
@@ -49,7 +54,7 @@
             <h1>
                 {% block subtitle %}{% endblock %}
             </h1>
-            {% block subcontent %}
+            {% block subbody %}
             {% endblock %}
         </main>
         {% block footer %}

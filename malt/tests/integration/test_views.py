@@ -6,19 +6,20 @@ from django.contrib.auth import get_user_model
 
 from beer.tests import ViewTestCase
 
-from ...models import PowerUser
+from ...models import PowerUser, FolderAsset, FileAsset
 from ...caches import power_cache
+from ...views import PAGE_SIZE
 
 User = get_user_model()
 
 
 class UserViewTests:
-    super_username = '35fde5760c42b7bc27494710a006918c'
-    username = '528070b65f32f4f785a7e4a6ba77baf5'
-    other_username = 'bba8253c7b9a27d27c8445a46c125c90'
+    super_username = '35fde5760c42b7bc'
+    username = '528070b65f32f4f7'
+    other_username = 'bba8253c7b9a27d2'
 
-    super_password = '5VShJJJu'
-    password = 'PLEGZqr2'
+    super_password = 'sp'
+    password = 'p'
 
     email = 'e@e.com'
     other_email = 'oe@oe.com'
@@ -33,14 +34,14 @@ class UserViewTests:
         User.objects.create_superuser(self.super_username, password=self.super_password)
         self.user = User.objects.create_user(self.username, password=self.password)
 
-    def kwargs(self):
-        return None
-
     def superLogin(self):
         self.client.login(username=self.super_username, password=self.super_password)
 
     def login(self):
         self.client.login(username=self.username, password=self.password)
+
+    def kwargs(self):
+        return None
 
     def power(self):
         return PowerUser.objects.filter(user=self.user).exists()
@@ -54,33 +55,18 @@ class UserViewTests:
         self.assertFalse(power_cache.get(self.user))
 
     def testGetRedirects(self):
-        self.assertEquals(302, self.get_status(kwargs=self.kwargs()))
+        self.assertEqual(302, self.get_status(kwargs=self.kwargs()))
 
     def testGetForbidsAfterLogin(self):
         self.login()
-        self.assertEquals(403, self.get_status(kwargs=self.kwargs()))
+        self.assertEqual(403, self.get_status(kwargs=self.kwargs()))
 
     def testPostRedirects(self):
-        self.assertEquals(302, self.post_status(kwargs=self.kwargs()))
+        self.assertEqual(302, self.post_status(kwargs=self.kwargs()))
 
     def testPostForbidsAfterLogin(self):
         self.login()
-        self.assertEquals(403, self.post_status(kwargs=self.kwargs()))
-
-
-class UserAddViewTests(UserViewTests, ViewTestCase):
-    view_name = 'user_add'
-
-    def testPost(self):
-        self.superLogin()
-        data = {
-            'username': self.other_username,
-            'email': self.other_email,
-            'first_name': self.other_first_name,
-            'last_name': self.other_last_name,
-        }
-        self.post(data=data)
-        self.assertTrue(User.objects.filter(**data).exists())
+        self.assertEqual(403, self.post_status(kwargs=self.kwargs()))
 
 
 class UserManageViewTests(UserViewTests, ViewTestCase):
@@ -97,6 +83,22 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             content = file.read()
         return BytesIO(content)
 
+    def assertGet(self, n, page, length, left, center, right):
+        for i in range(n - 2):
+            User.objects.create_user('{}{}'.format(self.username, i))
+        self.superLogin()
+        if page is None:
+            html = self.get_html()
+        else:
+            html = self.get_html(query=[('page', page)])
+        trs = html.select('tbody tr')
+        caption = html.select_one('caption')
+        arrows = [self.string(a) for a in caption.select('a')]
+        self.assertEqual(length, len(trs))
+        self.assertEqual(left, '🡨' in arrows)
+        self.assertIn(center, self.string(caption))
+        self.assertEqual(right, '🡪' in arrows)
+
     def assertPost(self, name, domain, promote, expected):
         self.superLogin()
         data = {
@@ -107,189 +109,390 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             data['domain'] = domain
         self.post(data=data)
         for values in expected:
-            try:
-                user = User.objects.get(
-                    username=values[0],
-                    email=values[1],
-                    first_name=values[2],
-                    last_name=values[3],
-                )
-            except User.DoesNotExist:
-                self.fail('User.DoesNotExist raised')
-            exists = PowerUser.objects.filter(user=user).exists()
-            if promote:
-                self.assertTrue(exists)
-            else:
-                self.assertFalse(exists)
+            user = User.objects.get(username=values[0], email=values[1], first_name=values[2], last_name=values[3])
+            self.assertEqual(promote, PowerUser.objects.filter(user=user).exists())
 
-    def testPost(self):
+    def testPageSize(self):
+        self.assertLessEqual(4, PAGE_SIZE)
+
+    def testGetForHalfPageWithoutPage(self):
+        self.assertGet(PAGE_SIZE // 2, None, PAGE_SIZE // 2, False, '1 of 1', False)
+
+    def testGetForHalfPageWithPageOne(self):
+        self.assertGet(PAGE_SIZE // 2, 1, PAGE_SIZE // 2, False, '1 of 1', False)
+
+    def testGetForHalfPageWithPageTwo(self):
+        self.assertGet(PAGE_SIZE // 2, 2, PAGE_SIZE // 2, False, '1 of 1', False)
+
+    def testGetForOnePageWithoutPage(self):
+        self.assertGet(PAGE_SIZE, None, PAGE_SIZE, False, '1 of 1', False)
+
+    def testGetForOnePageWithPageOne(self):
+        self.assertGet(PAGE_SIZE, 1, PAGE_SIZE, False, '1 of 1', False)
+
+    def testGetForOnePageWithPageTwo(self):
+        self.assertGet(PAGE_SIZE, 2, PAGE_SIZE, False, '1 of 1', False)
+
+    def testGetForOneHalfPageWithoutPage(self):
+        self.assertGet(3 * PAGE_SIZE // 2, None, PAGE_SIZE, False, '1 of 2', True)
+
+    def testGetForOneHalfPageWithPageOne(self):
+        self.assertGet(3 * PAGE_SIZE // 2, 1, PAGE_SIZE, False, '1 of 2', True)
+
+    def testGetForOneHalfPageWithPageTwo(self):
+        self.assertGet(3 * PAGE_SIZE // 2, 2, PAGE_SIZE // 2, True, '2 of 2', False)
+
+    def testGetForOneHalfPageWithPageThree(self):
+        self.assertGet(3 * PAGE_SIZE // 2, 3, PAGE_SIZE, False, '1 of 2', True)
+
+    def testGetForTwoPagesWithoutPage(self):
+        self.assertGet(2 * PAGE_SIZE, None, PAGE_SIZE, False, '1 of 2', True)
+
+    def testGetForTwoPagesWithPageOne(self):
+        self.assertGet(2 * PAGE_SIZE, 1, PAGE_SIZE, False, '1 of 2', True)
+
+    def testGetForTwoPagesWithPageTwo(self):
+        self.assertGet(2 * PAGE_SIZE, 2, PAGE_SIZE, True, '2 of 2', False)
+
+    def testGetForTwoPagesWithPageThree(self):
+        self.assertGet(2 * PAGE_SIZE, 3, PAGE_SIZE, False, '1 of 2', True)
+
+    def testGetForTwoHalfPagesWithoutPage(self):
+        self.assertGet(5 * PAGE_SIZE // 2, None, PAGE_SIZE, False, '1 of 3', True)
+
+    def testGetForTwoHalfPagesWithPageOne(self):
+        self.assertGet(5 * PAGE_SIZE // 2, 1, PAGE_SIZE, False, '1 of 3', True)
+
+    def testGetForTwoHalfPagesWithPageTwo(self):
+        self.assertGet(5 * PAGE_SIZE // 2, 2, PAGE_SIZE, True, '2 of 3', True)
+
+    def testGetForTwoHalfPagesWithPageThree(self):
+        self.assertGet(5 * PAGE_SIZE // 2, 3, PAGE_SIZE // 2, True, '3 of 3', False)
+
+    def testGetForTwoHalfPagesWithPageFour(self):
+        self.assertGet(5 * PAGE_SIZE // 2, 4, PAGE_SIZE, False, '1 of 3', True)
+
+    def testGetForThreePagesWithoutPage(self):
+        self.assertGet(3 * PAGE_SIZE, None, PAGE_SIZE, False, '1 of 3', True)
+
+    def testGetForThreePagesWithPageOne(self):
+        self.assertGet(3 * PAGE_SIZE, 1, PAGE_SIZE, False, '1 of 3', True)
+
+    def testGetForThreePagesWithPageTwo(self):
+        self.assertGet(3 * PAGE_SIZE, 2, PAGE_SIZE, True, '2 of 3', True)
+
+    def testGetForThreePagesWithPageThree(self):
+        self.assertGet(3 * PAGE_SIZE, 3, PAGE_SIZE, True, '3 of 3', False)
+
+    def testGetForThreePagesWithPageFour(self):
+        self.assertGet(3 * PAGE_SIZE, 4, PAGE_SIZE, False, '1 of 3', True)
+
+    def testPostWithFalsePromote(self):
         name = 'base'
         domain = 'd.com'
         expected = [
-            ['au', 'au@d.com', 'af', 'al'],
-            ['bu', 'bu@d.com', 'bf', 'bl'],
-            ['cu', 'cu@d.com', 'cf', 'cl'],
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
         ]
         self.assertPost(name, domain, False, expected)
+
+    def testPostWithTruePromote(self):
+        name = 'base'
+        domain = 'd.com'
+        expected = [
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
+        ]
         self.assertPost(name, domain, True, expected)
 
-    def testPostForOneUser(self):
+    def testPostForOneUserAndFalsePromote(self):
         name = 'one'
         domain = 'd.com'
         expected = [
-            ['au', 'au@d.com', 'af', 'al'],
+            ('au', 'au@d.com', 'af', 'al'),
         ]
         self.assertPost(name, domain, False, expected)
+
+    def testPostForOneUserAndTruePromote(self):
+        name = 'one'
+        domain = 'd.com'
+        expected = [
+            ('au', 'au@d.com', 'af', 'al'),
+        ]
         self.assertPost(name, domain, True, expected)
 
-    def testPostForTwoUsers(self):
+    def testPostForTwoUsersAndFalsePromote(self):
         name = 'two'
         domain = 'd.com'
         expected = [
-            ['au', 'au@d.com', 'af', 'al'],
-            ['bu', 'bu@d.com', 'bf', 'bl'],
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
         ]
         self.assertPost(name, domain, False, expected)
+
+    def testPostForTwoUsersAndTruePromote(self):
+        name = 'two'
+        domain = 'd.com'
+        expected = [
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+        ]
         self.assertPost(name, domain, True, expected)
 
-    def testPostWithoutFirstLast(self):
+    def testPostWithoutFirstLastAndFalsePromote(self):
         name = 'noal'
         domain = 'd.com'
         expected = [
-            ['au', 'au@d.com', 'af', ''],
-            ['bu', 'bu@d.com', 'bf', 'bl'],
-            ['cu', 'cu@d.com', 'cf', 'cl'],
+            ('au', 'au@d.com', 'af', ''),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
         ]
         self.assertPost(name, domain, False, expected)
+
+    def testPostWithoutFirstLastAndTruePromote(self):
+        name = 'noal'
+        domain = 'd.com'
+        expected = [
+            ('au', 'au@d.com', 'af', ''),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
+        ]
         self.assertPost(name, domain, True, expected)
 
-    def testPostWithoutSecondLast(self):
+    def testPostWithoutSecondLastAndFalsePromote(self):
         name = 'nobl'
         domain = 'd.com'
         expected = [
-            ['au', 'au@d.com', 'af', 'al'],
-            ['bu', 'bu@d.com', 'bf', ''],
-            ['cu', 'cu@d.com', 'cf', 'cl'],
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', ''),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
         ]
         self.assertPost(name, domain, False, expected)
+
+    def testPostWithoutSecondLastAndTruePromote(self):
+        name = 'nobl'
+        domain = 'd.com'
+        expected = [
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', ''),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
+        ]
         self.assertPost(name, domain, True, expected)
 
-    def testPostWithoutThirdLast(self):
+    def testPostWithoutThirdLastAndFalsePromote(self):
         name = 'nocl'
         domain = 'd.com'
         expected = [
-            ['au', 'au@d.com', 'af', 'al'],
-            ['bu', 'bu@d.com', 'bf', 'bl'],
-            ['cu', 'cu@d.com', 'cf', ''],
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', ''),
         ]
         self.assertPost(name, domain, False, expected)
+
+    def testPostWithoutThirdLastAndTruePromote(self):
+        name = 'nocl'
+        domain = 'd.com'
+        expected = [
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', ''),
+        ]
         self.assertPost(name, domain, True, expected)
 
-    def testPostWithSpace(self):
+    def testPostWithSpaceAndFalsePromote(self):
         name = 'space'
         domain = 'd.com'
         expected = [
-            ['au', 'au@d.com', 'af', 'al'],
-            ['bu', 'bu@d.com', 'bf', 'bl'],
-            ['cu', 'cu@d.com', 'cf', 'cl'],
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
         ]
         self.assertPost(name, domain, False, expected)
+
+    def testPostWithSpaceAndTruePromote(self):
+        name = 'space'
+        domain = 'd.com'
+        expected = [
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
+        ]
         self.assertPost(name, domain, True, expected)
 
-    def testPostWithExtra(self):
+    def testPostWithExtraAndFalsePromote(self):
         name = 'extra'
         domain = 'd.com'
         expected = [
-            ['au', 'au@d.com', 'af', 'am al'],
-            ['bu', 'bu@d.com', 'bf', 'bm bl'],
-            ['cu', 'cu@d.com', 'cf', 'cm cl'],
+            ('au', 'au@d.com', 'af', 'am al'),
+            ('bu', 'bu@d.com', 'bf', 'bm bl'),
+            ('cu', 'cu@d.com', 'cf', 'cm cl'),
         ]
         self.assertPost(name, domain, False, expected)
+
+    def testPostWithExtraAndTruePromote(self):
+        name = 'extra'
+        domain = 'd.com'
+        expected = [
+            ('au', 'au@d.com', 'af', 'am al'),
+            ('bu', 'bu@d.com', 'bf', 'bm bl'),
+            ('cu', 'cu@d.com', 'cf', 'cm cl'),
+        ]
         self.assertPost(name, domain, True, expected)
 
-    def testPostWithEmailWithoutDomain(self):
+    def testPostWithEmailWithoutDomainAndFalsePromote(self):
         name = 'email'
         domain = None
         expected = [
-            ['au', 'ae@ae.com', 'af', 'al'],
-            ['bu', 'be@be.com', 'bf', 'bl'],
-            ['cu', 'ce@ce.com', 'cf', 'cl'],
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
         ]
         self.assertPost(name, domain, False, expected)
+
+    def testPostWithEmailWithoutDomainAndTruePromote(self):
+        name = 'email'
+        domain = None
+        expected = [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
+        ]
         self.assertPost(name, domain, True, expected)
 
-    def testPostWithEmailWithoutDomainForOneUser(self):
+    def testPostWithEmailWithoutDomainForOneUserAndFalsePromote(self):
         name = 'email-one'
         domain = None
         expected = [
-            ['au', 'ae@ae.com', 'af', 'al'],
+            ('au', 'ae@ae.com', 'af', 'al'),
         ]
         self.assertPost(name, domain, False, expected)
+
+    def testPostWithEmailWithoutDomainForOneUserAndTruePromote(self):
+        name = 'email-one'
+        domain = None
+        expected = [
+            ('au', 'ae@ae.com', 'af', 'al'),
+        ]
         self.assertPost(name, domain, True, expected)
 
-    def testPostWithEmailWithoutDomainForTwoUsers(self):
+    def testPostWithEmailWithoutDomainForTwoUsersAndFalsePromote(self):
         name = 'email-two'
         domain = None
         expected = [
-            ['au', 'ae@ae.com', 'af', 'al'],
-            ['bu', 'be@be.com', 'bf', 'bl'],
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
         ]
         self.assertPost(name, domain, False, expected)
+
+    def testPostWithEmailWithoutDomainForTwoUsersAndTruePromote(self):
+        name = 'email-two'
+        domain = None
+        expected = [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+        ]
         self.assertPost(name, domain, True, expected)
 
-    def testPostWithEmailWithoutDomainAndFirstLast(self):
+    def testPostWithEmailWithoutDomainAndFirstLastAndFalsePromote(self):
         name = 'email-noal'
         domain = None
         expected = [
-            ['au', 'ae@ae.com', 'af', ''],
-            ['bu', 'be@be.com', 'bf', 'bl'],
-            ['cu', 'ce@ce.com', 'cf', 'cl'],
+            ('au', 'ae@ae.com', 'af', ''),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
         ]
         self.assertPost(name, domain, False, expected)
+
+    def testPostWithEmailWithoutDomainAndFirstLastAndTruePromote(self):
+        name = 'email-noal'
+        domain = None
+        expected = [
+            ('au', 'ae@ae.com', 'af', ''),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
+        ]
         self.assertPost(name, domain, True, expected)
 
-    def testPostWithEmailWithoutDomainAndSecondLast(self):
+    def testPostWithEmailWithoutDomainAndSecondLastAndFalsePromote(self):
         name = 'email-nobl'
         domain = None
         expected = [
-            ['au', 'ae@ae.com', 'af', 'al'],
-            ['bu', 'be@be.com', 'bf', ''],
-            ['cu', 'ce@ce.com', 'cf', 'cl'],
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', ''),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
         ]
         self.assertPost(name, domain, False, expected)
+
+    def testPostWithEmailWithoutDomainAndSecondLastAndTruePromote(self):
+        name = 'email-nobl'
+        domain = None
+        expected = [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', ''),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
+        ]
         self.assertPost(name, domain, True, expected)
 
-    def testPostWithEmailWithoutDomainAndThirdLast(self):
+    def testPostWithEmailWithoutDomainAndThirdLastAndFalsePromote(self):
         name = 'email-nocl'
         domain = None
         expected = [
-            ['au', 'ae@ae.com', 'af', 'al'],
-            ['bu', 'be@be.com', 'bf', 'bl'],
-            ['cu', 'ce@ce.com', 'cf', ''],
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', ''),
         ]
         self.assertPost(name, domain, False, expected)
+
+    def testPostWithEmailWithoutDomainAndThirdLastAndTruePromote(self):
+        name = 'email-nocl'
+        domain = None
+        expected = [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', ''),
+        ]
         self.assertPost(name, domain, True, expected)
 
-    def testPostWithEmailAndSpaceWithoutDomain(self):
+    def testPostWithEmailAndSpaceWithoutDomainAndFalsePromote(self):
         name = 'email-space'
         domain = None
         expected = [
-            ['au', 'ae@ae.com', 'af', 'al'],
-            ['bu', 'be@be.com', 'bf', 'bl'],
-            ['cu', 'ce@ce.com', 'cf', 'cl'],
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
         ]
         self.assertPost(name, domain, False, expected)
+
+    def testPostWithEmailAndSpaceWithoutDomainAndTruePromote(self):
+        name = 'email-space'
+        domain = None
+        expected = [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
+        ]
         self.assertPost(name, domain, True, expected)
 
-    def testPostWithExtraAndSpaceWithoutDomain(self):
+    def testPostWithEmailAndExtraWithoutDomainAndFalsePromote(self):
         name = 'email-extra'
         domain = None
         expected = [
-            ['au', 'ae@ae.com', 'af', 'am al'],
-            ['bu', 'be@be.com', 'bf', 'bm bl'],
-            ['cu', 'ce@ce.com', 'cf', 'cm cl'],
+            ('au', 'ae@ae.com', 'af', 'am al'),
+            ('bu', 'be@be.com', 'bf', 'bm bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cm cl'),
         ]
         self.assertPost(name, domain, False, expected)
+
+    def testPostWithEmailAndExtraWithoutDomainAndTruePromote(self):
+        name = 'email-extra'
+        domain = None
+        expected = [
+            ('au', 'ae@ae.com', 'af', 'am al'),
+            ('bu', 'be@be.com', 'bf', 'bm bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cm cl'),
+        ]
         self.assertPost(name, domain, True, expected)
 
     def testPostEdit(self):
@@ -300,9 +503,9 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
 
         self.user.refresh_from_db()
 
-        self.assertEquals(self.email, self.user.email)
-        self.assertEquals(self.first_name, self.user.first_name)
-        self.assertEquals(self.last_name, self.user.last_name)
+        self.assertEqual(self.email, self.user.email)
+        self.assertEqual(self.first_name, self.user.first_name)
+        self.assertEqual(self.last_name, self.user.last_name)
         self.assertNotPower()
 
         self.superLogin()
@@ -319,10 +522,25 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
 
         self.user.refresh_from_db()
 
-        self.assertEquals(self.other_email, self.user.email)
-        self.assertEquals(self.other_first_name, self.user.first_name)
-        self.assertEquals(self.other_last_name, self.user.last_name)
+        self.assertEqual(self.other_email, self.user.email)
+        self.assertEqual(self.other_first_name, self.user.first_name)
+        self.assertEqual(self.other_last_name, self.user.last_name)
         self.assertPower()
+
+
+class UserAddViewTests(UserViewTests, ViewTestCase):
+    view_name = 'user_add'
+
+    def testPost(self):
+        self.superLogin()
+        data = {
+            'username': self.other_username,
+            'email': self.other_email,
+            'first_name': self.other_first_name,
+            'last_name': self.other_last_name,
+        }
+        self.post(data=data)
+        self.assertTrue(User.objects.filter(**data).exists())
 
 
 class SingleUserViewTests(UserViewTests):
@@ -351,10 +569,10 @@ class UserEditViewTests(SingleUserViewTests, ViewTestCase):
 
         self.user.refresh_from_db()
 
-        self.assertEquals(self.username, self.user.username)
-        self.assertEquals(self.email, self.user.email)
-        self.assertEquals(self.first_name, self.user.first_name)
-        self.assertEquals(self.last_name, self.user.last_name)
+        self.assertEqual(self.username, self.user.get_username())
+        self.assertEqual(self.email, self.user.email)
+        self.assertEqual(self.first_name, self.user.first_name)
+        self.assertEqual(self.last_name, self.user.last_name)
 
         self.singlePost({
             'username': self.other_username,
@@ -365,10 +583,10 @@ class UserEditViewTests(SingleUserViewTests, ViewTestCase):
 
         self.user.refresh_from_db()
 
-        self.assertEquals(self.other_username, self.user.username)
-        self.assertEquals(self.other_email, self.user.email)
-        self.assertEquals(self.other_first_name, self.user.first_name)
-        self.assertEquals(self.other_last_name, self.user.last_name)
+        self.assertEqual(self.other_username, self.user.get_username())
+        self.assertEqual(self.other_email, self.user.email)
+        self.assertEqual(self.other_first_name, self.user.first_name)
+        self.assertEqual(self.other_last_name, self.user.last_name)
 
 
 class UserRemoveViewTests(SingleUserViewTests, ViewTestCase):
@@ -377,21 +595,10 @@ class UserRemoveViewTests(SingleUserViewTests, ViewTestCase):
     def exists(self):
         return User.objects.filter(pk=self.user.pk).exists()
 
-    def assertExists(self):
-        self.assertTrue(self.exists())
-
-    def assertDoesNotExist(self):
-        self.assertFalse(self.exists())
-
     def testPost(self):
-        self.assertExists()
+        self.assertTrue(self.exists())
         self.singlePost()
-        self.assertDoesNotExist()
-
-    def testIdempotence(self):
-        self.singlePost()
-        self.singlePost()
-        self.assertDoesNotExist()
+        self.assertFalse(self.exists())
 
 
 class UserPromoteViewTests(SingleUserViewTests, ViewTestCase):
@@ -411,14 +618,218 @@ class UserPromoteViewTests(SingleUserViewTests, ViewTestCase):
 class UserDemoteViewTests(SingleUserViewTests, ViewTestCase):
     view_name = 'user_demote'
 
-    def testPost(self):
+    def setUp(self):
+        super().setUp()
         PowerUser.objects.create(user=self.user)
+
+    def testPost(self):
         self.assertPower()
         self.singlePost()
         self.assertNotPower()
 
     def testIdempotence(self):
-        PowerUser.objects.create(user=self.user)
         self.singlePost()
         self.singlePost()
         self.assertNotPower()
+
+
+class AssetViewTests:
+    super_username = 'su'
+    username = 'u'
+    power_username = 'pu'
+
+    super_password = 'sp'
+    password = 'p'
+    power_password = 'pp'
+
+    parent_name = '35fde5760c42b7bc'
+    name = '528070b65f32f4f7'
+    other_name = 'bba8253c7b9a27d2'
+
+    def setUp(self):
+        User.objects.create_superuser(self.super_username, password=self.super_password)
+        User.objects.create_user(self.username, password=self.password)
+        self.user = User.objects.create_user(self.power_username, password=self.power_password)
+        PowerUser.objects.create(user=self.user)
+
+    def superLogin(self):
+        self.client.login(username=self.super_username, password=self.super_password)
+
+    def login(self):
+        self.client.login(username=self.username, password=self.password)
+
+    def powerLogin(self):
+        self.client.login(username=self.power_username, password=self.power_password)
+
+    def kwargs(self):
+        return None
+
+    def testGetRedirects(self):
+        self.assertEqual(302, self.get_status(kwargs=self.kwargs()))
+
+    def testGetForbidsAfterLogin(self):
+        self.login()
+        self.assertEqual(403, self.get_status(kwargs=self.kwargs()))
+
+    def testGetForbidsAfterSuperLogin(self):
+        self.superLogin()
+        self.assertEqual(403, self.get_status(kwargs=self.kwargs()))
+
+    def testPostRedirects(self):
+        self.assertEqual(302, self.post_status(kwargs=self.kwargs()))
+
+    def testPostForbidsAfterLogin(self):
+        self.login()
+        self.assertEqual(403, self.post_status(kwargs=self.kwargs()))
+
+    def testPostForbidsSuperLogin(self):
+        self.superLogin()
+        self.assertEqual(403, self.post_status(kwargs=self.kwargs()))
+
+
+class AssetManageViewTests(AssetViewTests, ViewTestCase):
+    view_name = 'asset_manage'
+    parent = None
+
+    def assertGet(self, num_folders, num_files):
+        for i in range(num_folders):
+            FolderAsset.objects.create(user=self.user, parent=self.parent, name='{}{}'.format(self.name, i))
+        for i in range(num_files):
+            FileAsset.objects.create(user=self.user, parent=self.parent, name='{}{}'.format(self.other_name, i))
+        self.powerLogin()
+        html = self.get_html(kwargs=self.kwargs())
+        tables = html.select('table')
+        if num_folders:
+            folder_trs = tables[0].select('tbody tr')
+            if num_files:
+                self.assertEqual(2, len(tables))
+                file_trs = tables[1].select('tbody tr')
+            else:
+                self.assertEqual(1, len(tables))
+                file_trs = []
+        else:
+            folder_trs = []
+            if num_files:
+                self.assertEqual(1, len(tables))
+                file_trs = tables[0].select('tbody tr')
+            else:
+                self.assertEqual(0, len(tables))
+                file_trs = []
+        self.assertEqual(num_folders, len(folder_trs))
+        self.assertEqual(num_files, len(file_trs))
+
+    def testGetForZeroFoldersAndZeroFiles(self):
+        self.assertGet(0, 0)
+
+    def testGetForZeroFoldersAndOneFile(self):
+        self.assertGet(0, 1)
+
+    def testGetForZeroFoldersAndTwoFiles(self):
+        self.assertGet(0, 2)
+
+    def testGetForZeroFoldersAndThreeFiles(self):
+        self.assertGet(0, 3)
+
+    def testGetForOneFolderAndZeroFiles(self):
+        self.assertGet(1, 0)
+
+    def testGetForOneFolderAndOneFile(self):
+        self.assertGet(1, 1)
+
+    def testGetForOneFolderAndTwoFiles(self):
+        self.assertGet(1, 2)
+
+    def testGetForOneFolderAndThreeFiles(self):
+        self.assertGet(1, 3)
+
+    def testGetForTwoFoldersAndZeroFiles(self):
+        self.assertGet(2, 0)
+
+    def testGetForTwoFoldersAndOneFile(self):
+        self.assertGet(2, 1)
+
+    def testGetForTwoFoldersAndTwoFiles(self):
+        self.assertGet(2, 2)
+
+    def testGetForTwoFoldersAndThreeFiles(self):
+        self.assertGet(2, 3)
+
+    def testGetForThreeFoldersAndZeroFiles(self):
+        self.assertGet(3, 0)
+
+    def testGetForThreeFoldersAndOneFile(self):
+        self.assertGet(3, 1)
+
+    def testGetForThreeFoldersAndTwoFiles(self):
+        self.assertGet(3, 2)
+
+    def testGetForThreeFoldersAndThreeFiles(self):
+        self.assertGet(3, 3)
+
+
+class AssetWithParentTests:
+    def setUp(self):
+        super().setUp()
+        self.parent = FolderAsset.objects.create(user=self.user, parent=None, name=self.parent_name)
+
+
+class AssetFolderViewTests(AssetWithParentTests, AssetManageViewTests):
+    view_name = 'asset_folder'
+
+    def kwargs(self):
+        return {'path': self.parent.name}
+
+
+class SingleAssetViewTests(AssetWithParentTests, AssetViewTests):
+    Asset = FolderAsset
+
+    def setUp(self):
+        super().setUp()
+        self.child = self.Asset.objects.create(user=self.user, parent=self.parent, name=self.name)
+
+    def kwargs(self):
+        return {'path': '{}/{}'.format(self.parent.name, self.name)}
+
+    def testGet(self):
+        self.powerLogin()
+        html = self.get_html(kwargs=self.kwargs())
+        h2 = html.select_one('h2')
+        self.assertIn(self.name, self.string(h2))
+
+    def singlePost(self, data=None):
+        self.powerLogin()
+        self.post(kwargs=self.kwargs(), data=data)
+
+
+class AssetEditViewTests(SingleAssetViewTests, ViewTestCase):
+    view_name = 'asset_edit'
+
+    def testPost(self):
+        self.assertEqual(self.name, self.child.name)
+        self.singlePost({
+            'name': self.other_name,
+        })
+        self.child.refresh_from_db()
+        self.assertEqual(self.other_name, self.child.name)
+
+
+class AssetEditFileViewTests(SingleAssetViewTests, ViewTestCase):
+    view_name = 'asset_edit_file'
+    Asset = FileAsset
+
+
+class AssetRemoveViewTests(SingleAssetViewTests, ViewTestCase):
+    view_name = 'asset_remove'
+
+    def exists(self):
+        return self.Asset.objects.filter(user=self.user, parent=self.parent, name=self.name).exists()
+
+    def testPost(self):
+        self.assertTrue(self.exists())
+        self.singlePost()
+        self.assertFalse(self.exists())
+
+
+class AssetRemoveFileViewTests(SingleAssetViewTests, ViewTestCase):
+    view_name = 'asset_remove_file'
+    Asset = FileAsset

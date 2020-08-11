@@ -1,8 +1,10 @@
 from django import forms
 from django.core.exceptions import ValidationError
 
+from .models import Asset
 
-class UserManageForm(forms.Form):
+
+class UserForm(forms.Form):
     file = forms.FileField(label='List')
     domain = forms.CharField(label='Domain', required=False)
     promote = forms.BooleanField(label='Promote all users in the list.', required=False)
@@ -13,12 +15,14 @@ class UserManageForm(forms.Form):
     def clean(self):
         data = super().clean()
 
-        if 'file' not in data:
+        try:
+            file = data['file']
+        except KeyError:
             for errorlist in self.errors.values():
                 errorlist.clear()
             raise ValidationError({'file': 'This field is required and the file cannot have more than 25MB.'})
 
-        content = data['file'].read()
+        content = file.read()
         try:
             text = content.decode('utf-8')
         except UnicodeDecodeError:
@@ -65,6 +69,26 @@ class UserManageForm(forms.Form):
         for kwargs in self.users.values():
             del kwargs['line']
 
-        self.promote = data['promote']
+        return data
 
+
+class AssetForm(forms.ModelForm):
+    class Meta:
+        model = Asset
+        fields = ['name']
+
+    def __init__(self, *args, **kwargs):
+        self.Asset = kwargs.pop('Asset')
+        self.user = kwargs.pop('user')
+        self.parent = kwargs.pop('parent')
+        self.child = kwargs.pop('child')
+        super().__init__(*args, **kwargs)
+
+    def clean(self):
+        data = super().clean()
+        if 'name' in data:
+            name = data['name']
+            if self.child is None or self.child.name != name:
+                if self.Asset.objects.filter(user=self.user, parent=self.parent, name=name).exists():
+                    raise ValidationError({'name': 'A {} with that name already exists.'.format(self.Asset.label)})
         return data

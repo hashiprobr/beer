@@ -1,10 +1,10 @@
 .card {
-    position: absolute;
+    position: fixed;
     top: 25%;
     left: 50%;
     transform: translateX(-50%) translateY(-50%);
 }
 
-.card > p {
+.small > p:not(:first-child) {
     max-width: 22.5rem;
 }

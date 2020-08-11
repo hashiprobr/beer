@@ -4,8 +4,9 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.paginator import EmptyPage, Paginator
-from django.http import HttpResponseNotFound, HttpResponseBadRequest, HttpResponseRedirect, HttpResponse, JsonResponse
-from django.urls import reverse, reverse_lazy
+from django.http import HttpResponseNotFound, HttpResponseBadRequest, HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse
 from django.views import generic
 from django.views.generic.base import ContextMixin, TemplateResponseMixin
 from django.views.generic.detail import SingleObjectTemplateResponseMixin, BaseDetailView
@@ -13,8 +14,8 @@ from shortuuid import uuid
 
 from beer import public_storage, private_storage
 
-from .models import PowerUser
-from .forms import UserManageForm
+from .models import PowerUser, FolderAsset, FileAsset
+from .forms import UserForm, AssetForm
 from .caches import power_cache, member_cache
 from .brewing import BrewError
 from .brewery import Brewery
@@ -42,38 +43,66 @@ class UserIsMemberMixin(UserPassesTestMixin):
         return True
 
 
-class PowerMixin:
+class AssetMixin:
+    Asset = FolderAsset
+
+    def get_objects(self, body):
+        path = body['path']
+        if path is None:
+            names = []
+            asset = None
+        else:
+            names = path.split('/')
+            parent = None
+            for name in names[:-1]:
+                parent = get_object_or_404(FolderAsset, user=self.request.user, parent=parent, name=name)
+            asset = get_object_or_404(self.Asset, user=self.request.user, parent=parent, name=names[-1])
+        return names, asset
+
+
+class MaltMixin:
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context['debug'] = settings.TEMPLATE_DEBUG
         context['power'] = power_cache.get(self.request.user)
         return context
 
 
-class DebugMixin:
+class TemplateView(MaltMixin, generic.TemplateView):
+    pass
+
+
+class FormView(MaltMixin, generic.FormView):
+    pass
+
+
+class UserViewMixin:
+    def get_suffix(self):
+        if self.request.GET:
+            return '?' + self.request.GET.urlencode()
+        else:
+            return ''
+
+    def get_success_url(self):
+        return reverse('user_manage') + self.get_suffix()
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['debug'] = settings.TEMPLATE_DEBUG
+        context['suffix'] = self.get_suffix()
         return context
 
 
-class UserAddView(LoginRequiredMixin, UserIsSuperMixin, DebugMixin, generic.edit.CreateView):
-    model = User
-    fields = ['username', 'email', 'first_name', 'last_name']
-    template_name = 'malt/user_add.html'
-    success_url = reverse_lazy('user_manage')
-
-
-class UserManageView(LoginRequiredMixin, UserIsSuperMixin, DebugMixin, generic.FormView):
-    form_class = UserManageForm
-    template_name = 'malt/user_manage.html'
-    success_url = reverse_lazy('user_manage')
+class UserManageView(LoginRequiredMixin, UserIsSuperMixin, UserViewMixin, FormView):
+    form_class = UserForm
+    template_name = 'malt/user/manage.html'
 
     def form_valid(self, form):
+        promote = form.cleaned_data['promote']
         for username, kwargs in form.users.items():
             user, created = User.objects.update_or_create(username=username, defaults=kwargs)
             if not created:
-                power_cache.set(user, form.promote)
-            if form.promote:
+                power_cache.set(user, promote)
+            if promote:
                 PowerUser.objects.get_or_create(user=user)
             else:
                 PowerUser.objects.filter(user=user).delete()
@@ -84,41 +113,46 @@ class UserManageView(LoginRequiredMixin, UserIsSuperMixin, DebugMixin, generic.F
         users = User.objects.all().order_by('username')
         paginator = Paginator(users, PAGE_SIZE)
         try:
-            number = int(self.request.GET.get('page'))
+            number = int(self.request.GET['page'])
             users = paginator.page(number)
-        except (TypeError, EmptyPage):
+        except (KeyError, TypeError, EmptyPage):
             users = paginator.page(1)
         users.power_pks = PowerUser.objects.filter(user__in=users).values_list('user', flat=True)
         context['users'] = users
+        context['focus'] = True
         return context
 
 
-class UserEditView(LoginRequiredMixin, UserIsSuperMixin, DebugMixin, generic.edit.UpdateView):
+class UserAddView(LoginRequiredMixin, UserIsSuperMixin, UserViewMixin, MaltMixin, generic.edit.CreateView):
     model = User
     fields = ['username', 'email', 'first_name', 'last_name']
-    template_name = 'malt/user_edit.html'
-    success_url = reverse_lazy('user_manage')
+    template_name = 'malt/user/add.html'
 
 
-class UserRemoveView(LoginRequiredMixin, UserIsSuperMixin, DebugMixin, generic.edit.DeleteView):
+class UserEditView(LoginRequiredMixin, UserIsSuperMixin, UserViewMixin, MaltMixin, generic.edit.UpdateView):
     model = User
-    template_name = 'malt/user_delete.html'
-    success_url = reverse_lazy('user_manage')
+    fields = ['username', 'email', 'first_name', 'last_name']
+    template_name = 'malt/user/edit.html'
 
 
-class UserChangeView(LoginRequiredMixin, UserIsSuperMixin, DebugMixin, SingleObjectTemplateResponseMixin, BaseDetailView):
+class UserRemoveView(LoginRequiredMixin, UserIsSuperMixin, UserViewMixin, MaltMixin, generic.edit.DeleteView):
+    model = User
+    template_name = 'malt/user/remove.html'
+
+
+class UserChangeView(LoginRequiredMixin, UserIsSuperMixin, UserViewMixin, MaltMixin, SingleObjectTemplateResponseMixin, BaseDetailView):
     model = User
 
     def post(self, request, *args, **kwargs):
         user = self.get_object()
         power_cache.set(user, self.value)
         self.change(user)
-        return HttpResponseRedirect(reverse('user_manage'))
+        return redirect(self.get_success_url())
 
 
 class UserPromoteView(UserChangeView):
     value = True
-    template_name = 'malt/user_promote.html'
+    template_name = 'malt/user/promote.html'
 
     def change(self, user):
         PowerUser.objects.get_or_create(user=user)
@@ -126,17 +160,17 @@ class UserPromoteView(UserChangeView):
 
 class UserDemoteView(UserChangeView):
     value = False
-    template_name = 'malt/user_demote.html'
+    template_name = 'malt/user/demote.html'
 
     def change(self, user):
         PowerUser.objects.filter(user=user).delete()
 
 
-class PowerView(LoginRequiredMixin, UserIsPowerMixin, generic.View):
+class UploadView(LoginRequiredMixin, UserIsPowerMixin, generic.View):
     pass
 
 
-class UploadView(PowerView):
+class UploadManageView(UploadView):
     def post(self, request, *args, **kwargs):
         body = request.POST.dict()
 
@@ -170,7 +204,7 @@ class UploadView(PowerView):
         return HttpResponseNotFound()
 
 
-class UploadCodeView(LoginRequiredMixin, UserIsPowerMixin, PowerMixin, DebugMixin, ContextMixin, TemplateResponseMixin, generic.View):
+class UploadCodeView(LoginRequiredMixin, UserIsPowerMixin, MaltMixin, ContextMixin, TemplateResponseMixin, generic.View):
     template_name = 'malt/error.html'
 
     def post(self, request, *args, **kwargs):
@@ -187,10 +221,10 @@ class UploadCodeView(LoginRequiredMixin, UserIsPowerMixin, PowerMixin, DebugMixi
             context['error'] = error
             return self.render_to_response(context)
 
-        return HttpResponseRedirect(url)
+        return redirect(url)
 
 
-class UploadAssetView(PowerView):
+class UploadAssetView(UploadView):
     def post(self, request, *args, **kwargs):
         if settings.CONTAINED:
             return HttpResponseNotFound()
@@ -211,7 +245,7 @@ class UploadAssetView(PowerView):
 
         self.storage.save(key, file)
 
-        return HttpResponseRedirect('{}?key={}'.format(redirect, quote(key, encoding='utf-8')))
+        return redirect('{}?key={}'.format(redirect, quote(key, encoding='utf-8')))
 
 
 class UploadAssetPublicView(UploadAssetView):
@@ -222,7 +256,7 @@ class UploadAssetPrivateView(UploadAssetView):
     storage = private_storage
 
 
-class UploadAssetConfirmView(PowerView):
+class UploadAssetConfirmView(UploadView):
     def get(self, request, *args, **kwargs):
         body = parse_qs(request.META['QUERY_STRING'], encoding='utf-8')
 
@@ -243,8 +277,117 @@ class UploadAssetConfirmView(PowerView):
         return HttpResponse('asset')
 
 
-class TemplateView(PowerMixin, DebugMixin, generic.TemplateView):
-    pass
+class AssetViewMixin(AssetMixin):
+    objects = None
+
+    def get_objects(self):
+        if self.objects is None:
+            self.objects = super().get_objects(self.kwargs)
+        return self.objects
+
+    def get_path(self, names):
+        if names:
+            return '/'.join(names)
+        else:
+            return None
+
+    def get_url(self, names):
+        path = self.get_path(names)
+        if path is None:
+            return reverse('asset_manage')
+        else:
+            return reverse('asset_folder', kwargs={'path': path})
+
+
+class AssetFormView(FormView):
+    form_class = AssetForm
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        names, asset = self.get_objects()
+        kwargs['Asset'] = self.Asset
+        kwargs['user'] = self.request.user
+        self.update(kwargs, names, asset)
+        return kwargs
+
+    def form_valid(self, form):
+        names, asset = self.get_objects()
+        name = form.cleaned_data['name']
+        names = self.process(names, asset, name)
+        return redirect(self.get_url(names))
+
+
+class AssetManageView(LoginRequiredMixin, UserIsPowerMixin, AssetViewMixin, AssetFormView):
+    template_name = 'malt/asset/manage.html'
+
+    def update(self, kwargs, names, asset):
+        kwargs['parent'] = asset
+        kwargs['child'] = None
+
+    def process(self, names, asset, name):
+        FolderAsset.objects.create(user=self.request.user, parent=asset, name=name)
+        return names
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        names, asset = self.get_objects()
+        context['prefix'] = self.get_path(names)
+        if names:
+            context['name'] = names.pop()
+            context['parent_url'] = self.get_url(names)
+        else:
+            context['name'] = 'assets'
+            context['parent_url'] = None
+        context['folders'] = FolderAsset.objects.filter(user=self.request.user, parent=asset)
+        context['files'] = FileAsset.objects.filter(user=self.request.user, parent=asset)
+        context['focus'] = True
+        return context
+
+
+class SingleAssetViewMixin(AssetViewMixin):
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        names, asset = self.get_objects()
+        context['name'] = names.pop()
+        context['parent_url'] = self.get_url(names)
+        if names:
+            context['parent_name'] = names.pop()
+            context['grandparent_url'] = self.get_url(names)
+        else:
+            context['parent_name'] = 'assets'
+            context['grandparent_url'] = None
+        return context
+
+
+class AssetEditView(LoginRequiredMixin, UserIsPowerMixin, SingleAssetViewMixin, AssetFormView):
+    template_name = 'malt/asset/edit.html'
+
+    def update(self, kwargs, names, asset):
+        kwargs['parent'] = asset.parent
+        kwargs['child'] = asset
+        kwargs['initial']['name'] = names[-1]
+
+    def process(self, names, asset, name):
+        asset.name = name
+        asset.save()
+        return names[:-1]
+
+
+class AssetEditFileView(AssetEditView):
+    Asset = FileAsset
+
+
+class AssetRemoveView(LoginRequiredMixin, UserIsPowerMixin, SingleAssetViewMixin, TemplateView):
+    template_name = 'malt/asset/remove.html'
+
+    def post(self, request, *args, **kwargs):
+        names, asset = self.get_objects()
+        asset.delete()
+        return redirect(self.get_url(names[:-1]))
+
+
+class AssetRemoveFileView(AssetRemoveView):
+    Asset = FileAsset
 
 
 class IndexView(LoginRequiredMixin, TemplateView):
@@ -254,7 +397,3 @@ class IndexView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         context['version'] = '{}.{}'.format(settings.VERSION, settings.PATCH_VERSION)
         return context
-
-
-class MaltView(LoginRequiredMixin, UserIsMemberMixin, TemplateView):
-    pass

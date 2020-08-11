@@ -1,14 +1,14 @@
-.history {
+.error {
     padding: 1rem;
     font-family: "Oxygen Mono", monospace;
     background-color: #000000;
     color: #00ff00;
 }
 
-.history li:not(.error) {
+.error li:not(:last-child) {
     margin-bottom: 1rem;
 }
 
-.history li.error {
+.error li:last-child {
     color: #ff0000;
 }

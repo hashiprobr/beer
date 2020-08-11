@@ -1,6 +1,8 @@
 import json
 import os
 
+from urllib.parse import urlencode
+
 from bs4 import BeautifulSoup
 from selenium.common.exceptions import StaleElementReferenceException
 from selenium.webdriver import Chrome, ActionChains
@@ -50,29 +52,32 @@ class IntegrationTestCase(FilesMixin, ClearMixin, TestCase):
 
 
 class ViewTestCase(IntegrationTestCase):
-    def url(self, urlconf=None, args=None, kwargs=None, current_app=None):
-        return reverse(self.view_name, urlconf, args, kwargs, current_app)
+    def url(self, urlconf=None, args=None, kwargs=None, current_app=None, query=None):
+        url = reverse(self.view_name, urlconf, args, kwargs, current_app)
+        if query is not None:
+            url = '{}?{}'.format(url, urlencode(query, safe='/'))
+        return url
 
-    def get(self, urlconf=None, args=None, kwargs=None, current_app=None):
-        return self.client.get(self.url(urlconf, args, kwargs, current_app))
+    def get(self, urlconf=None, args=None, kwargs=None, current_app=None, query=None):
+        return self.client.get(self.url(urlconf, args, kwargs, current_app, query))
 
-    def get_status(self, urlconf=None, args=None, kwargs=None, current_app=None):
-        response = self.get(urlconf, args, kwargs, current_app)
+    def get_status(self, urlconf=None, args=None, kwargs=None, current_app=None, query=None):
+        response = self.get(urlconf, args, kwargs, current_app, query)
         return response.status_code
 
-    def get_html(self, urlconf=None, args=None, kwargs=None, current_app=None):
-        response = self.get(urlconf, args, kwargs, current_app)
+    def get_html(self, urlconf=None, args=None, kwargs=None, current_app=None, query=None):
+        response = self.get(urlconf, args, kwargs, current_app, query)
         return BeautifulSoup(response.content, 'html.parser')
 
-    def post(self, urlconf=None, args=None, kwargs=None, current_app=None, data=None):
-        return self.client.post(self.url(urlconf, args, kwargs, current_app), data)
+    def post(self, urlconf=None, args=None, kwargs=None, current_app=None, query=None, data=None):
+        return self.client.post(self.url(urlconf, args, kwargs, current_app, query), data)
 
-    def post_status(self, urlconf=None, args=None, kwargs=None, current_app=None, data=None):
-        response = self.post(urlconf, args, kwargs, current_app, data)
+    def post_status(self, urlconf=None, args=None, kwargs=None, current_app=None, query=None, data=None):
+        response = self.post(urlconf, args, kwargs, current_app, query, data)
         return response.status_code
 
-    def post_json(self, urlconf=None, args=None, kwargs=None, current_app=None, data=None):
-        response = self.post(urlconf, args, kwargs, current_app, data)
+    def post_json(self, urlconf=None, args=None, kwargs=None, current_app=None, query=None, data=None):
+        response = self.post(urlconf, args, kwargs, current_app, query, data)
         return json.loads(response.content)
 
     def string(self, element):
@@ -174,14 +179,17 @@ class AcceptanceTestCase:
         cls.driver.quit()
         super().tearDownClass()
 
-    def url(self, view_name, urlconf=None, args=None, kwargs=None, current_app=None):
-        return self.live_server_url + reverse(view_name, urlconf, args, kwargs, current_app)
+    def url(self, view_name, urlconf=None, args=None, kwargs=None, current_app=None, query=None):
+        url = self.live_server_url + reverse(view_name, urlconf, args, kwargs, current_app)
+        if query is not None:
+            url = '{}?{}'.format(url, urlencode(query, safe='/'))
+        return url
 
-    def at(self, view_name, urlconf=None, args=None, kwargs=None, current_app=None):
-        return self.driver.at(self.url(view_name, urlconf, args, kwargs, current_app))
+    def at(self, view_name, urlconf=None, args=None, kwargs=None, current_app=None, query=None):
+        return self.driver.at(self.url(view_name, urlconf, args, kwargs, current_app, query))
 
-    def get(self, view_name, urlconf=None, args=None, kwargs=None, current_app=None):
-        self.driver.get(self.url(view_name, urlconf, args, kwargs, current_app))
+    def get(self, view_name, urlconf=None, args=None, kwargs=None, current_app=None, query=None):
+        self.driver.get(self.url(view_name, urlconf, args, kwargs, current_app, query))
 
     def open(self):
         self.driver.execute_script("window.open('about:blank', '_blank');")

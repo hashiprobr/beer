@@ -1,17 +1,19 @@
-{% extends 'malt/user.html' %}
+{% extends 'malt/user/base.html' %}
 
-{% block subcontent %}
+{% block subtitle %}Users{% endblock %}
+
+{% block subbody %}
     <h2>
         Bulk add or edit
     </h2>
-    <form class="add" method="post" enctype="multipart/form-data">
+    <form class="user" method="post" enctype="multipart/form-data">
         {% csrf_token %}
 
         {{ form.non_field_errors }}
 
         <label for="{{ form.file.id_for_label }}">
             <span>{{ form.file.label }}</span>
-            {% include 'malt/uploader_input.html' with input=form.file %}
+            {% include 'malt/uploader/input.html' with input=form.file %}
         </label>
 
         {{ form.file.errors }}
@@ -47,13 +49,13 @@
         <tbody>
             {% for user in users %}
                 <tr>
-                    <td>{{ user.username }}</td>
+                    <td>{{ user.get_username }}</td>
                     <td>{{ user.email }}</td>
-                    <td><a href="{% url 'user_edit' pk=user.pk %}">edit</a></td>
+                    <td><a href="{% url 'user_edit' pk=user.pk %}{{ suffix }}">edit</a></td>
                     {% if user.pk in users.power_pks %}
-                        <td><a href="{% url 'user_demote' pk=user.pk %}">demote</a></td>
+                        <td><a href="{% url 'user_demote' pk=user.pk %}{{ suffix }}">demote</a></td>
                     {% else %}
-                        <td><a href="{% url 'user_promote' pk=user.pk %}">promote</a></td>
+                        <td><a href="{% url 'user_promote' pk=user.pk %}{{ suffix }}">promote</a></td>
                     {% endif %}
                 </tr>
             {% endfor %}

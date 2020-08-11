@@ -2,14 +2,18 @@ import os
 
 from io import BytesIO
 
+from django.contrib.auth import get_user_model
 from django.core.files import File
 
 from beer.tests import IntegrationTestCase
 
-from ...forms import UserManageForm
+from ...models import Asset, FolderAsset, FileAsset
+from ...forms import UserForm, AssetForm
+
+User = get_user_model()
 
 
-class UserManageFormTests(IntegrationTestCase):
+class UserFormTests(IntegrationTestCase):
     domain = 'd.com'
     empty_domain = ''
     white_domain = ' \t\n'
@@ -34,7 +38,7 @@ class UserManageFormTests(IntegrationTestCase):
             data['domain'] = domain
         if promote is not None:
             data['promote'] = promote
-        form = UserManageForm(data, files)
+        form = UserForm(data, files)
         return form.is_valid()
 
     def assertValid(self, name, domain, promote):
@@ -285,3 +289,78 @@ class UserManageFormTests(IntegrationTestCase):
 
     def testValidWithEmailAndWhiteDomainAndTruePromote(self):
         self.assertValid('email', self.white_domain, True)
+
+
+class AssetFormTests(IntegrationTestCase):
+    name = 'n'
+    other_name = 'on'
+    empty_name = ''
+    white_name = ' \t\n'
+    upper_name = (Asset.name.field.max_length + 1) * 'n'
+
+    def isValid(self, name, Asset, edit):
+        user = User.objects.create_user('u')
+        parent = FolderAsset.objects.create(user=user, parent=None, name='p')
+        child = Asset.objects.create(user=user, parent=parent, name=self.other_name)
+        data = {}
+        if name is not None:
+            data['name'] = name
+        kwargs = {
+            'Asset': Asset,
+            'user': user,
+            'parent': parent,
+        }
+        if edit:
+            kwargs['child'] = child
+        else:
+            kwargs['child'] = None
+        form = AssetForm(data, **kwargs)
+        return form.is_valid()
+
+    def assertValid(self, name, Asset, new):
+        self.assertTrue(self.isValid(name, Asset, new))
+
+    def assertNotValid(self, name, Asset, new):
+        self.assertFalse(self.isValid(name, Asset, new))
+
+    def testValidWithFolderAsset(self):
+        self.assertValid(self.name, FolderAsset, False)
+
+    def testValidWithFileAsset(self):
+        self.assertValid(self.name, FileAsset, False)
+
+    def testNotValidWithoutNameWithFolderAsset(self):
+        self.assertNotValid(None, FolderAsset, False)
+
+    def testNotValidWithoutNameWithFileAsset(self):
+        self.assertNotValid(None, FileAsset, False)
+
+    def testNotValidWithEmptyNameWithFolderAsset(self):
+        self.assertNotValid(self.empty_name, FolderAsset, False)
+
+    def testNotValidWithEmptyNameWithFileAsset(self):
+        self.assertNotValid(self.empty_name, FileAsset, False)
+
+    def testNotValidWithWhiteNameWithFolderAsset(self):
+        self.assertNotValid(self.white_name, FolderAsset, False)
+
+    def testNotValidWithWhiteNameWithFileAsset(self):
+        self.assertNotValid(self.white_name, FileAsset, False)
+
+    def testNotValidWithUpperNameWithFolderAsset(self):
+        self.assertNotValid(self.upper_name, FolderAsset, False)
+
+    def testNotValidWithUpperNameWithFileAsset(self):
+        self.assertNotValid(self.upper_name, FileAsset, False)
+
+    def testNotValidWithSameNameWithFolderAsset(self):
+        self.assertNotValid(self.other_name, FolderAsset, False)
+
+    def testNotValidWithSameNameWithFileAsset(self):
+        self.assertNotValid(self.other_name, FileAsset, False)
+
+    def testNotValidWithSameNameButEditWithFolderAsset(self):
+        self.assertValid(self.other_name, FolderAsset, True)
+
+    def testNotValidWithSameNameButEditWithFileAsset(self):
+        self.assertValid(self.other_name, FileAsset, True)

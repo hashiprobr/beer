@@ -1,12 +1,12 @@
-function resetContent(ps) {
-    ps[0].textContent = 'Click here and select the file';
-    ps[1].textContent = 'or drag and drop directly.';
+function resetContent(lis) {
+    lis[0].textContent = 'Click here and select the file';
+    lis[1].textContent = 'or drag and drop directly.';
 }
 
 
-async function upload(ps, form) {
-    ps[0].textContent = 'Please wait,';
-    ps[1].textContent = 'preparing upload...';
+async function upload(lis, form) {
+    lis[0].textContent = 'Please wait,';
+    lis[1].textContent = 'preparing upload...';
 
     let action;
     let body = new FormData();
@@ -34,7 +34,7 @@ async function upload(ps, form) {
     body = await response.json();
     body.date = date;
 
-    ps[1].textContent = 'uploading...';
+    lis[1].textContent = 'uploading...';
 
     for (let [name, value] of Object.entries(body)) {
         if (name === 'action') {
@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     for (let uploader of uploaders) {
-        let ps = uploader.querySelectorAll('p');
+        let lis = uploader.querySelectorAll('li');
         let form = uploader.querySelector('form');
         let input = uploader.querySelector('input[type="file"]');
 
@@ -116,10 +116,10 @@ document.addEventListener('DOMContentLoaded', function () {
         if (form === null) {
             input.addEventListener('change', function () {
                 if (input.files.length > 0) {
-                    ps[0].textContent = 'File:';
-                    ps[1].textContent = input.files[0].name;
+                    lis[0].textContent = 'File:';
+                    lis[1].textContent = input.files[0].name;
                 } else {
-                    resetContent(ps);
+                    resetContent(lis);
                 }
             });
         } else {
@@ -132,12 +132,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 span.classList.add('hidden');
                 img.classList.remove('hidden');
 
-                upload(ps, form);
+                upload(lis, form);
             });
 
             img.classList.add('hidden');
         }
 
-        resetContent(ps);
+        resetContent(lis);
     }
 });
