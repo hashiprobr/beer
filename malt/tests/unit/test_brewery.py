@@ -282,7 +282,7 @@ class BreweryTests(BrewingTests, UnitTestCase):
     def testBrewsIfArchive(self):
         names = {'file': b'mock'}
         meta = {'date': 0}
-        enzymes = [self.mock({'file-a': b'pass-pass'})]
+        enzymes = [self.mock({'file': b'pass-pass'})]
         Primer = PassMockPrimer
         self.assertBrews(names, meta, enzymes, Primer)
 
@@ -292,6 +292,20 @@ class BreweryTests(BrewingTests, UnitTestCase):
         enzymes = [self.mock({'a': b'mock'})]
         Primer = PassMockPrimer
         self.assertBrews(names, meta, enzymes, Primer)
+
+    def testDoesNotBrewIfArchiveAndFermentRaisesBrewError(self):
+        names = {'file': b'mock'}
+        meta = {'date': 0}
+        enzymes = [self.mock({'file': b'pass-fail'})]
+        Primer = PassMockPrimer
+        self.assertDoesNotBrew(names, meta, enzymes, Primer)
+
+    def testDoesNotBrewIfArchiveWithoutYeastAndPrimerRaisesBrewError(self):
+        names = {'file': b'mock'}
+        meta = {'date': 0}
+        enzymes = [self.mock({'a': b'mock'})]
+        Primer = FailMockPrimer
+        self.assertDoesNotBrew(names, meta, enzymes, Primer)
 
     def testBrewsIfArchiveWithTwoFilesWithoutYeast(self):
         names = {'file': b'mock'}
