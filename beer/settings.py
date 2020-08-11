@@ -6,9 +6,9 @@ from environs import Env
 env = Env()
 
 
-VERSION = '0.4'
+VERSION = '0.5'
 
-PATCH_VERSION = '1'
+PATCH_VERSION = '0'
 
 
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
