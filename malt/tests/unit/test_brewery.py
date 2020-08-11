@@ -159,7 +159,7 @@ class PrimerTests(BrewingTests, UnitTestCase):
     def testDoesNotPrimeIfCleanRaisesYeastError(self):
         self.assertDoesNotPrime({'view_name': 'fail'})
 
-    def testDoesNotPrimeIfRefermentRaisesYeastError(self):
+    def testDoesNotPrimeIfRefermentRaisesBrewError(self):
         self.assertDoesNotPrime({'view_name': 'pass-fail'})
 
 
