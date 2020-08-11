@@ -1,36 +1,28 @@
-form.user label.boolean {
+.user label.boolean {
     align-items: center;
     font-size: .75rem;
     font-family: "Open Sans", sans-serif;
     font-weight: lighter;
 }
-form.user label.boolean input {
+.user label.boolean input {
     width: auto;
 }
-form.user label.boolean span::before {
+.user label.boolean span::before {
     content: "\a0";
 }
-form.user label.boolean span::after {
+.user label.boolean span::after {
     content: normal;
 }
 
-form.user label:not(.boolean) {
+.user label:not(.boolean) {
     display: block;
 }
-form.user label:not(.boolean) span {
-    display: block;
+.user label:not(.boolean) span {
     margin-bottom: .25rem;
 }
-form.user label:not(.boolean) span::after {
+.user label:not(.boolean) span::after {
     content: ":";
 }
-form.user label:not(.boolean) input {
+.user label:not(.boolean) input {
     width: 22.5rem;
-}
-
-form.user label .uploader span {
-    margin-bottom: 0;
-}
-form.user label .uploader span::after {
-    content: normal;
 }

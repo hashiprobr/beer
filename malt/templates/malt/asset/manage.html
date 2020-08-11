@@ -2,7 +2,7 @@
 
 {% block subtitle %}{% if parent_url %}<a href="{{ parent_url }}">../</a>{% endif %}{{ name }}/{% endblock %}
 
-{% block subcontent %}
+{% block subbody %}
     {% load malt %}
     <h2>
         Folders
@@ -11,9 +11,9 @@
         <table class="asset">
             <thead>
                 <tr>
-                    <td>Name</td>
-                    <td></td>
-                    <td></td>
+                    <th>Name</th>
+                    <th></th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -50,10 +50,10 @@
         <table class="asset">
             <thead>
                 <tr>
-                    <td>Name</td>
-                    <td>Active</td>
-                    <td></td>
-                    <td></td>
+                    <th>Name</th>
+                    <th>Active</th>
+                    <th></th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>

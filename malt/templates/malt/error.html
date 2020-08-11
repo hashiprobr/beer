@@ -9,11 +9,11 @@
 
 {% block subtitle %}Error{% endblock %}
 
-{% block subcontent %}
-    <ul class="history">
-        {% for message in error.history %}
-            <li>{{ message }}</li>
+{% block subbody %}
+    <ul class="error">
+        {% for line in error.history %}
+            <li>{{ line }}</li>
         {% endfor %}
-        <li class="error">{{ error.message }}</li>
+        <li>{{ error.message }}</li>
     </ul>
 {% endblock %}

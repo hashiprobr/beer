@@ -11,8 +11,8 @@
         <input type="hidden" name="action" value="{% url 'upload_manage' %}">
         <input type="hidden" name="method" value="{{ method }}">
         <input type="hidden" name="view_name" value="{{ request.resolver_match.view_name }}">
-        {% for key, value in request.resolver_match.kwargs.items %}
-            <input type="hidden" name="{{ key }}" value="{{ value }}">
+        {% for name, value in request.resolver_match.kwargs.items %}
+            <input type="hidden" name="{{ name }}" value="{{ value }}">
         {% endfor %}
         <input type="file" name="file">
     </form>
