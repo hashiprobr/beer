@@ -165,10 +165,10 @@ class PrimerTests(BrewingTests, UnitTestCase):
 
 class MockGrower(GypsyBrewer):
     def grow(self, content, yeasts):
-        if content == b'mock':
-            return None
-        else:
+        try:
             return yeasts[content.decode('utf-8')], None, None
+        except KeyError:
+            return None
 
 
 class FailMockPrimer(GypsyBrewer):
