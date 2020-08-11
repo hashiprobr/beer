@@ -38,6 +38,11 @@ class UserIsPowerMixin(UserPassesTestMixin):
         return power_cache.get(self.request.user)
 
 
+class UserIsMemberMixin(UserPassesTestMixin):
+    def test_func(self):
+        return True
+
+
 class AssetMixin:
     Asset = FolderAsset
 
