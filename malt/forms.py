@@ -69,8 +69,6 @@ class UserForm(forms.Form):
         for kwargs in self.users.values():
             del kwargs['line']
 
-        self.promote = data['promote']
-
         return data
 
 

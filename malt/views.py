@@ -53,11 +53,10 @@ class AssetMixin:
             asset = None
         else:
             names = path.split('/')
-            user = self.request.user
             parent = None
             for name in names[:-1]:
-                parent = get_object_or_404(FolderAsset, user=user, parent=parent, name=name)
-            asset = get_object_or_404(self.Asset, user=user, parent=parent, name=names[-1])
+                parent = get_object_or_404(FolderAsset, user=self.request.user, parent=parent, name=name)
+            asset = get_object_or_404(self.Asset, user=self.request.user, parent=parent, name=names[-1])
         return names, asset
 
 
@@ -77,7 +76,7 @@ class FormView(MaltMixin, generic.FormView):
     pass
 
 
-class UserMixin:
+class UserViewMixin:
     def get_suffix(self):
         if self.request.GET:
             return '?' + self.request.GET.urlencode()
@@ -93,16 +92,17 @@ class UserMixin:
         return context
 
 
-class UserManageView(LoginRequiredMixin, UserIsSuperMixin, UserMixin, FormView):
+class UserManageView(LoginRequiredMixin, UserIsSuperMixin, UserViewMixin, FormView):
     form_class = UserForm
     template_name = 'malt/user/manage.html'
 
     def form_valid(self, form):
+        promote = form.cleaned_data['promote']
         for username, kwargs in form.users.items():
             user, created = User.objects.update_or_create(username=username, defaults=kwargs)
             if not created:
-                power_cache.set(user, form.promote)
-            if form.promote:
+                power_cache.set(user, promote)
+            if promote:
                 PowerUser.objects.get_or_create(user=user)
             else:
                 PowerUser.objects.filter(user=user).delete()
@@ -113,9 +113,9 @@ class UserManageView(LoginRequiredMixin, UserIsSuperMixin, UserMixin, FormView):
         users = User.objects.all().order_by('username')
         paginator = Paginator(users, PAGE_SIZE)
         try:
-            number = int(self.request.GET.get('page'))
+            number = int(self.request.GET['page'])
             users = paginator.page(number)
-        except (TypeError, EmptyPage):
+        except (KeyError, TypeError, EmptyPage):
             users = paginator.page(1)
         users.power_pks = PowerUser.objects.filter(user__in=users).values_list('user', flat=True)
         context['users'] = users
@@ -123,24 +123,24 @@ class UserManageView(LoginRequiredMixin, UserIsSuperMixin, UserMixin, FormView):
         return context
 
 
-class UserAddView(LoginRequiredMixin, UserIsSuperMixin, UserMixin, MaltMixin, generic.edit.CreateView):
+class UserAddView(LoginRequiredMixin, UserIsSuperMixin, UserViewMixin, MaltMixin, generic.edit.CreateView):
     model = User
     fields = ['username', 'email', 'first_name', 'last_name']
     template_name = 'malt/user/add.html'
 
 
-class UserEditView(LoginRequiredMixin, UserIsSuperMixin, UserMixin, MaltMixin, generic.edit.UpdateView):
+class UserEditView(LoginRequiredMixin, UserIsSuperMixin, UserViewMixin, MaltMixin, generic.edit.UpdateView):
     model = User
     fields = ['username', 'email', 'first_name', 'last_name']
     template_name = 'malt/user/edit.html'
 
 
-class UserRemoveView(LoginRequiredMixin, UserIsSuperMixin, UserMixin, MaltMixin, generic.edit.DeleteView):
+class UserRemoveView(LoginRequiredMixin, UserIsSuperMixin, UserViewMixin, MaltMixin, generic.edit.DeleteView):
     model = User
     template_name = 'malt/user/remove.html'
 
 
-class UserChangeView(LoginRequiredMixin, UserIsSuperMixin, UserMixin, MaltMixin, SingleObjectTemplateResponseMixin, BaseDetailView):
+class UserChangeView(LoginRequiredMixin, UserIsSuperMixin, UserViewMixin, MaltMixin, SingleObjectTemplateResponseMixin, BaseDetailView):
     model = User
 
     def post(self, request, *args, **kwargs):
@@ -363,9 +363,9 @@ class AssetEditView(LoginRequiredMixin, UserIsPowerMixin, SingleAssetViewMixin, 
     template_name = 'malt/asset/edit.html'
 
     def update(self, kwargs, names, asset):
-        kwargs['initial']['name'] = names[-1]
         kwargs['parent'] = asset.parent
         kwargs['child'] = asset
+        kwargs['initial']['name'] = names[-1]
 
     def process(self, names, asset, name):
         asset.name = name
