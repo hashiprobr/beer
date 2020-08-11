@@ -170,7 +170,7 @@ class UploadView(LoginRequiredMixin, UserIsPowerMixin, generic.View):
     pass
 
 
-class UploadPrepareView(UploadView):
+class UploadManageView(UploadView):
     def post(self, request, *args, **kwargs):
         body = request.POST.dict()
 

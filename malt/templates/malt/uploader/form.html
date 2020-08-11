@@ -8,7 +8,7 @@
 {% block element %}
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
-        <input type="hidden" name="action" value="{% url 'upload_prepare' %}">
+        <input type="hidden" name="action" value="{% url 'upload_manage' %}">
         <input type="hidden" name="method" value="{{ method }}">
         <input type="hidden" name="view_name" value="{{ request.resolver_match.view_name }}">
         {% for key, value in request.resolver_match.kwargs.items %}
