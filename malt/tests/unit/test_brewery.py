@@ -219,14 +219,14 @@ class BreweryTests(BrewingTests, UnitTestCase):
     def testDoesNotBrewWithoutFile(self):
         names = {}
         meta = {'date': 0}
-        enzymes = [FailMockEnzyme()]
+        enzymes = []
         Primer = PassMockPrimer
         self.assertDoesNotBrew(names, meta, enzymes, Primer)
 
     def testDoesNotBrewWithTwoFiles(self):
         names = {'file': b'pass-pass', 'mock': b'pass-pass'}
         meta = {'date': 0}
-        enzymes = [FailMockEnzyme()]
+        enzymes = []
         Primer = PassMockPrimer
         self.assertDoesNotBrew(names, meta, enzymes, Primer)
 
