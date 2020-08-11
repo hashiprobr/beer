@@ -251,7 +251,7 @@ class BreweryTests(BrewingTests, UnitTestCase):
         Primer = PassMockPrimer
         self.assertDoesNotBrew(names, meta, enzymes, Primer)
 
-    def testDoesNotBrewIfRaisesYeastError(self):
+    def testDoesNotBrewIfFermentRaisesBrewError(self):
         names = {'file': b'pass-fail'}
         meta = {'date': 0}
         enzymes = []
