@@ -195,7 +195,11 @@ class UploadManageView(LoginRequiredMixin, UserIsPowerMixin, AssetMixin, generic
 
         if method == 'asset':
             if not name.strip():
-                return HttpResponseBadRequest()
+                return HttpResponseBadRequest('File name cannot be blank.')
+            expected = FileAsset.name.field.max_length
+            actual = len(name)
+            if actual > expected:
+                return HttpResponseBadRequest('File name cannot have more than {} characters (it has {}).'.format(expected, actual))
 
             try:
                 path = body['path']
