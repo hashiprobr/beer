@@ -56,11 +56,11 @@ class PassPassMockYeast(PassMockYeast):
 
 
 class BrewingTests:
-    mock_yeasts = {
-        'fail': FailMockYeast(),
-        'pass': PassMockYeast(),
-        'pass-fail': PassFailMockYeast(),
-        'pass-pass': PassPassMockYeast(),
+    MockYeasts = {
+        'fail': FailMockYeast,
+        'pass': PassMockYeast,
+        'pass-fail': PassFailMockYeast,
+        'pass-pass': PassPassMockYeast,
     }
 
 
@@ -78,11 +78,11 @@ class GrowerTests(BrewingTests, UnitTestCase):
 
     def grow(self, name):
         grower = Grower([])
-        return grower.grow(self.open(name), self.mock_yeasts)
+        return grower.grow(self.open(name), self.MockYeasts)
 
     def assertGrows(self, name, expected):
         yeast, meta, actual = self.grow(name)
-        self.assertIs(self.mock_yeasts['pass'], yeast)
+        self.assertIsInstance(yeast, self.MockYeasts['pass'])
         self.assertIsNone(meta)
         self.assertEqual(expected, actual)
 
@@ -135,7 +135,7 @@ class GrowerTests(BrewingTests, UnitTestCase):
 class PrimerTests(BrewingTests, UnitTestCase):
     def prime(self, meta):
         primer = Primer([])
-        primer.prime(meta, None, self.mock_yeasts)
+        primer.prime(meta, None, self.MockYeasts)
 
     def assertPrimes(self, meta):
         try:
@@ -164,20 +164,21 @@ class PrimerTests(BrewingTests, UnitTestCase):
 
 
 class MockGrower(GypsyBrewer):
-    def grow(self, content, yeasts):
+    def grow(self, content, Yeasts):
         try:
-            return yeasts[content.decode('utf-8')], None, None
+            Yeast = Yeasts[content.decode('utf-8')]
         except KeyError:
             return None
+        return Yeast(), None, None
 
 
 class FailMockPrimer(GypsyBrewer):
-    def prime(self, meta, sugars, yeasts):
+    def prime(self, meta, sugars, Yeasts):
         self.raiseBrewError('mock')
 
 
 class PassMockPrimer(GypsyBrewer):
-    def prime(self, meta, sugars, yeasts):
+    def prime(self, meta, sugars, Yeasts):
         return None
 
 
@@ -190,7 +191,7 @@ class BreweryTests(BrewingTests, UnitTestCase):
         files = MultiValueDict()
         for name, content in contents.items():
             files[name] = File(BytesIO(content))
-        brewery.brew(files, meta, enzymes, self.mock_yeasts, MockGrower, Primer)
+        brewery.brew(files, meta, enzymes, self.MockYeasts, MockGrower, Primer)
 
     def assertBrews(self, names, meta, enzymes, Primer):
         try:
