@@ -4,6 +4,7 @@ from yaml import YAMLError
 
 from .brewing import YeastError, Brewer
 from .enzymes import EnzymeError, ZipEnzyme, TarEnzyme
+from .yeasts import CourseYeast
 
 
 ENZYMES = [
@@ -12,6 +13,7 @@ ENZYMES = [
 ]
 
 YEASTS = {
+    'course': CourseYeast,
 }
 
 
@@ -21,7 +23,7 @@ class GypsyBrewer(Brewer):
 
 
 class Grower(GypsyBrewer):
-    def grow(self, content, yeasts):
+    def grow(self, content, Yeasts):
         try:
             text = content.decode('utf-8')
         except UnicodeDecodeError:
@@ -55,11 +57,13 @@ class Grower(GypsyBrewer):
                 self.history.append('Preamble has a type.')
 
                 try:
-                    yeast = yeasts[type]
+                    Yeast = Yeasts[type]
                 except KeyError:
                     self.history.append('Preamble type {} does not exist.'.format(type))
                     return None
                 self.history.append('Preamble type {} exists.'.format(type))
+
+                yeast = Yeast()
 
                 try:
                     clean_meta = yeast.clean(meta)
@@ -75,16 +79,18 @@ class Grower(GypsyBrewer):
 
 
 class Primer(GypsyBrewer):
-    def prime(self, meta, sugars, yeasts):
+    def prime(self, meta, sugars, Yeasts):
         try:
             type = meta.pop('view_name')
         except KeyError:
             self.raiseBrewError('Page not found.')
 
         try:
-            yeast = yeasts[type]
+            Yeast = Yeasts[type]
         except KeyError:
             self.raiseBrewError('File does not have an yeast and page is not editable.')
+
+        yeast = Yeast()
 
         try:
             clean_meta = yeast.clean(meta)
@@ -95,7 +101,7 @@ class Primer(GypsyBrewer):
 
 
 class Brewery(Brewer):
-    def brew(self, files, meta, enzymes=ENZYMES, yeasts=YEASTS, Grower=Grower, Primer=Primer):
+    def brew(self, files, meta, enzymes=ENZYMES, Yeasts=YEASTS, Grower=Grower, Primer=Primer):
         grower = Grower(self.history)
         primer = Primer(self.history)
 
@@ -131,7 +137,7 @@ class Brewery(Brewer):
             for date, name, content in members:
                 self.history.append('Extracted {}.'.format(name))
 
-                input = grower.grow(content, yeasts)
+                input = grower.grow(content, Yeasts)
 
                 if input is None:
                     sugars.append((date, name, content))
@@ -146,12 +152,12 @@ class Brewery(Brewer):
 
                 return yeast.ferment(clean_meta, data, sugars)
             else:
-                return primer.prime(meta, sugars, yeasts)
+                return primer.prime(meta, sugars, Yeasts)
 
-        input = grower.grow(content, yeasts)
+        input = grower.grow(content, Yeasts)
 
         if input is None:
-            return primer.prime(meta, [(date, name, content)], yeasts)
+            return primer.prime(meta, [(date, name, content)], Yeasts)
         else:
             yeast, clean_meta, data = input
 
