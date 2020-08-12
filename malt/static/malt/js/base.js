@@ -4,13 +4,14 @@ function resetContent(lis) {
 }
 
 
-async function upload(lis, form) {
+async function upload(uploader, lis, form, span, img) {
     lis[0].textContent = 'Please wait,';
     lis[1].textContent = 'preparing upload...';
 
     let action;
     let body = new FormData();
     let date;
+    let inputs = [];
 
     for (let input of form.querySelectorAll('input')) {
         if (input.type === 'file') {
@@ -22,7 +23,7 @@ async function upload(lis, form) {
             } else {
                 body.append(input.name, input.value);
             }
-            form.removeChild(input);
+            inputs.push(input);
         }
     }
 
@@ -31,24 +32,38 @@ async function upload(lis, form) {
         body: body,
     });
 
-    body = await response.json();
-    body.date = date;
+    if (response.status == 200) {
+        body = await response.json();
+        body.date = date;
 
-    lis[1].textContent = 'uploading...';
+        lis[1].textContent = 'uploading...';
 
-    for (let [name, value] of Object.entries(body)) {
-        if (name === 'action') {
-            form.action = value;
-        } else {
-            let input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = name;
-            input.value = value;
-            form.prepend(input);
+        for (let input of inputs) {
+            form.removeChild(input);
         }
-    }
 
-    form.submit();
+        for (let [name, value] of Object.entries(body)) {
+            if (name === 'action') {
+                form.action = value;
+            } else {
+                let input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = name;
+                input.value = value;
+                form.prepend(input);
+            }
+        }
+
+        form.submit();
+    } else {
+        lis[1].textContent = await response.text();
+        lis[0].textContent = 'Error:';
+
+        img.classList.add('hidden');
+        span.classList.remove('hidden');
+
+        uploader.disabled = false;
+    }
 }
 
 
@@ -132,7 +147,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 span.classList.add('hidden');
                 img.classList.remove('hidden');
 
-                upload(lis, form);
+                upload(uploader, lis, form, span, img);
             });
 
             img.classList.add('hidden');

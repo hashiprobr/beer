@@ -8,7 +8,7 @@ from django.contrib.auth import get_user_model
 from beer import public_storage
 from beer.tests import ViewTestCase
 
-from ...models import PowerUser, FolderAsset, FileAsset
+from ...models import PowerUser, Asset, FolderAsset, FileAsset
 from ...caches import power_cache
 from ...views import PAGE_SIZE, CSRF_KEY
 
@@ -648,6 +648,7 @@ class UploadViewTests:
     name = 'n'
     empty_name = ''
     white_name = ' \t\n'
+    upper_name = (Asset.name.field.max_length + 1) * 'n'
 
     uid = 'ui'
 
@@ -772,6 +773,13 @@ class UploadManageViewTests(UploadViewTests, ViewTestCase):
     def testRejectsAssetWithWhiteName(self):
         data = {
             'name': self.white_name,
+            'path': '',
+        }
+        self.assertPostsAsset(data, 400, False, None)
+
+    def testRejectsAssetWithUpperName(self):
+        data = {
+            'name': self.upper_name,
             'path': '',
         }
         self.assertPostsAsset(data, 400, False, None)
