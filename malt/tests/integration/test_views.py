@@ -649,6 +649,7 @@ class UploadViewTests:
     empty_name = ''
     white_name = ' \t\n'
     upper_name = (Asset.name.field.max_length + 1) * 'n'
+    slash_name = 'n/n'
 
     uid = 'ui'
 
@@ -780,6 +781,13 @@ class UploadManageViewTests(UploadViewTests, ViewTestCase):
     def testRejectsAssetWithUpperName(self):
         data = {
             'name': self.upper_name,
+            'path': '',
+        }
+        self.assertPostsAsset(data, 400, False, None)
+
+    def testRejectsAssetWithSlashName(self):
+        data = {
+            'name': self.slash_name,
             'path': '',
         }
         self.assertPostsAsset(data, 400, False, None)

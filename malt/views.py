@@ -199,7 +199,9 @@ class UploadManageView(LoginRequiredMixin, UserIsPowerMixin, AssetMixin, generic
             expected = FileAsset.name.field.max_length
             actual = len(name)
             if actual > expected:
-                return HttpResponseBadRequest('File name cannot have more than {} characters (it has {}).'.format(expected, actual))
+                return HttpResponseBadRequest('A file name cannot have more than {} characters (it has {}).'.format(expected, actual))
+            if '/' in name:
+                return HttpResponseBadRequest('A file name cannot have slashes.')
 
             try:
                 path = body['path']

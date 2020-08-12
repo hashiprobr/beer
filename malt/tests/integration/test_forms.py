@@ -297,6 +297,7 @@ class AssetFormTests(IntegrationTestCase):
     empty_name = ''
     white_name = ' \t\n'
     upper_name = (Asset.name.field.max_length + 1) * 'n'
+    slash_name = 'n/n'
 
     def isValid(self, name, Asset, edit):
         user = User.objects.create_user('u')
@@ -352,6 +353,12 @@ class AssetFormTests(IntegrationTestCase):
 
     def testNotValidWithUpperNameWithFileAsset(self):
         self.assertNotValid(self.upper_name, FileAsset, False)
+
+    def testNotValidWithSlashNameWithFolderAsset(self):
+        self.assertNotValid(self.slash_name, FolderAsset, False)
+
+    def testNotValidWithSlashNameWithFileAsset(self):
+        self.assertNotValid(self.slash_name, FileAsset, False)
 
     def testNotValidWithSameNameWithFolderAsset(self):
         self.assertNotValid(self.other_name, FolderAsset, False)
