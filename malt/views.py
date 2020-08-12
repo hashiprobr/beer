@@ -1,18 +1,17 @@
-from urllib.parse import quote, parse_qs
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.paginator import EmptyPage, Paginator
-from django.http import HttpResponseNotFound, HttpResponseBadRequest, HttpResponse, JsonResponse
+from django.http import HttpResponseNotFound, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views import generic
 from django.views.generic.base import ContextMixin, TemplateResponseMixin
 from django.views.generic.detail import SingleObjectTemplateResponseMixin, BaseDetailView
-from shortuuid import uuid
 
-from beer import public_storage, private_storage
+from beer import public_storage
 
 from .models import PowerUser, FolderAsset, FileAsset
 from .forms import UserForm, AssetForm
@@ -46,9 +45,8 @@ class UserIsMemberMixin(UserPassesTestMixin):
 class AssetMixin:
     Asset = FolderAsset
 
-    def get_objects(self, body):
-        path = body['path']
-        if path is None:
+    def get_objects(self, path):
+        if path == '':
             names = []
             asset = None
         else:
@@ -58,6 +56,21 @@ class AssetMixin:
                 parent = get_object_or_404(FolderAsset, user=self.request.user, parent=parent, name=name)
             asset = get_object_or_404(self.Asset, user=self.request.user, parent=parent, name=names[-1])
         return names, asset
+
+
+class AssetPathMixin:
+    def get_path(self, names):
+        if names:
+            return '/'.join(names)
+        else:
+            return None
+
+    def get_url(self, names):
+        path = self.get_path(names)
+        if path is None:
+            return reverse('asset_manage')
+        else:
+            return reverse('asset_folder', kwargs={'path': path})
 
 
 class MaltMixin:
@@ -166,11 +179,7 @@ class UserDemoteView(UserChangeView):
         PowerUser.objects.filter(user=user).delete()
 
 
-class UploadView(LoginRequiredMixin, UserIsPowerMixin, generic.View):
-    pass
-
-
-class UploadManageView(UploadView):
+class UploadManageView(LoginRequiredMixin, UserIsPowerMixin, AssetMixin, generic.View):
     def post(self, request, *args, **kwargs):
         body = request.POST.dict()
 
@@ -185,17 +194,20 @@ class UploadManageView(UploadView):
             return JsonResponse(body)
 
         if method == 'asset':
+            if not name.strip():
+                return HttpResponseBadRequest()
+
             try:
-                folder_pk = body['folder_pk']
+                path = body['path']
             except KeyError:
                 return HttpResponseBadRequest()
 
-            uid = uuid()
-            print(name, folder_pk, uid)
+            _, parent = self.get_objects(path)
 
-            name = '{}/assets/{}'.format(request.user.get_username(), uid)
-            redirect = '{}://{}{}'.format(request.scheme, request.get_host(), reverse('upload_asset_confirm'))
-            body = public_storage.post(name, redirect)
+            key = FileAsset.get_or_create(user=request.user, parent=parent, name=name).key()
+            redirect_url = '{}://{}{}'.format(request.scheme, request.get_host(), reverse('upload_asset_confirm'))
+
+            body = public_storage.post(key, redirect_url)
 
             if body['action'].startswith('/'):
                 body[CSRF_KEY] = request.POST[CSRF_KEY]
@@ -208,11 +220,13 @@ class UploadCodeView(LoginRequiredMixin, UserIsPowerMixin, MaltMixin, ContextMix
     template_name = 'malt/error.html'
 
     def post(self, request, *args, **kwargs):
-        meta = request.POST.dict()
-
-        del meta[CSRF_KEY]
-
         brewery = Brewery()
+
+        meta = request.POST.dict()
+        try:
+            del meta[CSRF_KEY]
+        except KeyError:
+            pass
 
         try:
             url = brewery.brew(request.FILES, meta)
@@ -224,15 +238,18 @@ class UploadCodeView(LoginRequiredMixin, UserIsPowerMixin, MaltMixin, ContextMix
         return redirect(url)
 
 
-class UploadAssetView(UploadView):
+class UploadAssetView(LoginRequiredMixin, UserIsPowerMixin, generic.View):
     def post(self, request, *args, **kwargs):
         if settings.CONTAINED:
             return HttpResponseNotFound()
 
         try:
             key = request.POST['key']
-            redirect = request.POST['success_action_redirect']
+            url = request.POST['success_action_redirect']
         except KeyError:
+            return HttpResponseBadRequest()
+
+        if not key.strip():
             return HttpResponseBadRequest()
 
         if len(request.FILES) != 1:
@@ -243,60 +260,41 @@ class UploadAssetView(UploadView):
         except KeyError:
             return HttpResponseBadRequest()
 
-        self.storage.save(key, file)
+        public_storage.save(key, file)
 
-        return redirect('{}?key={}'.format(redirect, quote(key, encoding='utf-8')))
-
-
-class UploadAssetPublicView(UploadAssetView):
-    storage = public_storage
+        return redirect('{}?{}'.format(url, urlencode({'key': key}, safe='/')))
 
 
-class UploadAssetPrivateView(UploadAssetView):
-    storage = private_storage
-
-
-class UploadAssetConfirmView(UploadView):
+class UploadAssetConfirmView(LoginRequiredMixin, UserIsPowerMixin, AssetPathMixin, generic.View):
     def get(self, request, *args, **kwargs):
-        body = parse_qs(request.META['QUERY_STRING'], encoding='utf-8')
+        body = request.GET.dict()
 
         try:
             key = body['key']
         except KeyError:
             return HttpResponseBadRequest()
 
-        paths = key[0].split('/')
+        paths = key.split('/')
 
         try:
-            uid = paths[-1]
-        except IndexError:
+            asset = FileAsset.objects.get(user=request.user, uid=paths[-1])
+        except FileAsset.DoesNotExist:
             return HttpResponseBadRequest()
 
-        print(uid)
+        if not asset.active and public_storage.exists(asset.key()):
+            asset.active = True
+            asset.save()
 
-        return HttpResponse('asset')
+        return redirect(self.get_url(asset.names()))
 
 
-class AssetViewMixin(AssetMixin):
+class AssetViewMixin(AssetMixin, AssetPathMixin):
     objects = None
 
     def get_objects(self):
         if self.objects is None:
-            self.objects = super().get_objects(self.kwargs)
+            self.objects = super().get_objects(self.kwargs['path'])
         return self.objects
-
-    def get_path(self, names):
-        if names:
-            return '/'.join(names)
-        else:
-            return None
-
-    def get_url(self, names):
-        path = self.get_path(names)
-        if path is None:
-            return reverse('asset_manage')
-        else:
-            return reverse('asset_folder', kwargs={'path': path})
 
 
 class AssetFormView(FormView):

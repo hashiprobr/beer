@@ -206,3 +206,9 @@ class FileAssetTests(IntegrationTestCase):
         public_storage.save(key, BytesIO(b'c'))
         file.delete()
         self.assertDataDoesNotExist(key)
+
+    def testIdempotence(self):
+        user, parent, name = self.createValues()
+        expected = FileAsset.get_or_create(user=user, parent=parent, name=name)
+        actual = FileAsset.get_or_create(user=user, parent=parent, name=name)
+        self.assertEqual(expected.uid, actual.uid)

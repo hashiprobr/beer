@@ -23,29 +23,23 @@ class LocalStorage(OverwriteStorage, FileSystemStorage):
         except FileNotFoundError:
             pass
 
-    def post(self, name, redirect):
-        body = {
-            'action': self.action(),
-            'key': name,
-            'success_action_redirect': redirect,
-        }
-        return body
-
 
 class PublicLocalStorage(LocalStorage):
     location = os.path.join(settings.MEDIA_ROOT, settings.MEDIA_BUCKET, settings.PUBLIC_LOCATION)
     base_url = '/{}/{}/'.format(settings.MEDIA_BUCKET, settings.PUBLIC_LOCATION)
 
-    def action(self):
-        return reverse('upload_asset_public')
+    def post(self, key, redirect_url):
+        body = {
+            'action': reverse('upload_asset'),
+            'key': key,
+            'success_action_redirect': redirect_url,
+        }
+        return body
 
 
 class PrivateLocalStorage(LocalStorage):
     location = os.path.join(settings.MEDIA_ROOT, settings.MEDIA_BUCKET, settings.PRIVATE_LOCATION)
     base_url = '/{}/{}/'.format(settings.MEDIA_BUCKET, settings.PRIVATE_LOCATION)
-
-    def action(self):
-        return reverse('upload_asset_private')
 
 
 class RemoteStorage(OverwriteStorage, S3Boto3Storage):
@@ -58,14 +52,6 @@ class RemoteStorage(OverwriteStorage, S3Boto3Storage):
             url = url.replace(settings.AWS_S3_ENDPOINT_URL, settings.AWS_S3_OVERRIDE_URL)
         return url
 
-    def post(self, name, redirect):
-        if settings.AWS_S3_OVERRIDE_URL:
-            url = settings.AWS_S3_OVERRIDE_URL
-        else:
-            url = settings.AWS_S3_ENDPOINT_URL
-        key = '{}/{}'.format(self.location, name)
-        return sign_post(url, self.bucket_name, key, redirect)
-
 
 class StaticRemoteStorage(RemoteStorage):
     bucket_name = settings.STATIC_BUCKET
@@ -77,6 +63,14 @@ class PublicRemoteStorage(RemoteStorage):
     bucket_name = settings.MEDIA_BUCKET
     location = settings.PUBLIC_LOCATION
     querystring_auth = False
+
+    def post(self, key, redirect_url):
+        if settings.AWS_S3_OVERRIDE_URL:
+            url = settings.AWS_S3_OVERRIDE_URL
+        else:
+            url = settings.AWS_S3_ENDPOINT_URL
+        key = '{}/{}'.format(self.location, key)
+        return sign_post(url, self.bucket_name, key, redirect_url)
 
 
 class PrivateRemoteStorage(RemoteStorage):
