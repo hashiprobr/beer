@@ -2,13 +2,15 @@ import os
 
 from io import BytesIO
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 
+from beer import public_storage
 from beer.tests import ViewTestCase
 
 from ...models import PowerUser, FolderAsset, FileAsset
 from ...caches import power_cache
-from ...views import PAGE_SIZE
+from ...views import PAGE_SIZE, CSRF_KEY
 
 User = get_user_model()
 
@@ -631,6 +633,326 @@ class UserDemoteViewTests(SingleUserViewTests, ViewTestCase):
         self.singlePost()
         self.singlePost()
         self.assertNotPower()
+
+
+class UploadViewTests:
+    super_username = 'sus'
+    username = 'us'
+    power_username = 'pus'
+
+    super_password = 'sp'
+    password = 'p'
+    power_password = 'pp'
+
+    parent_name = 'pn'
+    name = 'n'
+    empty_name = ''
+    white_name = ' \t\n'
+
+    uid = 'ui'
+
+    key = 'k'
+    empty_key = ''
+    white_key = ' \t\n'
+
+    content = b'c'
+
+    redirect_url = 'http://ur'
+
+    csrf_value = 'v'
+
+    def setUp(self):
+        User.objects.create_superuser(self.super_username, password=self.super_password)
+        User.objects.create_user(self.username, password=self.password)
+        self.user = User.objects.create_user(self.power_username, password=self.power_password)
+        PowerUser.objects.create(user=self.user)
+
+    def superLogin(self):
+        self.client.login(username=self.super_username, password=self.super_password)
+
+    def login(self):
+        self.client.login(username=self.username, password=self.password)
+
+    def powerLogin(self):
+        self.client.login(username=self.power_username, password=self.power_password)
+
+    def testGetRedirects(self):
+        self.assertEqual(302, self.get_status())
+
+    def testGetForbidsAfterLogin(self):
+        self.login()
+        self.assertEqual(403, self.get_status())
+
+    def testGetForbidsAfterSuperLogin(self):
+        self.superLogin()
+        self.assertEqual(403, self.get_status())
+
+    def testPostRedirects(self):
+        self.assertEqual(302, self.post_status())
+
+    def testPostForbidsAfterLogin(self):
+        self.login()
+        self.assertEqual(403, self.post_status())
+
+    def testPostForbidsSuperLogin(self):
+        self.superLogin()
+        self.assertEqual(403, self.post_status())
+
+    def assertGetStatus(self, query, expected):
+        self.powerLogin()
+        self.assertEqual(expected, self.get_status(query=query))
+
+    def assertPostStatus(self, data, expected):
+        self.powerLogin()
+        self.assertEqual(expected, self.post_status(data=data))
+
+
+class UploadManageViewTests(UploadViewTests, ViewTestCase):
+    view_name = 'upload_manage'
+
+    def testPostsCode(self):
+        data = {
+            'method': 'code',
+            'name': 'mock',
+        }
+        self.assertPostStatus(data, 200)
+
+    def testPostsAsset(self):
+        data = {
+            'method': 'asset',
+            'name': self.name,
+            'path': '',
+            CSRF_KEY: self.csrf_value,
+        }
+        self.assertPostStatus(data, 200)
+        self.assertTrue(FileAsset.objects.filter(user=self.user, parent=None, name=self.name).exists())
+
+    def testPostsAssetWithParent(self):
+        parent = FolderAsset.objects.create(user=self.user, parent=None, name=self.parent_name)
+        data = {
+            'method': 'asset',
+            'name': self.name,
+            'path': parent.name,
+            CSRF_KEY: self.csrf_value,
+        }
+        self.assertPostStatus(data, 200)
+        self.assertTrue(FileAsset.objects.filter(user=self.user, parent=parent, name=self.name).exists())
+
+    def testRejectsWithoutMethod(self):
+        data = {
+            'mock': 'code',
+            'name': 'mock',
+        }
+        self.assertPostStatus(data, 400)
+
+    def testRejectsWithoutName(self):
+        data = {
+            'method': 'code',
+            'mock': 'name',
+        }
+        self.assertPostStatus(data, 400)
+
+    def testMissesWithWrongMethod(self):
+        data = {
+            'method': 'mock',
+            'name': 'mock',
+        }
+        self.assertPostStatus(data, 404)
+
+    def testRejectsAssetWithEmptyName(self):
+        data = {
+            'method': 'asset',
+            'name': self.empty_name,
+            'path': '',
+            CSRF_KEY: self.csrf_value,
+        }
+        self.assertPostStatus(data, 400)
+        self.assertFalse(FileAsset.objects.filter(user=self.user, parent=None, name=self.empty_name).exists())
+
+    def testRejectsAssetWithWhiteName(self):
+        data = {
+            'method': 'asset',
+            'name': self.white_name,
+            'path': '',
+            CSRF_KEY: self.csrf_value,
+        }
+        self.assertPostStatus(data, 400)
+        self.assertFalse(FileAsset.objects.filter(user=self.user, parent=None, name=self.white_name).exists())
+
+    def testRejectsAssetWithoutPath(self):
+        data = {
+            'method': 'asset',
+            'name': self.name,
+            'mock': '',
+            CSRF_KEY: self.csrf_value,
+        }
+        self.assertPostStatus(data, 400)
+        self.assertFalse(FileAsset.objects.filter(user=self.user, parent=None, name=self.name).exists())
+
+    def testMissesAssetWithWrongPath(self):
+        data = {
+            'method': 'asset',
+            'name': self.name,
+            'path': 'mock',
+            CSRF_KEY: self.csrf_value,
+        }
+        self.assertPostStatus(data, 404)
+        self.assertFalse(FileAsset.objects.filter(user=self.user, parent=None, name=self.name).exists())
+
+
+class UploadAssetViewTests(UploadViewTests, ViewTestCase):
+    view_name = 'upload_asset'
+
+    def testPostRedirectsAndSaves(self):
+        data = {
+            'key': self.key,
+            'success_action_redirect': self.redirect_url,
+            'file': BytesIO(self.content),
+        }
+        if settings.CONTAINED:
+            self.assertPostStatus(data, 404)
+        else:
+            self.assertPostStatus(data, 302)
+            self.assertTrue(public_storage.exists(self.key))
+
+    def testPostRejectsAndDoesNotSaveWithoutKey(self):
+        data = {
+            'mock': self.key,
+            'success_action_redirect': self.redirect_url,
+            'file': BytesIO(self.content),
+        }
+        if settings.CONTAINED:
+            self.assertPostStatus(data, 404)
+        else:
+            self.assertPostStatus(data, 400)
+            self.assertFalse(public_storage.exists(self.key))
+
+    def testPostRejectsAndDoesNotSaveWithEmptyKey(self):
+        data = {
+            'key': self.empty_key,
+            'success_action_redirect': self.redirect_url,
+            'file': BytesIO(self.content),
+        }
+        if settings.CONTAINED:
+            self.assertPostStatus(data, 404)
+        else:
+            self.assertPostStatus(data, 400)
+            self.assertFalse(public_storage.exists(self.key))
+
+    def testPostRejectsAndDoesNotSaveWithWhiteKey(self):
+        data = {
+            'key': self.white_key,
+            'success_action_redirect': self.redirect_url,
+            'file': BytesIO(self.content),
+        }
+        if settings.CONTAINED:
+            self.assertPostStatus(data, 404)
+        else:
+            self.assertPostStatus(data, 400)
+            self.assertFalse(public_storage.exists(self.key))
+
+    def testPostRejectsAndDoesNotSaveWithoutRedirectURL(self):
+        data = {
+            'key': self.key,
+            'mock': self.redirect_url,
+            'file': BytesIO(self.content),
+        }
+        if settings.CONTAINED:
+            self.assertPostStatus(data, 404)
+        else:
+            self.assertPostStatus(data, 400)
+            self.assertFalse(public_storage.exists(self.key))
+
+    def testPostRejectsAndDoesNotSaveWithoutFile(self):
+        data = {
+            'key': self.key,
+            'success_action_redirect': self.redirect_url,
+        }
+        if settings.CONTAINED:
+            self.assertPostStatus(data, 404)
+        else:
+            self.assertPostStatus(data, 400)
+            self.assertFalse(public_storage.exists(self.key))
+
+    def testPostRejectsAndDoesNotSaveWithTwoFiles(self):
+        data = {
+            'key': self.key,
+            'success_action_redirect': self.redirect_url,
+            'file': BytesIO(self.content),
+            'mock': BytesIO(self.content),
+        }
+        if settings.CONTAINED:
+            self.assertPostStatus(data, 404)
+        else:
+            self.assertPostStatus(data, 400)
+            self.assertFalse(public_storage.exists(self.key))
+
+    def testPostRejectsAndDoesNotSaveIfInputNotFile(self):
+        data = {
+            'key': self.key,
+            'success_action_redirect': self.redirect_url,
+            'mock': BytesIO(self.content),
+        }
+        if settings.CONTAINED:
+            self.assertPostStatus(data, 404)
+        else:
+            self.assertPostStatus(data, 400)
+            self.assertFalse(public_storage.exists(self.key))
+
+
+class UploadAssetConfirmViewTests(UploadViewTests, ViewTestCase):
+    view_name = 'upload_asset_confirm'
+
+    def testGetRedirectsAndActivates(self):
+        asset = FileAsset.objects.create(user=self.user, parent=None, name=self.name, uid=self.uid)
+        self.assertFalse(asset.active)
+        public_storage.save(asset.key(), BytesIO(self.content))
+        query = {
+            'key': self.uid,
+        }
+        self.assertGetStatus(query, 302)
+        asset.refresh_from_db()
+        self.assertTrue(asset.active)
+
+    def testGetRedirectsAndActivatesWithParent(self):
+        parent = FolderAsset.objects.create(user=self.user, parent=None, name=self.parent_name)
+        asset = FileAsset.objects.create(user=self.user, parent=parent, name=self.name, uid=self.uid)
+        public_storage.save(asset.key(), BytesIO(self.content))
+        query = {
+            'key': self.uid,
+        }
+        self.assertGetStatus(query, 302)
+        asset.refresh_from_db()
+        self.assertTrue(asset.active)
+
+    def testGetRejectsAndDoesNotActivateWithoutKey(self):
+        asset = FileAsset.objects.create(user=self.user, parent=None, name=self.name, uid=self.uid)
+        public_storage.save(asset.key(), BytesIO(self.content))
+        query = {
+            'mock': self.uid,
+        }
+        self.assertGetStatus(query, 400)
+        asset.refresh_from_db()
+        self.assertFalse(asset.active)
+
+    def testGetRejectsAndDoesNotActivateWithoutAsset(self):
+        asset = FileAsset.objects.create(user=self.user, parent=None, name=self.name, uid=self.uid)
+        public_storage.save(asset.key(), BytesIO(self.content))
+        query = {
+            'key': 'mock',
+        }
+        self.assertGetStatus(query, 400)
+        asset.refresh_from_db()
+        self.assertFalse(asset.active)
+
+    def testGetRedirectsButDoesNotActivateWithoutData(self):
+        asset = FileAsset.objects.create(user=self.user, parent=None, name=self.name, uid=self.uid)
+        query = {
+            'key': self.uid,
+        }
+        self.assertGetStatus(query, 302)
+        asset.refresh_from_db()
+        self.assertFalse(asset.active)
 
 
 class AssetViewTests:

@@ -22,6 +22,12 @@ class Asset(models.Model):
             ('user', 'parent', 'name'),
         ]
 
+    def names(self):
+        if self.parent is None:
+            return []
+        else:
+            return [*self.parent.names(), self.parent.name]
+
 
 class FolderAsset(Asset):
     label = 'folder'
@@ -52,14 +58,18 @@ class FileAsset(Asset):
 
     @classmethod
     @transaction.atomic
-    def get_or_create(cls, **kwargs):
-        if 'defaults' in kwargs and 'uid' in kwargs['defaults']:
-            raise IntegrityError('uid not allowed in defaults')
-        user, uid = cls.pop(kwargs)
-        return cls.objects.get_or_create(user=user, uid=uid, **kwargs)
+    def get_or_create(cls, defaults={}, **kwargs):
+        try:
+            return cls.objects.get(**kwargs)
+        except cls.DoesNotExist:
+            user, uid = cls.pop(kwargs)
+            return cls.objects.create(user=user, uid=uid, **kwargs, **defaults)
 
     def key(self):
         return '{}/assets/{}'.format(self.user.get_username(), self.uid)
+
+    def url(self):
+        return public_storage.url(self.key())
 
 
 @receiver(models.signals.post_delete, sender=FileAsset)
