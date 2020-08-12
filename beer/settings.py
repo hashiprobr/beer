@@ -8,7 +8,7 @@ env = Env()
 
 VERSION = '0.6'
 
-PATCH_VERSION = '3'
+PATCH_VERSION = '4'
 
 
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
