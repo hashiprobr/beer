@@ -9,6 +9,7 @@ async function upload(uploader, lis, form, span, img) {
     lis[1].textContent = 'preparing upload...';
 
     let action;
+    let method;
     let body = new FormData();
     let date;
     let inputs = [];
@@ -21,6 +22,9 @@ async function upload(uploader, lis, form, span, img) {
             if (input.name === 'action') {
                 action = input.value;
             } else {
+                if (input.name === 'method') {
+                    method = input.value;
+                }
                 body.append(input.name, input.value);
             }
             inputs.push(input);
@@ -34,9 +38,12 @@ async function upload(uploader, lis, form, span, img) {
 
     if (response.status == 200) {
         body = await response.json();
-        body.date = date;
 
         lis[1].textContent = 'uploading...';
+
+        if (method === 'code') {
+            body.date = date;
+        }
 
         for (let input of inputs) {
             form.removeChild(input);

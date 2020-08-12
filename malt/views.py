@@ -208,11 +208,6 @@ class UploadManageView(LoginRequiredMixin, UserIsPowerMixin, AssetMixin, generic
             except KeyError:
                 return HttpResponseBadRequest()
 
-            try:
-                del body['date']
-            except KeyError:
-                pass
-
             _, parent = self.get_objects(path)
 
             key = FileAsset.get_or_create(user=request.user, parent=parent, name=name).key()
@@ -234,7 +229,6 @@ class UploadCodeView(LoginRequiredMixin, UserIsPowerMixin, MaltMixin, ContextMix
         brewery = Brewery()
 
         meta = request.POST.dict()
-
         try:
             del meta[CSRF_KEY]
         except KeyError:
