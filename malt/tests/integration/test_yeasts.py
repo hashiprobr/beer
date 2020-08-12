@@ -2,6 +2,9 @@ import os
 
 from beer.tests import IntegrationTestCase
 
+from ...brewing import BrewError
+from ...yeasts import CourseYeast
+
 
 class YeastTests:
     @classmethod
@@ -15,6 +18,27 @@ class YeastTests:
             data = file.read()
         return data
 
+    def assertFerments(self, meta, name, sugars):
+        try:
+            self.yeast.ferment(meta, self.open(name), sugars)
+        except BrewError:
+            self.fail('BrewError raised')
+
+    def assertDoesNotFerment(self, meta, name, sugars):
+        with self.assertRaises(BrewError):
+            self.yeast.ferment(meta, self.open(name), sugars)
+
+    def assertReferments(self, meta, sugars):
+        try:
+            self.yeast.referment(meta, sugars)
+        except BrewError:
+            self.fail('BrewError raised')
+
+    def assertDoesNotReferment(self, meta, sugars):
+        with self.assertRaises(BrewError):
+            self.yeast.referment(meta, sugars)
+
 
 class CourseYeastTests(YeastTests, IntegrationTestCase):
-    pass
+    def setUp(self):
+        self.yeast = CourseYeast()
