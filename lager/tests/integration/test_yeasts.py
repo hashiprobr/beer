@@ -2,12 +2,12 @@ from beer.tests import IntegrationTestCase
 
 from malt.tests.integration import YeastTests
 
-from ...yeasts import CourseYeast
+from ...yeasts import SheetYeast
 
 
-class CourseYeastTests(YeastTests, IntegrationTestCase):
+class SheetYeastTests(YeastTests, IntegrationTestCase):
     def setUp(self):
-        self.yeast = CourseYeast()
+        self.yeast = SheetYeast()
 
     def test(self):
         pass

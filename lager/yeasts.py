@@ -1,5 +1,5 @@
 from malt.brewing import Yeast
 
 
-class CourseYeast(Yeast):
+class SheetYeast(Yeast):
     pass
