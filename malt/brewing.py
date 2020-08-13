@@ -77,17 +77,18 @@ class Yeast(Brewer):
                         self.raiseBrewError('Preamble is not a dictionary.')
                     self.history.append('Preamble is a dictionary.')
 
-                    clean_meta_data = {}
-                    for key, type in self.also_expected.items():
-                        try:
-                            value = meta_data.pop(key)
-                        except KeyError:
-                            self.raiseBrewError('This yeast requires a value for {}.'.format(key))
-                        if not isinstance(value, type):
-                            self.raiseBrewError('The value for {} must be of type {}.'.format(key, type.__name__))
-                        clean_meta_data[key] = value
+                    if self.also_expected:
+                        clean_meta_data = {}
+                        for key, type in self.also_expected.items():
+                            try:
+                                value = meta_data.pop(key)
+                            except KeyError:
+                                self.raiseBrewError('This yeast requires a value for {}.'.format(key))
+                            if not isinstance(value, type):
+                                self.raiseBrewError('The value for {} must be of type {}.'.format(key, type.__name__))
+                            clean_meta_data[key] = value
 
-                    self.post_pre_process(clean_meta_data)
+                        self.post_pre_process(clean_meta_data)
 
                     for key, value in meta_data.items():
                         if key in self.optional:
