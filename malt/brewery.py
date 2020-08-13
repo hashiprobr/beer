@@ -6,15 +6,21 @@ from .brewing import YeastError, Brewer
 from .enzymes import EnzymeError, ZipEnzyme, TarEnzyme
 from .yeasts import CourseYeast
 
+from lager.yeasts import SheetYeast
+
+from ale.yeasts import NodeYeast
+
 
 ENZYMES = [
     ZipEnzyme(),
     TarEnzyme(),
 ]
 
-YEASTS = {
-    'course': CourseYeast,
-}
+YEASTS = {Yeast.name: Yeast for Yeast in [
+    CourseYeast,
+    SheetYeast,
+    NodeYeast,
+]}
 
 
 class GypsyBrewer(Brewer):

@@ -52,6 +52,7 @@ class Yeast(Brewer):
 
     def ferment(self, meta, data, sugars):
         self.history.append('File has an yeast!')
+        self.history.append('type: ' + self.name)
         for key, value in meta.items():
             self.history.append('{}: {}'.format(key, value))
 
@@ -98,6 +99,8 @@ class Yeast(Brewer):
                             except AttributeError:
                                 self.raiseBrewError('Processing of {} not implemented.'.format(key))
                             method(value)
+                        else:
+                            self.raiseBrewError('Unrecognized argument {}.'.format(key))
 
                     data = '\n'.join(lines[(i + 1):])
                     break
