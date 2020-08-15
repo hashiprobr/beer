@@ -83,7 +83,7 @@ class GrowerTests(BrewingTests, UnitTestCase):
     def assertGrows(self, name, expected):
         yeast, meta, actual = self.grow(name)
         self.assertIsInstance(yeast, self.MockYeasts['pass'])
-        self.assertIsNone(meta)
+        self.assertEqual({}, meta)
         self.assertEqual(expected, actual)
 
     def assertDoesNotGrow(self, name):
