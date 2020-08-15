@@ -21,4 +21,6 @@ urlpatterns = [
     path('remove/assets/<path:path>/', views.AssetRemoveView.as_view(), name='asset_remove'),
     path('remove/file/assets/<path:path>/', views.AssetRemoveFileView.as_view(), name='asset_remove_file'),
     path('', views.IndexView.as_view(), name='index'),
+    path('calendar/<slug:slug>/', views.CalendarView.as_view(), {'active': True}, name='calendar'),
+    path('edit/calendar/<slug:slug>/', views.CalendarView.as_view(), {'active': False}, name='calendar_draft'),
 ]

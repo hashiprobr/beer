@@ -7,9 +7,9 @@ from django.utils.datastructures import MultiValueDict
 
 from beer.tests import UnitTestCase
 
-from ...brewing import BrewError, YeastError, Yeast
+from ...brewing import BrewError, YeastError, Brewer, Yeast
 from ...enzymes import EnzymeError, Enzyme
-from ...brewery import GypsyBrewer, Grower, Primer, Brewery
+from ...brewery import Grower, Primer, Brewery
 
 
 class MockEnzyme(Enzyme):
@@ -41,17 +41,17 @@ class PassMockYeast(Yeast):
 
 class PassFailMockYeast(PassMockYeast):
     def ferment(self, meta, data, sugars):
-        self.raiseBrewError('mock')
+        self.exit('mock')
 
-    def referment(self, meta, sugars):
-        self.raiseBrewError('mock')
+    def referment(self, active, meta, sugars):
+        self.exit('mock')
 
 
 class PassPassMockYeast(PassMockYeast):
     def ferment(self, meta, data, sugars):
         return None
 
-    def referment(self, meta, sugars):
+    def referment(self, active, meta, sugars):
         return None
 
 
@@ -77,7 +77,7 @@ class GrowerTests(BrewingTests, UnitTestCase):
         return content
 
     def grow(self, name):
-        grower = Grower([])
+        grower = Grower(None, [])
         return grower.grow(self.open(name), self.MockYeasts)
 
     def assertGrows(self, name, expected):
@@ -134,7 +134,7 @@ class GrowerTests(BrewingTests, UnitTestCase):
 
 class PrimerTests(BrewingTests, UnitTestCase):
     def prime(self, meta):
-        primer = Primer([])
+        primer = Primer(None, [])
         primer.prime(meta, None, self.MockYeasts)
 
     def assertPrimes(self, meta):
@@ -163,21 +163,21 @@ class PrimerTests(BrewingTests, UnitTestCase):
         self.assertDoesNotPrime({'view_name': 'pass-fail'})
 
 
-class MockGrower(GypsyBrewer):
+class MockGrower(Brewer):
     def grow(self, content, Yeasts):
         try:
             Yeast = Yeasts[content.decode('utf-8')]
         except KeyError:
             return None
-        return Yeast(), None, None
+        return Yeast(None, []), None, None
 
 
-class FailMockPrimer(GypsyBrewer):
+class FailMockPrimer(Brewer):
     def prime(self, meta, sugars, Yeasts):
-        self.raiseBrewError('mock')
+        self.exit('mock')
 
 
-class PassMockPrimer(GypsyBrewer):
+class PassMockPrimer(Brewer):
     def prime(self, meta, sugars, Yeasts):
         return None
 
@@ -187,7 +187,7 @@ class BreweryTests(BrewingTests, UnitTestCase):
         return PassMockEnzyme([(0, name, content) for name, content in contents.items()])
 
     def brew(self, contents, meta, enzymes, Primer):
-        brewery = Brewery()
+        brewery = Brewery(None, [])
         files = MultiValueDict()
         for name, content in contents.items():
             files[name] = File(BytesIO(content))

@@ -226,7 +226,7 @@ class UploadCodeView(LoginRequiredMixin, UserIsPowerMixin, MaltMixin, ContextMix
     template_name = 'malt/error.html'
 
     def post(self, request, *args, **kwargs):
-        brewery = Brewery()
+        brewery = Brewery(request.user, [])
 
         meta = request.POST.dict()
         try:
@@ -401,3 +401,7 @@ class IndexView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         context['version'] = '{}.{}'.format(settings.VERSION, settings.PATCH_VERSION)
         return context
+
+
+class CalendarView(LoginRequiredMixin, TemplateView):
+    template_name = 'malt/calendar.html'
