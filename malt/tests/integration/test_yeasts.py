@@ -7,7 +7,7 @@ from ...yeasts import CalendarYeast, CourseYeast
 
 class CalendarYeastTests(YeastTests, IntegrationTestCase):
     def setUp(self):
-        self.yeast = CalendarYeast(None, [])
+        self.yeast = CalendarYeast()
 
     def test(self):
         pass
@@ -15,7 +15,7 @@ class CalendarYeastTests(YeastTests, IntegrationTestCase):
 
 class CourseYeastTests(YeastTests, IntegrationTestCase):
     def setUp(self):
-        self.yeast = CourseYeast(None, [])
+        self.yeast = CourseYeast()
 
     def test(self):
         pass

@@ -77,7 +77,7 @@ class GrowerTests(BrewingTests, UnitTestCase):
         return content
 
     def grow(self, name):
-        grower = Grower(None, [])
+        grower = Grower()
         return grower.grow(self.open(name), self.MockYeasts)
 
     def assertGrows(self, name, expected):
@@ -134,7 +134,7 @@ class GrowerTests(BrewingTests, UnitTestCase):
 
 class PrimerTests(BrewingTests, UnitTestCase):
     def prime(self, meta):
-        primer = Primer(None, [])
+        primer = Primer()
         primer.prime(meta, None, self.MockYeasts)
 
     def assertPrimes(self, meta):
@@ -169,7 +169,7 @@ class MockGrower(Brewer):
             Yeast = Yeasts[content.decode('utf-8')]
         except KeyError:
             return None
-        return Yeast(None, []), None, None
+        return Yeast(), None, None
 
 
 class FailMockPrimer(Brewer):
@@ -187,7 +187,7 @@ class BreweryTests(BrewingTests, UnitTestCase):
         return PassMockEnzyme([(0, name, content) for name, content in contents.items()])
 
     def brew(self, contents, meta, enzymes, Primer):
-        brewery = Brewery(None, [])
+        brewery = Brewery()
         files = MultiValueDict()
         for name, content in contents.items():
             files[name] = File(BytesIO(content))
