@@ -43,7 +43,7 @@ class PassFailMockYeast(PassMockYeast):
     def ferment(self, meta, data, sugars):
         self.exit('mock')
 
-    def referment(self, active, meta, sugars):
+    def referment(self, meta, sugars):
         self.exit('mock')
 
 
@@ -51,7 +51,7 @@ class PassPassMockYeast(PassMockYeast):
     def ferment(self, meta, data, sugars):
         return None
 
-    def referment(self, active, meta, sugars):
+    def referment(self, meta, sugars):
         return None
 
 

@@ -105,7 +105,9 @@ class Primer(Brewer):
         except YeastError as error:
             self.exit('Page not valid.')
 
-        return yeast.referment(active, clean_meta, sugars)
+        clean_meta['active'] = active
+
+        return yeast.referment(clean_meta, sugars)
 
 
 class Brewery(Brewer):

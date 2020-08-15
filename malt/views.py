@@ -4,7 +4,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.paginator import EmptyPage, Paginator
-from django.http import HttpResponseNotFound, HttpResponseBadRequest, JsonResponse
+from django.http import Http404, HttpResponseNotFound, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views import generic
@@ -18,6 +18,7 @@ from .forms import UserForm, AssetForm
 from .caches import power_cache, member_cache
 from .brewing import BrewError
 from .brewery import Brewery
+from .yeasts import CalendarYeast
 
 User = get_user_model()
 
@@ -403,5 +404,21 @@ class IndexView(LoginRequiredMixin, TemplateView):
         return context
 
 
-class CalendarView(LoginRequiredMixin, TemplateView):
+class YeastView(LoginRequiredMixin, TemplateView):
+    def get_object(self):
+        active = not self.request.resolver_match.view_name.endswith('_draft')
+        try:
+            return self.yeast.get_object(active, self.kwargs)
+        except self.yeast.Model.DoesNotExist:
+            raise Http404()
+
+
+class CalendarView(YeastView):
+    yeast = CalendarYeast()
     template_name = 'malt/calendar.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        calendar = self.get_object()
+        context['active'] = calendar.active
+        return context

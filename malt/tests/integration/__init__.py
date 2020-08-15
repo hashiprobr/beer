@@ -25,12 +25,12 @@ class YeastTests:
         with self.assertRaises(BrewError):
             self.yeast.ferment(meta, self.open(name), sugars)
 
-    def assertReferments(self, active, meta, sugars):
+    def assertReferments(self, meta, sugars):
         try:
-            self.yeast.referment(active, meta, sugars)
+            self.yeast.referment(meta, sugars)
         except BrewError:
             self.fail('BrewError raised')
 
-    def assertDoesNotReferment(self, active, meta, sugars):
+    def assertDoesNotReferment(self, meta, sugars):
         with self.assertRaises(BrewError):
-            self.yeast.referment(active, meta, sugars)
+            self.yeast.referment(meta, sugars)

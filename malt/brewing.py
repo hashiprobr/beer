@@ -164,14 +164,10 @@ class Yeast(Brewer):
         self.post_process(sugars)
         return self.get_url()
 
-    def referment(self, active, meta, sugars):
+    def referment(self, meta, sugars):
         self.print('File does not have an yeast but page is editable.')
         self.describe(meta)
-        if active:
-            self.print('Considering the published version, not the draft one.')
-        else:
-            self.print('Considering the draft version, not the published one.')
-        self.object = self.get_object(active, meta)
+        self.object = self.get_object(meta['active'], meta)
         self.authenticate()
         self.post_process(sugars)
         return self.get_url()
