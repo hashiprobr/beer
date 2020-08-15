@@ -36,7 +36,7 @@ class FailMockYeast(Yeast):
 
 class PassMockYeast(Yeast):
     def clean(self, meta):
-        return None
+        return meta
 
 
 class PassFailMockYeast(PassMockYeast):
