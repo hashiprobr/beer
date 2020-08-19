@@ -148,6 +148,9 @@ nav .uploader ul {
 .card .uploader li {
     margin: 0 !important;
 }
+.card .uploader li:first-child {
+    white-space: nowrap;
+}
 
 .primary .uploader {
     border-color: #fff9e6 #ccc2a3 #ccc2a3 #fff9e6;
