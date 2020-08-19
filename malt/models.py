@@ -2,7 +2,6 @@ from django.contrib.auth import get_user_model
 from django.db import models, transaction, IntegrityError
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
-from django.utils import timezone
 from shortuuid import uuid
 
 from beer import public_storage
@@ -32,12 +31,10 @@ class Asset(models.Model):
 
 
 class FolderAsset(Asset):
-    label = 'folder'
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True)
 
 
 class FileAsset(Asset):
-    label = 'file'
     parent = models.ForeignKey(FolderAsset, on_delete=models.CASCADE, null=True)
     uid = models.CharField(max_length=22)
     active = models.BooleanField(default=False)
@@ -96,9 +93,9 @@ class Calendar(YeastModel):
             ('slug', 'active'),
         ]
 
-    title = models.CharField(max_length=44, default='New Calendar')
-    begin_date = models.DateField(default=timezone.now)
-    end_date = models.DateField(default=timezone.now)
+    title = models.CharField(max_length=44)
+    begin_date = models.DateField()
+    end_date = models.DateField()
 
 
 class Course(YeastModel):
@@ -107,13 +104,12 @@ class Course(YeastModel):
             ('slug', 'active'),
         ]
 
-    title = models.CharField(max_length=44, default='New Course')
-    calendar = models.ForeignKey(Calendar, null=True, on_delete=models.SET_NULL, default=None)
+    title = models.CharField(max_length=44)
+    calendar = models.ForeignKey(Calendar, null=True, on_delete=models.SET_NULL)
 
 
 class Schedule(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE)
-    key = models.CharField(max_length=11)
     title = models.CharField(max_length=44)
 
 

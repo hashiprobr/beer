@@ -89,8 +89,18 @@ class AssetForm(forms.ModelForm):
         if 'name' in data:
             name = data['name']
             if '/' in name:
-                raise ValidationError({'name': 'A {} name cannot have slashes.'.format(self.Asset.label)})
+                raise ValidationError({'name': self.slash_message})
             if self.child is None or self.child.name != name:
                 if self.Asset.objects.filter(user=self.user, parent=self.parent, name=name).exists():
-                    raise ValidationError({'name': 'A {} with that name already exists.'.format(self.Asset.label)})
+                    raise ValidationError({'name': self.other_message})
         return data
+
+
+class FolderAssetForm(AssetForm):
+    slash_message = 'The folder name cannot have slashes.'
+    other_message = 'A folder with that name already exists.'
+
+
+class FileAssetForm(AssetForm):
+    slash_message = 'The file name cannot have slashes.'
+    other_message = 'A file with that name already exists.'

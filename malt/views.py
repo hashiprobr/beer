@@ -14,7 +14,7 @@ from django.views.generic.detail import SingleObjectTemplateResponseMixin, BaseD
 from beer import public_storage
 
 from .models import PowerUser, FolderAsset, FileAsset
-from .forms import UserForm, AssetForm
+from .forms import UserForm, FolderAssetForm, FileAssetForm
 from .caches import power_cache, member_cache
 from .brewing import BrewError
 from .brewery import Brewery
@@ -196,13 +196,13 @@ class UploadManageView(LoginRequiredMixin, UserIsPowerMixin, AssetMixin, generic
 
         if method == 'asset':
             if not name.strip():
-                return HttpResponseBadRequest('File name cannot be blank.')
+                return HttpResponseBadRequest('The file name is required.')
             expected = FileAsset.name.field.max_length
             actual = len(name)
             if actual > expected:
-                return HttpResponseBadRequest('A file name cannot have more than {} characters (it has {}).'.format(expected, actual))
+                return HttpResponseBadRequest('Ensure the file name has at most {} characters (it has {}).'.format(expected, actual))
             if '/' in name:
-                return HttpResponseBadRequest('A file name cannot have slashes.')
+                return HttpResponseBadRequest('The file name cannot have slashes.')
 
             try:
                 path = body['path']
@@ -305,7 +305,7 @@ class AssetViewMixin(AssetMixin, AssetPathMixin):
 
 
 class AssetFormView(FormView):
-    form_class = AssetForm
+    form_class = FolderAssetForm
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -380,6 +380,7 @@ class AssetEditView(LoginRequiredMixin, UserIsPowerMixin, SingleAssetViewMixin, 
 
 class AssetEditFileView(AssetEditView):
     Asset = FileAsset
+    form_class = FileAssetForm
 
 
 class AssetRemoveView(LoginRequiredMixin, UserIsPowerMixin, SingleAssetViewMixin, TemplateView):

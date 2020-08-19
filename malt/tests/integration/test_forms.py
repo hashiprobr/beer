@@ -8,7 +8,7 @@ from django.core.files import File
 from beer.tests import IntegrationTestCase
 
 from ...models import Asset, FolderAsset, FileAsset
-from ...forms import UserForm, AssetForm
+from ...forms import UserForm, FolderAssetForm, FileAssetForm
 
 User = get_user_model()
 
@@ -291,7 +291,7 @@ class UserFormTests(IntegrationTestCase):
         self.assertValid('email', self.white_domain, True)
 
 
-class AssetFormTests(IntegrationTestCase):
+class AssetFormTests:
     name = 'n'
     other_name = 'on'
     empty_name = ''
@@ -315,7 +315,7 @@ class AssetFormTests(IntegrationTestCase):
             kwargs['child'] = child
         else:
             kwargs['child'] = None
-        form = AssetForm(data, **kwargs)
+        form = self.AssetForm(data, **kwargs)
         return form.is_valid()
 
     def assertValid(self, name, Asset, new):
@@ -371,3 +371,11 @@ class AssetFormTests(IntegrationTestCase):
 
     def testNotValidWithSameNameButEditWithFileAsset(self):
         self.assertValid(self.other_name, FileAsset, True)
+
+
+class FolderAssetFormTests(AssetFormTests, IntegrationTestCase):
+    AssetForm = FolderAssetForm
+
+
+class FileAssetFormTests(AssetFormTests, IntegrationTestCase):
+    AssetForm = FileAssetForm

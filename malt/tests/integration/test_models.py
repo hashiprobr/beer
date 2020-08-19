@@ -226,57 +226,67 @@ class CalendarTests(IntegrationTestCase):
     def createValues(self):
         user = User.objects.create_user(self.username)
         slug = 's'
-        return user, slug
+        begin_date = timezone.now()
+        end_date = timezone.now()
+        return user, slug, begin_date, end_date
 
-    def create(self, user, slug):
-        Calendar.objects.create(user=user, slug=slug)
+    def create(self, user, slug, begin_date, end_date):
+        Calendar.objects.create(user=user, slug=slug, begin_date=begin_date, end_date=end_date)
 
-    def retrieve(self, user, slug):
-        return Calendar.objects.filter(user=user, slug=slug).exists()
+    def retrieve(self, user, slug, begin_date, end_date):
+        return Calendar.objects.filter(user=user, slug=slug, begin_date=begin_date, end_date=end_date).exists()
 
-    def delete(self, user, slug):
-        Calendar.objects.filter(user=user, slug=slug).delete()
+    def delete(self, user, slug, begin_date, end_date):
+        Calendar.objects.filter(user=user, slug=slug, begin_date=begin_date, end_date=end_date).delete()
 
-    def assertDoesNotCreate(self, user, slug):
+    def assertDoesNotCreate(self, user, slug, begin_date, end_date):
         with self.assertRaises(IntegrityError):
-            self.create(user, slug)
+            self.create(user, slug, begin_date, end_date)
 
-    def assertRetrieves(self, user, slug):
-        self.assertTrue(self.retrieve(user, slug))
+    def assertRetrieves(self, user, slug, begin_date, end_date):
+        self.assertTrue(self.retrieve(user, slug, begin_date, end_date))
 
-    def assertDoesNotRetrieve(self, user, slug):
-        self.assertFalse(self.retrieve(user, slug))
+    def assertDoesNotRetrieve(self, user, slug, begin_date, end_date):
+        self.assertFalse(self.retrieve(user, slug, begin_date, end_date))
 
     def testDoesNotCreateWithNoneUser(self):
-        _, slug = self.createValues()
-        self.assertDoesNotCreate(None, slug)
+        _, slug, begin_date, end_date = self.createValues()
+        self.assertDoesNotCreate(None, slug, begin_date, end_date)
 
     def testDoesNotCreateWithNoneSlug(self):
-        user, _ = self.createValues()
-        self.assertDoesNotCreate(user, None)
+        user, _, begin_date, end_date = self.createValues()
+        self.assertDoesNotCreate(user, None, begin_date, end_date)
+
+    def testDoesNotCreateWithNoneBeginDate(self):
+        user, slug, _, end_date = self.createValues()
+        self.assertDoesNotCreate(user, slug, None, end_date)
+
+    def testDoesNotCreateWithNoneEndDate(self):
+        user, slug, begin_date, _ = self.createValues()
+        self.assertDoesNotCreate(user, slug, begin_date, None)
 
     def testDoesNotCreateWithSameKey(self):
-        user, slug = self.createValues()
-        self.create(user, slug)
+        user, slug, begin_date, end_date = self.createValues()
+        self.create(user, slug, begin_date, end_date)
         other_user = User.objects.create_user(self.other_username)
-        self.assertDoesNotCreate(other_user, slug)
+        self.assertDoesNotCreate(other_user, slug, begin_date, end_date)
 
     def testRetrievesAfterCreate(self):
-        user, slug = self.createValues()
-        self.create(user, slug)
-        self.assertRetrieves(user, slug)
+        user, slug, begin_date, end_date = self.createValues()
+        self.create(user, slug, begin_date, end_date)
+        self.assertRetrieves(user, slug, begin_date, end_date)
 
     def testDoesNotRetrieveAfterCreateAndDelete(self):
-        user, slug = self.createValues()
-        self.create(user, slug)
-        self.delete(user, slug)
-        self.assertDoesNotRetrieve(user, slug)
+        user, slug, begin_date, end_date = self.createValues()
+        self.create(user, slug, begin_date, end_date)
+        self.delete(user, slug, begin_date, end_date)
+        self.assertDoesNotRetrieve(user, slug, begin_date, end_date)
 
     def testDoesNotRetrieveAfterCreateAndDeleteUser(self):
-        user, slug = self.createValues()
-        self.create(user, slug)
+        user, slug, begin_date, end_date = self.createValues()
+        self.create(user, slug, begin_date, end_date)
         user.delete()
-        self.assertDoesNotRetrieve(user, slug)
+        self.assertDoesNotRetrieve(user, slug, begin_date, end_date)
 
 
 class CourseTests(IntegrationTestCase):
@@ -343,64 +353,59 @@ class ScheduleTests(IntegrationTestCase):
     def createValues(self):
         user = User.objects.create_user('u')
         course = Course.objects.create(user=user, slug='s')
-        key = 'k'
         title = 't'
-        return course, key, title
+        return course, title
 
-    def create(self, course, key, title):
-        Schedule.objects.create(course=course, key=key, title=title)
+    def create(self, course, title):
+        Schedule.objects.create(course=course, title=title)
 
-    def retrieve(self, course, key, title):
-        return Schedule.objects.filter(course=course, key=key, title=title).exists()
+    def retrieve(self, course, title):
+        return Schedule.objects.filter(course=course, title=title).exists()
 
-    def delete(self, course, key, title):
-        Schedule.objects.filter(course=course, key=key, title=title).delete()
+    def delete(self, course, title):
+        Schedule.objects.filter(course=course, title=title).delete()
 
-    def assertDoesNotCreate(self, course, key, title):
+    def assertDoesNotCreate(self, course, title):
         with self.assertRaises(IntegrityError):
-            self.create(course, key, title)
+            self.create(course, title)
 
-    def assertRetrieves(self, course, key, title):
-        self.assertTrue(self.retrieve(course, key, title))
+    def assertRetrieves(self, course, title):
+        self.assertTrue(self.retrieve(course, title))
 
-    def assertDoesNotRetrieve(self, course, key, title):
-        self.assertFalse(self.retrieve(course, key, title))
+    def assertDoesNotRetrieve(self, course, title):
+        self.assertFalse(self.retrieve(course, title))
 
     def testDoesNotCreateWithNoneCourse(self):
-        _, key, title = self.createValues()
-        self.assertDoesNotCreate(None, key, title)
-
-    def testDoesNotCreateWithNoneKey(self):
-        course, _, title = self.createValues()
-        self.assertDoesNotCreate(course, None, title)
+        _, title = self.createValues()
+        self.assertDoesNotCreate(None, title)
 
     def testDoesNotCreateWithNoneTitle(self):
-        course, key, _ = self.createValues()
-        self.assertDoesNotCreate(course, key, None)
+        course, _ = self.createValues()
+        self.assertDoesNotCreate(course, None)
 
     def testRetrievesAfterCreate(self):
-        course, key, title = self.createValues()
-        self.create(course, key, title)
-        self.assertRetrieves(course, key, title)
+        course, title = self.createValues()
+        self.create(course, title)
+        self.assertRetrieves(course, title)
 
     def testDoesNotRetrieveAfterCreateAndDelete(self):
-        course, key, title = self.createValues()
-        self.create(course, key, title)
-        self.delete(course, key, title)
-        self.assertDoesNotRetrieve(course, key, title)
+        course, title = self.createValues()
+        self.create(course, title)
+        self.delete(course, title)
+        self.assertDoesNotRetrieve(course, title)
 
     def testDoesNotRetrieveAfterCreateAndDeleteCourse(self):
-        course, key, title = self.createValues()
-        self.create(course, key, title)
+        course, title = self.createValues()
+        self.create(course, title)
         course.delete()
-        self.assertDoesNotRetrieve(course, key, title)
+        self.assertDoesNotRetrieve(course, title)
 
 
 class SingleEventTests(IntegrationTestCase):
     def createValues(self):
         user = User.objects.create_user('u')
         course = Course.objects.create(user=user, slug='s')
-        schedule = Schedule.objects.create(course=course, key='k', title='t')
+        schedule = Schedule.objects.create(course=course, title='t')
         date = timezone.now()
         return schedule, date
 
@@ -453,7 +458,7 @@ class WeeklyEventTests(IntegrationTestCase):
     def createValues(self):
         user = User.objects.create_user('u')
         course = Course.objects.create(user=user, slug='s')
-        schedule = Schedule.objects.create(course=course, key='k', title='t')
+        schedule = Schedule.objects.create(course=course, title='t')
         weekday = WeeklyEvent.Weekday.MONDAY
         return schedule, weekday
 
@@ -505,7 +510,7 @@ class WeeklyEventTests(IntegrationTestCase):
 class CalendarCancelationTests(IntegrationTestCase):
     def createValues(self):
         user = User.objects.create_user('u')
-        calendar = Calendar.objects.create(user=user, slug='s')
+        calendar = Calendar.objects.create(user=user, slug='s', begin_date=timezone.now(), end_date=timezone.now())
         date = timezone.now()
         return calendar, date
 
@@ -558,7 +563,7 @@ class ScheduleCancelationTests(IntegrationTestCase):
     def createValues(self):
         user = User.objects.create_user('u')
         course = Course.objects.create(user=user, slug='s')
-        schedule = Schedule.objects.create(course=course, key='k', title='t')
+        schedule = Schedule.objects.create(course=course, title='t')
         date = timezone.now()
         return schedule, date
 
