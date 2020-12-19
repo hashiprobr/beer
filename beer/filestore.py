@@ -9,8 +9,14 @@ from storages.backends.s3boto3 import S3Boto3Storage
 from .s3 import sign_post
 
 
+class StorageError(Exception):
+    pass
+
+
 class OverwriteStorage:
     def save(self, name, content, max_length=None):
+        if name == '':
+            raise StorageError()
         if self.exists(name):
             self.delete(name)
         return super().save(name, content, max_length)
