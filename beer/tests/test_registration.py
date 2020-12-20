@@ -31,6 +31,8 @@ class RegistrationTests(AcceptanceSyncTestCase):
         self.wait(5, self.atLogin, 'index')
         self.get('password_change')
         self.wait(5, self.atLogin, 'password_change')
+        self.get('password_change_done')
+        self.wait(5, self.atLogin, 'password_change_done')
 
     def login(self, username, password):
         self.get('login')
@@ -45,6 +47,8 @@ class RegistrationTests(AcceptanceSyncTestCase):
         self.wait(5, self.at, 'index')
         self.get('password_change')
         self.wait(5, self.at, 'password_change')
+        self.get('password_change_done')
+        self.wait(5, self.at, 'password_change_done')
 
     def changePassword(self, old_password, new_password1, new_password2):
         self.login(self.username, self.password)
