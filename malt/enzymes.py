@@ -27,7 +27,7 @@ class Enzyme:
             if size > settings.FILE_UPLOAD_MAX_TEMP_SIZE:
                 raise EnzymeError('cannot have more than 25MB uncompressed')
 
-            return [(self.date(info), self.name(info), self.read(archive, info)) for info in infos]
+            return [(self.date(info), self.path(info), self.read(archive, info)) for info in infos]
         finally:
             self.close(archive)
 
@@ -51,7 +51,7 @@ class ZipEnzyme(Enzyme):
     def date(self, info):
         return None
 
-    def name(self, info):
+    def path(self, info):
         return info.filename
 
     def read(self, archive, info):
@@ -80,7 +80,7 @@ class TarEnzyme(Enzyme):
     def date(self, info):
         return info.mtime
 
-    def name(self, info):
+    def path(self, info):
         return info.name
 
     def read(self, archive, info):

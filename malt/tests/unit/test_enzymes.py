@@ -26,17 +26,20 @@ class EnzymeTests:
         with self.assertRaises(EnzymeError):
             self.enzyme.convert(content)
 
+    def assertConvertsArchives(self, name, expected):
+        for content in self.openArchives(name):
+            actual = [(member[1], member[2]) for member in self.enzyme.convert(content)]
+            self.assertEqual(len(expected), len(actual))
+            for expected_path, (actual_path, actual_content) in zip(sorted(expected), sorted(actual)):
+                self.assertEqual(expected_path, actual_path)
+                expected_name = os.path.basename(expected_path)
+                expected_content = self.openFile(expected_name)
+                self.assertEqual(expected_content, actual_content)
+
     def assertDoesNotConvertArchives(self, name):
         for content in self.openArchives(name):
             with self.assertRaises(EnzymeError):
                 self.enzyme.convert(content)
-
-    def assertConvertsArchives(self, name, expected):
-        for content in self.openArchives(name):
-            actual = [member[1] for member in self.enzyme.convert(content)]
-            self.assertEqual(len(expected), len(actual))
-            for expected_name, actual_name in zip(sorted(expected), sorted(actual)):
-                self.assertEqual(expected_name, actual_name)
 
     def testDoesNotConvertEmptyFile(self):
         self.assertDoesNotConvertFile('empty_file')
