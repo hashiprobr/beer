@@ -102,7 +102,7 @@ class Primer(Brewer):
 
         try:
             clean_meta = yeast.clean(meta)
-        except YeastError as error:
+        except YeastError:
             self.exit('Page not valid.')
 
         clean_meta['active'] = active
@@ -144,15 +144,15 @@ class Brewery(Brewer):
             inputs = {}
             sugars = []
 
-            for date, name, content in members:
-                self.print('Extracted {}.'.format(name))
+            for date, path, content in members:
+                self.print('Extracted {}.'.format(path))
 
                 input = grower.grow(content, Yeasts)
 
                 if input is None:
-                    sugars.append((date, name, content))
+                    sugars.append((date, path, content))
                 else:
-                    inputs[name] = input
+                    inputs[path] = input
 
             if len(inputs) > 1:
                 self.exit('Multiple yeasts found: ' + ', '.join(inputs))

@@ -55,6 +55,25 @@ class PassPassMockYeast(PassMockYeast):
         return None
 
 
+class MockGrower(Brewer):
+    def grow(self, content, Yeasts):
+        try:
+            Yeast = Yeasts[content.decode('utf-8')]
+        except KeyError:
+            return None
+        return Yeast(), None, None
+
+
+class FailMockPrimer(Brewer):
+    def prime(self, meta, sugars, Yeasts):
+        self.exit('mock')
+
+
+class PassMockPrimer(Brewer):
+    def prime(self, meta, sugars, Yeasts):
+        return None
+
+
 class BrewingTests:
     MockYeasts = {
         'fail': FailMockYeast,
@@ -92,26 +111,14 @@ class GrowerTests(BrewingTests, UnitTestCase):
     def testGrows(self):
         self.assertGrows('pass.txt', 'c\n')
 
-    def testGrowsWithLowerSeparator(self):
-        self.assertGrows('lower-separator.txt', 'c\n...\n')
+    def testGrowsWithExtraSpaces(self):
+        self.assertGrows('extra-spaces.txt', ' \t\n \tc \t\n \t\n')
 
-    def testGrowsWithUpperSeparator(self):
-        self.assertGrows('upper-separator.txt', '...\nc\n')
+    def testGrowsWithExtraSeparators(self):
+        self.assertGrows('extra-separators.txt', '...\nc\n...\n')
 
-    def testGrowsWithThreeSeparators(self):
-        self.assertGrows('three-separators.txt', '...\nc\n...\n')
-
-    def testDoesNotGrowWithoutSeparator(self):
-        self.assertDoesNotGrow('no-separator.txt')
-
-    def testDoesNotGrowWithLineSeparator(self):
-        self.assertDoesNotGrow('line-separator.txt')
-
-    def testDoesNotGrowWithSpaceSeparator(self):
-        self.assertDoesNotGrow('space-separator.txt')
-
-    def testDoesNotGrowWithWrongSeparator(self):
-        self.assertDoesNotGrow('wrong-separator.txt')
+    def testDoesNotGrowWithoutSeparators(self):
+        self.assertDoesNotGrow('no-separators.txt')
 
     def testDoesNotGrowIfBinary(self):
         self.assertDoesNotGrow('binary.txt')
@@ -128,7 +135,7 @@ class GrowerTests(BrewingTests, UnitTestCase):
     def testDoesNotGrowWithWrongType(self):
         self.assertDoesNotGrow('wrong-type.txt')
 
-    def testDoesNotGrowIfRaisesYeastError(self):
+    def testDoesNotGrowIfCleanRaisesYeastError(self):
         self.assertDoesNotGrow('fail.txt')
 
 
@@ -163,168 +170,149 @@ class PrimerTests(BrewingTests, UnitTestCase):
         self.assertDoesNotPrime({'view_name': 'pass-fail'})
 
 
-class MockGrower(Brewer):
-    def grow(self, content, Yeasts):
-        try:
-            Yeast = Yeasts[content.decode('utf-8')]
-        except KeyError:
-            return None
-        return Yeast(), None, None
-
-
-class FailMockPrimer(Brewer):
-    def prime(self, meta, sugars, Yeasts):
-        self.exit('mock')
-
-
-class PassMockPrimer(Brewer):
-    def prime(self, meta, sugars, Yeasts):
-        return None
-
-
 class BreweryTests(BrewingTests, UnitTestCase):
     def mock(self, contents):
         return PassMockEnzyme([(0, name, content) for name, content in contents.items()])
 
-    def brew(self, contents, meta, enzymes, Primer):
+    def brew(self, contents, meta, enzymes, MockPrimer):
         brewery = Brewery()
         files = MultiValueDict()
         for name, content in contents.items():
             files[name] = File(BytesIO(content))
-        brewery.brew(files, meta, enzymes, self.MockYeasts, MockGrower, Primer)
+        brewery.brew(files, meta, enzymes, self.MockYeasts, MockGrower, MockPrimer)
 
-    def assertBrews(self, names, meta, enzymes, Primer):
+    def assertBrews(self, contents, meta, enzymes, MockPrimer):
         try:
-            self.brew(names, meta, enzymes, Primer)
+            self.brew(contents, meta, enzymes, MockPrimer)
         except BrewError:
             self.fail('BrewError raised')
 
-    def assertDoesNotBrew(self, names, meta, enzymes, Primer):
+    def assertDoesNotBrew(self, contents, meta, enzymes, MockPrimer):
         with self.assertRaises(BrewError):
-            self.brew(names, meta, enzymes, Primer)
+            self.brew(contents, meta, enzymes, MockPrimer)
 
     def testBrews(self):
-        names = {'file': b'pass-pass'}
+        contents = {'file': b'pass-pass'}
         meta = {'date': 0}
         enzymes = []
-        Primer = PassMockPrimer
-        self.assertBrews(names, meta, enzymes, Primer)
+        MockPrimer = PassMockPrimer
+        self.assertBrews(contents, meta, enzymes, MockPrimer)
 
-    def testBrewsIfRaisesEnzymeError(self):
-        names = {'file': b'pass-pass'}
+    def testBrewsIfConvertsRaiseEnzymeError(self):
+        contents = {'file': b'pass-pass'}
         meta = {'date': 0}
         enzymes = [FailMockEnzyme()]
-        Primer = PassMockPrimer
-        self.assertBrews(names, meta, enzymes, Primer)
+        MockPrimer = PassMockPrimer
+        self.assertBrews(contents, meta, enzymes, MockPrimer)
 
     def testDoesNotBrewWithoutFile(self):
-        names = {}
+        contents = {}
         meta = {'date': 0}
         enzymes = []
-        Primer = PassMockPrimer
-        self.assertDoesNotBrew(names, meta, enzymes, Primer)
+        MockPrimer = PassMockPrimer
+        self.assertDoesNotBrew(contents, meta, enzymes, MockPrimer)
 
     def testDoesNotBrewWithTwoFiles(self):
-        names = {'file': b'pass-pass', 'mock': b'pass-pass'}
+        contents = {'file': b'pass-pass', 'mock': b'pass-pass'}
         meta = {'date': 0}
         enzymes = []
-        Primer = PassMockPrimer
-        self.assertDoesNotBrew(names, meta, enzymes, Primer)
+        MockPrimer = PassMockPrimer
+        self.assertDoesNotBrew(contents, meta, enzymes, MockPrimer)
 
     def testDoesNotBrewIfInputNotFile(self):
-        names = {'mock': b'pass-pass'}
+        contents = {'mock': b'pass-pass'}
         meta = {'date': 0}
         enzymes = []
-        Primer = PassMockPrimer
-        self.assertDoesNotBrew(names, meta, enzymes, Primer)
+        MockPrimer = PassMockPrimer
+        self.assertDoesNotBrew(contents, meta, enzymes, MockPrimer)
 
     def testDoesNotBrewWithoutDate(self):
-        names = {'file': b'pass-pass'}
+        contents = {'file': b'pass-pass'}
         meta = {'mock': 0}
         enzymes = []
-        Primer = PassMockPrimer
-        self.assertDoesNotBrew(names, meta, enzymes, Primer)
+        MockPrimer = PassMockPrimer
+        self.assertDoesNotBrew(contents, meta, enzymes, MockPrimer)
 
     def testDoesNotBrewIfDateNotInt(self):
-        names = {'file': b'pass-pass'}
+        contents = {'file': b'pass-pass'}
         meta = {'date': 'O'}
         enzymes = []
-        Primer = PassMockPrimer
-        self.assertDoesNotBrew(names, meta, enzymes, Primer)
+        MockPrimer = PassMockPrimer
+        self.assertDoesNotBrew(contents, meta, enzymes, MockPrimer)
 
     def testDoesNotBrewIfFermentRaisesBrewError(self):
-        names = {'file': b'pass-fail'}
+        contents = {'file': b'pass-fail'}
         meta = {'date': 0}
         enzymes = []
-        Primer = PassMockPrimer
-        self.assertDoesNotBrew(names, meta, enzymes, Primer)
+        MockPrimer = PassMockPrimer
+        self.assertDoesNotBrew(contents, meta, enzymes, MockPrimer)
 
     def testBrewsWithoutYeast(self):
-        names = {'file': b'mock'}
+        contents = {'file': b'mock'}
         meta = {'date': 0}
         enzymes = []
-        Primer = PassMockPrimer
-        self.assertBrews(names, meta, enzymes, Primer)
+        MockPrimer = PassMockPrimer
+        self.assertBrews(contents, meta, enzymes, MockPrimer)
 
-    def testBrewsWithoutYeastIfRaisesEnzymeError(self):
-        names = {'file': b'mock'}
+    def testBrewsWithoutYeastIfConvertsRaiseEnzymeError(self):
+        contents = {'file': b'mock'}
         meta = {'date': 0}
         enzymes = [FailMockEnzyme()]
-        Primer = PassMockPrimer
-        self.assertBrews(names, meta, enzymes, Primer)
+        MockPrimer = PassMockPrimer
+        self.assertBrews(contents, meta, enzymes, MockPrimer)
 
-    def testDoesNotBrewWithoutYeastIfPrimerRaisesBrewError(self):
-        names = {'file': b'mock'}
+    def testDoesNotBrewWithoutYeastIfPrimeRaisesBrewError(self):
+        contents = {'file': b'mock'}
         meta = {'date': 0}
         enzymes = []
-        Primer = FailMockPrimer
-        self.assertDoesNotBrew(names, meta, enzymes, Primer)
+        MockPrimer = FailMockPrimer
+        self.assertDoesNotBrew(contents, meta, enzymes, MockPrimer)
 
     def testBrewsIfArchive(self):
-        names = {'file': b'mock'}
+        contents = {'file': b'mock'}
         meta = {'date': 0}
         enzymes = [self.mock({'file': b'pass-pass'})]
-        Primer = PassMockPrimer
-        self.assertBrews(names, meta, enzymes, Primer)
-
-    def testBrewsIfArchiveWithoutYeast(self):
-        names = {'file': b'mock'}
-        meta = {'date': 0}
-        enzymes = [self.mock({'a': b'mock'})]
-        Primer = PassMockPrimer
-        self.assertBrews(names, meta, enzymes, Primer)
+        MockPrimer = PassMockPrimer
+        self.assertBrews(contents, meta, enzymes, MockPrimer)
 
     def testDoesNotBrewIfArchiveAndFermentRaisesBrewError(self):
-        names = {'file': b'mock'}
+        contents = {'file': b'mock'}
         meta = {'date': 0}
         enzymes = [self.mock({'file': b'pass-fail'})]
-        Primer = PassMockPrimer
-        self.assertDoesNotBrew(names, meta, enzymes, Primer)
+        MockPrimer = PassMockPrimer
+        self.assertDoesNotBrew(contents, meta, enzymes, MockPrimer)
 
-    def testDoesNotBrewIfArchiveWithoutYeastAndPrimerRaisesBrewError(self):
-        names = {'file': b'mock'}
+    def testBrewsIfArchiveWithoutYeast(self):
+        contents = {'file': b'mock'}
         meta = {'date': 0}
         enzymes = [self.mock({'a': b'mock'})]
-        Primer = FailMockPrimer
-        self.assertDoesNotBrew(names, meta, enzymes, Primer)
+        MockPrimer = PassMockPrimer
+        self.assertBrews(contents, meta, enzymes, MockPrimer)
+
+    def testDoesNotBrewIfArchiveWithoutYeastAndPrimeRaisesBrewError(self):
+        contents = {'file': b'mock'}
+        meta = {'date': 0}
+        enzymes = [self.mock({'a': b'mock'})]
+        MockPrimer = FailMockPrimer
+        self.assertDoesNotBrew(contents, meta, enzymes, MockPrimer)
 
     def testBrewsIfArchiveWithTwoFilesWithoutYeast(self):
-        names = {'file': b'mock'}
+        contents = {'file': b'mock'}
         meta = {'date': 0}
         enzymes = [self.mock({'a': b'mock', 'b': b'mock'})]
-        Primer = PassMockPrimer
-        self.assertBrews(names, meta, enzymes, Primer)
+        MockPrimer = PassMockPrimer
+        self.assertBrews(contents, meta, enzymes, MockPrimer)
 
     def testBrewsIfArchiveWithTwoFilesButOneYeast(self):
-        names = {'file': b'mock'}
+        contents = {'file': b'mock'}
         meta = {'date': 0}
         enzymes = [self.mock({'a': b'mock', 'b': b'pass-pass'})]
-        Primer = PassMockPrimer
-        self.assertBrews(names, meta, enzymes, Primer)
+        MockPrimer = PassMockPrimer
+        self.assertBrews(contents, meta, enzymes, MockPrimer)
 
     def testDoesNotBrewIfArchiveWithTwoYeasts(self):
-        names = {'file': b'mock'}
+        contents = {'file': b'mock'}
         meta = {'date': 0}
         enzymes = [self.mock({'a': b'pass-pass', 'b': b'pass-pass'})]
-        Primer = PassMockPrimer
-        self.assertDoesNotBrew(names, meta, enzymes, Primer)
+        MockPrimer = PassMockPrimer
+        self.assertDoesNotBrew(contents, meta, enzymes, MockPrimer)
