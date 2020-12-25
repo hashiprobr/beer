@@ -53,17 +53,9 @@ class EnzymeTests:
     def testDoesNotConvertBombArchives(self):
         self.assertDoesNotConvertArchives('bomb')
 
-    def testConvertsArchivesWithEmptyFile(self):
-        self.assertConvertsArchives('empty', ['empty_file'])
-
-    def testConvertsArchivesWithBinaryFile(self):
-        self.assertConvertsArchives('binary', ['file.bin'])
-
-    def testConvertsArchivesWithTextFile(self):
-        self.assertConvertsArchives('text', ['file.txt'])
-
     def testConvertsArchivesWithZeroLevels(self):
-        self.assertConvertsArchives('zero', [])
+        self.assertConvertsArchives('zero', [
+        ])
 
     def testConvertsArchivesWithOneLevel(self):
         self.assertConvertsArchives('one', [
