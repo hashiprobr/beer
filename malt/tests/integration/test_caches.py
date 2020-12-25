@@ -12,41 +12,44 @@ class PowerCacheTests(IntegrationTestCase):
     username = 'u'
     other_username = 'ou'
 
-    def assertPower(self, user):
-        self.assertTrue(power_cache.get(user))
+    def setUp(self):
+        self.user = self.create(self.username)
 
-    def assertNotPower(self, user):
-        self.assertFalse(power_cache.get(user))
+    def create(self, username):
+        return User.objects.create_user(username)
 
-    def testNotPowerBeforeCreate(self):
-        user = User.objects.create_user(self.username)
-        self.assertNotPower(user)
+    def promote(self):
+        PowerUser.objects.create(user=self.user)
 
-    def testPowerBeforeCreateIfCached(self):
-        user = User.objects.create_user(self.username)
-        power_cache.set(user, True)
-        self.assertPower(user)
+    def assertPower(self):
+        self.assertTrue(power_cache.get(self.user))
 
-    def testNotPowerBeforeCreateIfOtherCached(self):
-        user = User.objects.create_user(self.username)
-        other_user = User.objects.create_user(self.other_username)
+    def assertNotPower(self):
+        self.assertFalse(power_cache.get(self.user))
+
+    def testNotPowerBeforePromote(self):
+        self.assertNotPower()
+
+    def testPowerBeforePromoteIfCached(self):
+        power_cache.set(self.user, True)
+        self.assertPower()
+
+    def testNotPowerBeforePromoteIfOtherCached(self):
+        other_user = self.create(self.other_username)
         power_cache.set(other_user, True)
-        self.assertNotPower(user)
+        self.assertNotPower()
 
-    def testPowerAfterCreate(self):
-        user = User.objects.create_user(self.username)
-        PowerUser.objects.create(user=user)
-        self.assertPower(user)
+    def testPowerAfterPromote(self):
+        self.promote()
+        self.assertPower()
 
-    def testNotPowerAfterCreateIfCached(self):
-        user = User.objects.create_user(self.username)
-        PowerUser.objects.create(user=user)
-        power_cache.set(user, False)
-        self.assertNotPower(user)
+    def testNotPowerAfterPromoteIfCached(self):
+        power_cache.set(self.user, False)
+        self.promote()
+        self.assertNotPower()
 
-    def testPowerAfterCreateIfOtherCached(self):
-        user = User.objects.create_user(self.username)
-        other_user = User.objects.create_user(self.other_username)
-        PowerUser.objects.create(user=user)
+    def testPowerAfterPromoteIfOtherCached(self):
+        other_user = self.create(self.other_username)
         power_cache.set(other_user, False)
-        self.assertPower(user)
+        self.promote()
+        self.assertPower()
