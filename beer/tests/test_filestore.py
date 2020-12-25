@@ -81,29 +81,9 @@ class StorageTests:
         self.assertDeletes(self.name)
 
 
-class NonEmptyStorageTests(StorageTests):
-    size = 3
-
-    def setUp(self):
-        for i in range(self.size):
-            self.save(str(i), bytes(i))
-
-    def tearDown(self):
-        for i in range(self.size):
-            self.assertExists(str(i), bytes(i))
-
-
 class PublicStorageTests(StorageTests, IntegrationTestCase):
     storage = public_storage
 
 
-class PublicNonEmptyStorageTests(NonEmptyStorageTests, IntegrationTestCase):
-    storage = public_storage
-
-
 class PrivateStorageTests(StorageTests, IntegrationTestCase):
-    storage = private_storage
-
-
-class PrivateNonEmptyStorageTests(NonEmptyStorageTests, IntegrationTestCase):
     storage = private_storage
