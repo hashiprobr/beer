@@ -97,14 +97,9 @@ class RegistrationTests(AcceptanceSyncTestCase):
         self.get('logout')
         self.waitBlocks()
 
-    def testBlocksAfterLoginWithWrongNonExistingCredentials(self):
+    def testBlocksAfterLoginWithWrongCredentials(self):
         self.login(self.other_username, self.password)
         self.waitBlocks()
-        self.login(self.username, self.other_password)
-        self.waitBlocks()
-
-    def testBlocksAfterLoginWithWrongButExistingPassword(self):
-        User.objects.create_user(self.other_username, self.email, self.other_password)
         self.login(self.username, self.other_password)
         self.waitBlocks()
 
