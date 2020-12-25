@@ -13,6 +13,9 @@ class StorageTests:
     other_content = b'oc'
     empty_content = b''
 
+    def exists(self, name):
+        return self.storage.exists(name)
+
     def save(self, name, content):
         file = BytesIO(content)
         return self.storage.save(name, file)
@@ -26,11 +29,11 @@ class StorageTests:
         self.storage.delete(name)
 
     def assertExists(self, name, content):
-        self.assertTrue(self.storage.exists(name))
+        self.assertTrue(self.exists(name))
         self.assertEqual(content, self.retrieve(name))
 
     def assertDoesNotExist(self, name):
-        self.assertFalse(self.storage.exists(name))
+        self.assertFalse(self.exists(name))
         with self.assertRaises(FileNotFoundError):
             self.retrieve(name)
 
