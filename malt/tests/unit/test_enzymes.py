@@ -21,10 +21,13 @@ class EnzymeTests:
         for extension in self.extensions:
             yield self.openFile('{}.{}'.format(name, extension))
 
-    def assertDoesNotConvertFile(self, name):
-        content = self.openFile(name)
+    def assertDoesNotConvertContent(self, content):
         with self.assertRaises(EnzymeError):
             self.enzyme.convert(content)
+
+    def assertDoesNotConvertFile(self, name):
+        content = self.openFile(name)
+        self.assertDoesNotConvertContent(content)
 
     def assertConvertsArchives(self, name, expected):
         for content in self.openArchives(name):
@@ -38,8 +41,7 @@ class EnzymeTests:
 
     def assertDoesNotConvertArchives(self, name):
         for content in self.openArchives(name):
-            with self.assertRaises(EnzymeError):
-                self.enzyme.convert(content)
+            self.assertDoesNotConvertContent(content)
 
     def testDoesNotConvertEmptyFile(self):
         self.assertDoesNotConvertFile('empty_file')
