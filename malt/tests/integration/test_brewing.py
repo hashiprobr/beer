@@ -16,14 +16,16 @@ class YeastTests:
         return data
 
     def assertFerments(self, meta, name, sugars):
+        data = self.open(name)
         try:
-            self.yeast.ferment(meta, self.open(name), sugars)
+            self.yeast.ferment(meta, data, sugars)
         except BrewError:
             self.fail('BrewError raised')
 
     def assertDoesNotFerment(self, meta, name, sugars):
+        data = self.open(name)
         with self.assertRaises(BrewError):
-            self.yeast.ferment(meta, self.open(name), sugars)
+            self.yeast.ferment(meta, data, sugars)
 
     def assertReferments(self, meta, sugars):
         try:
