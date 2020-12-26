@@ -57,8 +57,9 @@ class PassPassMockYeast(PassMockYeast):
 
 class MockGrower(Brewer):
     def grow(self, content, Yeasts):
+        type = content.decode('utf-8')
         try:
-            Yeast = Yeasts[content.decode('utf-8')]
+            Yeast = Yeasts[type]
         except KeyError:
             return None
         return Yeast(), None, None
@@ -97,7 +98,8 @@ class GrowerTests(BrewingTests, UnitTestCase):
 
     def grow(self, name):
         grower = Grower()
-        return grower.grow(self.open(name), self.MockYeasts)
+        content = self.open(name)
+        return grower.grow(content, self.MockYeasts)
 
     def assertGrows(self, name, expected):
         yeast, meta, actual = self.grow(name)
