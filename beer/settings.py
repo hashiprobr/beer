@@ -46,16 +46,16 @@ ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', ['localhost', '127.0.0.1', '[::1]'])
 
 
 INSTALLED_APPS = [
+    'channels',
+    'malt.apps.MaltConfig',
+    'lager.apps.LagerConfig',
+    'ale.apps.AleConfig',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'channels',
-    'malt',
-    'lager',
-    'ale',
 ]
 
 MIDDLEWARE = [

@@ -1,7 +1,5 @@
 from django.contrib.auth import get_user_model
 from django.db import models, transaction, IntegrityError
-from django.db.models.signals import post_delete
-from django.dispatch import receiver
 from shortuuid import uuid
 
 from beer import public_storage
@@ -57,11 +55,6 @@ class FileAsset(Asset):
 
     def url(self):
         return public_storage.url(self.key())
-
-
-@receiver(post_delete, sender=FileAsset)
-def post_delete_file_asset(sender, instance, using, **kwargs):
-    public_storage.delete(instance.key())
 
 
 class YeastModel(models.Model):
