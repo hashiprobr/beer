@@ -61,9 +61,7 @@ class FileAsset(Asset):
 
 @receiver(post_delete, sender=FileAsset)
 def post_delete_file_asset(sender, instance, using, **kwargs):
-    key = instance.key()
-    if public_storage.exists(key):
-        public_storage.delete(key)
+    public_storage.delete(instance.key())
 
 
 class YeastModel(models.Model):
