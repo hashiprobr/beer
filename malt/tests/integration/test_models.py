@@ -17,206 +17,417 @@ User = get_user_model()
 
 
 class PowerUserTests(IntegrationTestCase):
-    def createValues(self):
-        return User.objects.create_user('u')
+    def setUp(self):
+        self.user = User.objects.create_user('u')
+        self.other_user = User.objects.create_user('ou')
+
+    def exists(self, user):
+        return PowerUser.objects.filter(user=user).exists()
 
     def create(self, user):
-        PowerUser.objects.create(user=user)
+        return PowerUser.objects.create(user=user)
 
     def retrieve(self, user):
-        return PowerUser.objects.filter(user=user).exists()
+        return PowerUser.objects.get(user=user)
+
+    def update(self, power_user, user):
+        power_user.user = user
+        power_user.save()
 
     def delete(self, user):
         PowerUser.objects.filter(user=user).delete()
+
+    def assertExists(self, user):
+        self.assertTrue(self.exists(user))
+        power_user = self.retrieve(user)
+        self.assertEqual(user, power_user.user)
+
+    def assertDoesNotExist(self, user):
+        self.assertFalse(self.exists(user))
+        with self.assertRaises(PowerUser.DoesNotExist):
+            self.retrieve(user)
+
+    def assertCreates(self, user):
+        self.create(user)
+        self.assertExists(user)
 
     def assertDoesNotCreate(self, user):
         with self.assertRaises(IntegrityError):
             self.create(user)
 
-    def assertRetrieves(self, user):
-        self.assertTrue(self.retrieve(user))
+    def assertUpdates(self, power_user, user):
+        self.update(power_user, user)
+        self.assertExists(user)
 
-    def assertDoesNotRetrieve(self, user):
-        self.assertFalse(self.retrieve(user))
+    def assertDoesNotUpdate(self, power_user, user):
+        with self.assertRaises(IntegrityError):
+            self.update(power_user, user)
+
+    def assertDeletes(self, user):
+        self.delete(user)
+        self.assertDoesNotExist(user)
+
+    def testDoesNotExist(self):
+        self.assertDoesNotExist(self.user)
+
+    def testCreates(self):
+        self.assertCreates(self.user)
 
     def testDoesNotCreateWithNoneUser(self):
-        _ = self.createValues()
         self.assertDoesNotCreate(None)
 
     def testDoesNotCreateWithSameUser(self):
-        user = self.createValues()
-        self.create(user)
-        self.assertDoesNotCreate(user)
+        self.create(self.user)
+        self.assertDoesNotCreate(self.user)
 
-    def testRetrievesAfterCreate(self):
-        user = self.createValues()
-        self.create(user)
-        self.assertRetrieves(user)
+    def testUpdates(self):
+        power_user = self.create(self.user)
+        self.assertUpdates(power_user, self.other_user)
 
-    def testDoesNotRetrieveAfterCreateAndDelete(self):
-        user = self.createValues()
-        self.create(user)
-        self.delete(user)
-        self.assertDoesNotRetrieve(user)
+    def testDoesNotUpdateWithNoneUser(self):
+        power_user = self.create(self.user)
+        self.assertDoesNotUpdate(power_user, None)
 
-    def testDoesNotRetrieveAfterCreateAndDeleteUser(self):
-        user = self.createValues()
-        self.create(user)
-        user.delete()
-        self.assertDoesNotRetrieve(user)
+    def testDoesNotUpdateWithSameUser(self):
+        self.create(self.other_user)
+        power_user = self.create(self.user)
+        self.assertDoesNotUpdate(power_user, self.other_user)
+
+    def testDeletes(self):
+        self.create(self.user)
+        self.assertDeletes(self.user)
+
+    def testDeletesWhenDoesNotExist(self):
+        self.assertDeletes(self.user)
+
+    def testCascadeUser(self):
+        self.create(self.user)
+        self.user.delete()
+        self.assertDoesNotExist(self.user)
 
 
 class FolderAssetTests(IntegrationTestCase):
-    def createValues(self):
-        user = User.objects.create_user('u')
-        parent = FolderAsset.objects.create(user=user, parent=None, name='p')
-        name = 'f'
-        return user, parent, name
+    name = 'f'
+    other_name = 'of'
+
+    def setUp(self):
+        self.user = User.objects.create_user('u')
+        self.other_user = User.objects.create_user('ou')
+
+        self.grand_parent = FolderAsset.objects.create(user=self.user, parent=None, name='gp')
+        self.parent = FolderAsset.objects.create(user=self.user, parent=self.grand_parent, name='p')
+        self.other_parent = FolderAsset.objects.create(user=self.user, parent=self.grand_parent, name='op')
+
+    def exists(self, user, parent, name):
+        return FolderAsset.objects.filter(user=user, parent=parent, name=name).exists()
 
     def create(self, user, parent, name):
-        FolderAsset.objects.create(user=user, parent=parent, name=name)
+        return FolderAsset.objects.create(user=user, parent=parent, name=name)
 
     def retrieve(self, user, parent, name):
-        return FolderAsset.objects.filter(user=user, parent=parent, name=name).exists()
+        return FolderAsset.objects.get(user=user, parent=parent, name=name)
+
+    def update(self, folder_asset, user, parent, name):
+        folder_asset.user = user
+        folder_asset.parent = parent
+        folder_asset.name = name
+        folder_asset.save()
 
     def delete(self, user, parent, name):
         FolderAsset.objects.filter(user=user, parent=parent, name=name).delete()
 
+    def assertExists(self, user, parent, name):
+        self.assertTrue(self.exists(user, parent, name))
+        folder_asset = self.retrieve(user, parent, name)
+        self.assertEqual(user, folder_asset.user)
+        self.assertEqual(parent, folder_asset.parent)
+        self.assertEqual(name, folder_asset.name)
+
+    def assertDoesNotExist(self, user, parent, name):
+        self.assertFalse(self.exists(user, parent, name))
+        with self.assertRaises(FolderAsset.DoesNotExist):
+            self.retrieve(user, parent, name)
+
+    def assertCreates(self, user, parent, name):
+        self.create(user, parent, name)
+        self.assertExists(user, parent, name)
+
     def assertDoesNotCreate(self, user, parent, name):
         with self.assertRaises(IntegrityError):
             self.create(user, parent, name)
 
-    def assertRetrieves(self, user, parent, name):
-        self.assertTrue(self.retrieve(user, parent, name))
+    def assertUpdates(self, folder_asset, user, parent, name):
+        self.update(folder_asset, user, parent, name)
+        self.assertExists(user, parent, name)
 
-    def assertDoesNotRetrieve(self, user, parent, name):
-        self.assertFalse(self.retrieve(user, parent, name))
+    def assertDoesNotUpdate(self, folder_asset, user, parent, name):
+        with self.assertRaises(IntegrityError):
+            self.update(folder_asset, user, parent, name)
+
+    def assertDeletes(self, user, parent, name):
+        self.delete(user, parent, name)
+        self.assertDoesNotExist(user, parent, name)
+
+    def testDoesNotExist(self):
+        self.assertDoesNotExist(self.user, self.parent, self.name)
+
+    def testCreates(self):
+        self.assertCreates(self.user, self.parent, self.name)
 
     def testDoesNotCreateWithNoneUser(self):
-        _, parent, name = self.createValues()
-        self.assertDoesNotCreate(None, parent, name)
+        self.assertDoesNotCreate(None, self.parent, self.name)
+
+    def testCreatesWithSameUser(self):
+        self.create(self.user, self.parent, self.name)
+        self.assertCreates(self.user, self.other_parent, self.other_name)
+
+    def testCreatesWithNoneParent(self):
+        self.assertCreates(self.user, None, self.name)
+
+    def testCreatesWithSameParent(self):
+        self.create(self.user, self.parent, self.name)
+        self.assertCreates(self.other_user, self.parent, self.other_name)
+
+    def testCreatesWithGrandParent(self):
+        self.assertCreates(self.user, self.grand_parent, self.name)
 
     def testDoesNotCreateWithNoneName(self):
-        user, parent, _ = self.createValues()
-        self.assertDoesNotCreate(user, parent, None)
+        self.assertDoesNotCreate(self.user, self.parent, None)
+
+    def testCreatesWithSameName(self):
+        self.create(self.user, self.parent, self.name)
+        self.assertCreates(self.other_user, self.other_parent, self.name)
 
     def testDoesNotCreateWithSameKey(self):
-        user, parent, name = self.createValues()
-        self.create(user, parent, name)
-        self.assertDoesNotCreate(user, parent, name)
+        self.create(self.user, self.parent, self.name)
+        self.assertDoesNotCreate(self.user, self.parent, self.name)
 
-    def testRetrievesAfterCreate(self):
-        user, parent, name = self.createValues()
-        self.create(user, parent, name)
-        self.assertRetrieves(user, parent, name)
+    def testUpdates(self):
+        folder_asset = self.create(self.user, self.parent, self.name)
+        self.assertUpdates(folder_asset, self.other_user, self.other_parent, self.other_name)
 
-    def testRetrievesAfterCreateWithNoneParent(self):
-        user, _, name = self.createValues()
-        self.create(user, None, name)
-        self.assertRetrieves(user, None, name)
+    def testDoesNotUpdateWithNoneUser(self):
+        folder_asset = self.create(self.user, self.parent, self.name)
+        self.assertDoesNotUpdate(folder_asset, None, self.other_parent, self.other_name)
 
-    def testDoesNotRetrieveAfterCreateAndDelete(self):
-        user, parent, name = self.createValues()
-        self.create(user, parent, name)
-        self.delete(user, parent, name)
-        self.assertDoesNotRetrieve(user, parent, name)
+    def testUpdatesWithSameUser(self):
+        self.create(self.other_user, self.parent, self.name)
+        folder_asset = self.create(self.user, self.parent, self.name)
+        self.assertUpdates(folder_asset, self.other_user, self.other_parent, self.other_name)
 
-    def testDoesNotRetrieveAfterCreateAndDeleteUser(self):
-        user, parent, name = self.createValues()
-        self.create(user, parent, name)
-        user.delete()
-        self.assertDoesNotRetrieve(user, parent, name)
+    def testUpdatesWithNoneParent(self):
+        folder_asset = self.create(self.user, self.parent, self.name)
+        self.assertUpdates(folder_asset, self.other_user, None, self.other_name)
 
-    def testDoesNotRetrieveAfterCreateAndDeleteParent(self):
-        user, parent, name = self.createValues()
-        self.create(user, parent, name)
-        parent.delete()
-        self.assertDoesNotRetrieve(user, parent, name)
+    def testUpdatesWithSameParent(self):
+        self.create(self.user, self.other_parent, self.name)
+        folder_asset = self.create(self.user, self.parent, self.name)
+        self.assertUpdates(folder_asset, self.other_user, self.other_parent, self.other_name)
+
+    def testUpdatesWithGrandParent(self):
+        folder_asset = self.create(self.user, self.parent, self.name)
+        self.assertUpdates(folder_asset, self.other_user, self.grand_parent, self.other_name)
+
+    def testDoesNotUpdateWithNoneName(self):
+        folder_asset = self.create(self.user, self.parent, self.name)
+        self.assertDoesNotUpdate(folder_asset, self.other_user, self.other_parent, None)
+
+    def testUpdatesWithSameName(self):
+        self.create(self.user, self.parent, self.other_name)
+        folder_asset = self.create(self.user, self.parent, self.name)
+        self.assertUpdates(folder_asset, self.other_user, self.other_parent, self.other_name)
+
+    def testDoesNotUpdateWithSameKey(self):
+        self.create(self.other_user, self.other_parent, self.other_name)
+        folder_asset = self.create(self.user, self.parent, self.name)
+        self.assertDoesNotUpdate(folder_asset, self.other_user, self.other_parent, self.other_name)
+
+    def testDeletes(self):
+        self.create(self.user, self.parent, self.name)
+        self.assertDeletes(self.user, self.parent, self.name)
+
+    def testDeletesWhenDoesNotExist(self):
+        self.assertDeletes(self.user, self.parent, self.name)
+
+    def testDeletesWithNoneParent(self):
+        self.create(self.user, None, self.name)
+        self.assertDeletes(self.user, None, self.name)
+
+    def testDeletesWithGrandParent(self):
+        self.create(self.user, self.grand_parent, self.name)
+        self.assertDeletes(self.user, self.grand_parent, self.name)
+
+    def testCascadeUser(self):
+        self.create(self.user, self.parent, self.name)
+        self.user.delete()
+        self.assertDoesNotExist(self.user, self.parent, self.name)
+
+    def testCascadeParent(self):
+        self.create(self.user, self.parent, self.name)
+        self.parent.delete()
+        self.assertDoesNotExist(self.user, self.parent, self.name)
 
 
 class FileAssetTests(IntegrationTestCase):
-    def createValues(self):
-        user = User.objects.create_user('u')
-        parent = FolderAsset.objects.create(user=user, parent=None, name='p')
-        name = 'f'
-        return user, parent, name
+    name = 'f'
+    other_name = 'of'
+
+    def setUp(self):
+        self.user = User.objects.create_user('u')
+        self.other_user = User.objects.create_user('ou')
+
+        self.grand_parent = FolderAsset.objects.create(user=self.user, parent=None, name='gp')
+        self.parent = FolderAsset.objects.create(user=self.user, parent=self.grand_parent, name='p')
+        self.other_parent = FolderAsset.objects.create(user=self.user, parent=self.grand_parent, name='op')
+
+    def exists(self, user, parent, name):
+        return FileAsset.objects.filter(user=user, parent=parent, name=name).exists()
 
     def create(self, user, parent, name):
-        return FileAsset.create(user=user, parent=parent, name=name)
+        return FileAsset.objects.create(user=user, parent=parent, name=name)
 
     def retrieve(self, user, parent, name):
-        return FileAsset.objects.filter(user=user, parent=parent, name=name).exists()
+        return FileAsset.objects.get(user=user, parent=parent, name=name)
+
+    def update(self, file_asset, user, parent, name):
+        file_asset.user = user
+        file_asset.parent = parent
+        file_asset.name = name
+        file_asset.save()
 
     def delete(self, user, parent, name):
         FileAsset.objects.filter(user=user, parent=parent, name=name).delete()
 
+    def assertExists(self, user, parent, name):
+        self.assertTrue(self.exists(user, parent, name))
+        file_asset = self.retrieve(user, parent, name)
+        self.assertEqual(user, file_asset.user)
+        self.assertEqual(parent, file_asset.parent)
+        self.assertEqual(name, file_asset.name)
+
+    def assertDoesNotExist(self, user, parent, name):
+        self.assertFalse(self.exists(user, parent, name))
+        with self.assertRaises(FileAsset.DoesNotExist):
+            self.retrieve(user, parent, name)
+
+    def assertCreates(self, user, parent, name):
+        self.create(user, parent, name)
+        self.assertExists(user, parent, name)
+
     def assertDoesNotCreate(self, user, parent, name):
         with self.assertRaises(IntegrityError):
             self.create(user, parent, name)
 
-    def assertRetrieves(self, user, parent, name):
-        self.assertTrue(self.retrieve(user, parent, name))
+    def assertUpdates(self, file_asset, user, parent, name):
+        self.update(file_asset, user, parent, name)
+        self.assertExists(user, parent, name)
 
-    def assertDoesNotRetrieve(self, user, parent, name):
-        self.assertFalse(self.retrieve(user, parent, name))
+    def assertDoesNotUpdate(self, file_asset, user, parent, name):
+        with self.assertRaises(IntegrityError):
+            self.update(file_asset, user, parent, name)
 
-    def assertDataDoesNotExist(self, key):
-        self.assertFalse(public_storage.exists(key))
+    def assertDeletes(self, user, parent, name):
+        self.delete(user, parent, name)
+        self.assertDoesNotExist(user, parent, name)
+
+    def testDoesNotExist(self):
+        self.assertDoesNotExist(self.user, self.parent, self.name)
+
+    def testCreates(self):
+        self.assertCreates(self.user, self.parent, self.name)
 
     def testDoesNotCreateWithNoneUser(self):
-        _, parent, name = self.createValues()
-        self.assertDoesNotCreate(None, parent, name)
+        self.assertDoesNotCreate(None, self.parent, self.name)
+
+    def testCreatesWithSameUser(self):
+        self.create(self.user, self.parent, self.name)
+        self.assertCreates(self.user, self.other_parent, self.other_name)
+
+    def testCreatesWithNoneParent(self):
+        self.assertCreates(self.user, None, self.name)
+
+    def testCreatesWithSameParent(self):
+        self.create(self.user, self.parent, self.name)
+        self.assertCreates(self.other_user, self.parent, self.other_name)
+
+    def testCreatesWithGrandParent(self):
+        self.assertCreates(self.user, self.grand_parent, self.name)
 
     def testDoesNotCreateWithNoneName(self):
-        user, parent, _ = self.createValues()
-        self.assertDoesNotCreate(user, parent, None)
+        self.assertDoesNotCreate(self.user, self.parent, None)
+
+    def testCreatesWithSameName(self):
+        self.create(self.user, self.parent, self.name)
+        self.assertCreates(self.other_user, self.other_parent, self.name)
 
     def testDoesNotCreateWithSameKey(self):
-        user, parent, name = self.createValues()
-        self.create(user, parent, name)
-        self.assertDoesNotCreate(user, parent, name)
+        self.create(self.user, self.parent, self.name)
+        self.assertDoesNotCreate(self.user, self.parent, self.name)
 
-    def testRetrievesAfterCreate(self):
-        user, parent, name = self.createValues()
-        self.create(user, parent, name)
-        self.assertRetrieves(user, parent, name)
+    def testUpdates(self):
+        file_asset = self.create(self.user, self.parent, self.name)
+        self.assertUpdates(file_asset, self.other_user, self.other_parent, self.other_name)
 
-    def testRetrievesAfterCreateWithNoneParent(self):
-        user, _, name = self.createValues()
-        self.create(user, None, name)
-        self.assertRetrieves(user, None, name)
+    def testDoesNotUpdateWithNoneUser(self):
+        file_asset = self.create(self.user, self.parent, self.name)
+        self.assertDoesNotUpdate(file_asset, None, self.other_parent, self.other_name)
 
-    def testDoesNotRetrieveAfterCreateAndDelete(self):
-        user, parent, name = self.createValues()
-        self.create(user, parent, name)
-        self.delete(user, parent, name)
-        self.assertDoesNotRetrieve(user, parent, name)
+    def testUpdatesWithSameUser(self):
+        self.create(self.other_user, self.parent, self.name)
+        file_asset = self.create(self.user, self.parent, self.name)
+        self.assertUpdates(file_asset, self.other_user, self.other_parent, self.other_name)
 
-    def testDoesNotRetrieveAfterCreateAndDeleteUser(self):
-        user, parent, name = self.createValues()
-        self.create(user, parent, name)
-        user.delete()
-        self.assertDoesNotRetrieve(user, parent, name)
+    def testUpdatesWithNoneParent(self):
+        file_asset = self.create(self.user, self.parent, self.name)
+        self.assertUpdates(file_asset, self.other_user, None, self.other_name)
 
-    def testDoesNotRetrieveAfterCreateAndDeleteParent(self):
-        user, parent, name = self.createValues()
-        self.create(user, parent, name)
-        parent.delete()
-        self.assertDoesNotRetrieve(user, parent, name)
+    def testUpdatesWithSameParent(self):
+        self.create(self.user, self.other_parent, self.name)
+        file_asset = self.create(self.user, self.parent, self.name)
+        self.assertUpdates(file_asset, self.other_user, self.other_parent, self.other_name)
 
-    def testDataDoesNotExistAfterDelete(self):
-        user, parent, name = self.createValues()
-        file = self.create(user, parent, name)
-        key = file.key()
-        public_storage.save(key, BytesIO(b'c'))
-        file.delete()
-        self.assertDataDoesNotExist(key)
+    def testUpdatesWithGrandParent(self):
+        file_asset = self.create(self.user, self.parent, self.name)
+        self.assertUpdates(file_asset, self.other_user, self.grand_parent, self.other_name)
 
-    def testIdempotence(self):
-        user, parent, name = self.createValues()
-        expected = FileAsset.get_or_create(user=user, parent=parent, name=name)
-        actual = FileAsset.get_or_create(user=user, parent=parent, name=name)
-        self.assertEqual(expected.uid, actual.uid)
+    def testDoesNotUpdateWithNoneName(self):
+        file_asset = self.create(self.user, self.parent, self.name)
+        self.assertDoesNotUpdate(file_asset, self.other_user, self.other_parent, None)
+
+    def testUpdatesWithSameName(self):
+        self.create(self.user, self.parent, self.other_name)
+        file_asset = self.create(self.user, self.parent, self.name)
+        self.assertUpdates(file_asset, self.other_user, self.other_parent, self.other_name)
+
+    def testDoesNotUpdateWithSameKey(self):
+        self.create(self.other_user, self.other_parent, self.other_name)
+        file_asset = self.create(self.user, self.parent, self.name)
+        self.assertDoesNotUpdate(file_asset, self.other_user, self.other_parent, self.other_name)
+
+    def testDeletes(self):
+        self.create(self.user, self.parent, self.name)
+        self.assertDeletes(self.user, self.parent, self.name)
+
+    def testDeletesWhenDoesNotExist(self):
+        self.assertDeletes(self.user, self.parent, self.name)
+
+    def testDeletesWithNoneParent(self):
+        self.create(self.user, None, self.name)
+        self.assertDeletes(self.user, None, self.name)
+
+    def testDeletesWithGrandParent(self):
+        self.create(self.user, self.grand_parent, self.name)
+        self.assertDeletes(self.user, self.grand_parent, self.name)
+
+    def testCascadeUser(self):
+        self.create(self.user, self.parent, self.name)
+        self.user.delete()
+        self.assertDoesNotExist(self.user, self.parent, self.name)
+
+    def testCascadeParent(self):
+        self.create(self.user, self.parent, self.name)
+        self.parent.delete()
+        self.assertDoesNotExist(self.user, self.parent, self.name)
 
 
 class CalendarTests(IntegrationTestCase):
