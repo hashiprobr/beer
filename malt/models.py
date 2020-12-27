@@ -34,35 +34,23 @@ class FolderAsset(Asset):
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True)
 
 
-class FileAsset(Asset):
-    parent = models.ForeignKey(FolderAsset, on_delete=models.CASCADE, null=True)
-    uid = models.CharField(max_length=22)
-    active = models.BooleanField(default=False)
-
-    @classmethod
-    def pop(cls, kwargs):
+class FileAssetManager(models.Manager):
+    @transaction.atomic
+    def create(self, **kwargs):
         if 'uid' in kwargs:
             raise IntegrityError('uid not allowed in kwargs')
         user = kwargs.pop('user', None)
         while True:
             uid = uuid()
-            if not cls.objects.filter(user=user, uid=uid).exists():
-                return user, uid
+            if not self.filter(user=user, uid=uid).exists():
+                return super().create(user=user, uid=uid, **kwargs)
 
-    @classmethod
-    @transaction.atomic
-    def create(cls, **kwargs):
-        user, uid = cls.pop(kwargs)
-        return cls.objects.create(user=user, uid=uid, **kwargs)
 
-    @classmethod
-    @transaction.atomic
-    def get_or_create(cls, defaults={}, **kwargs):
-        try:
-            return cls.objects.get(**kwargs)
-        except cls.DoesNotExist:
-            user, uid = cls.pop(kwargs)
-            return cls.objects.create(user=user, uid=uid, **kwargs, **defaults)
+class FileAsset(Asset):
+    parent = models.ForeignKey(FolderAsset, on_delete=models.CASCADE, null=True)
+    uid = models.CharField(max_length=22)
+    active = models.BooleanField(default=False)
+    objects = FileAssetManager()
 
     def key(self):
         return '{}/assets/{}'.format(self.user.get_username(), self.uid)

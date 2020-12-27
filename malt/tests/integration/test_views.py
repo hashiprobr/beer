@@ -886,7 +886,9 @@ class UploadAssetConfirmViewTests(UploadViewTests, ViewTestCase):
     view_name = 'upload_asset_confirm'
 
     def assertGetStatusAndData(self, parent, exists, query, expected, active):
-        asset = FileAsset.objects.create(user=self.user, parent=parent, name=self.name, uid=self.uid)
+        asset = FileAsset.objects.create(user=self.user, parent=parent, name=self.name)
+        asset.uid = self.uid
+        asset.save()
         if exists:
             public_storage.save(asset.key(), self.open(self.content))
         self.assertGetStatus(query, expected)

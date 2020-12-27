@@ -211,7 +211,8 @@ class UploadManageView(LoginRequiredMixin, UserIsPowerMixin, AssetMixin, generic
 
             _, parent = self.get_objects(path)
 
-            key = FileAsset.get_or_create(user=request.user, parent=parent, name=name).key()
+            asset, _ = FileAsset.objects.get_or_create(user=request.user, parent=parent, name=name)
+            key = asset.key()
             redirect_url = '{}://{}{}'.format(request.scheme, request.get_host(), reverse('upload_asset_confirm'))
 
             body = public_storage.post(key, redirect_url)
