@@ -14,7 +14,7 @@ from django.views.generic.detail import SingleObjectTemplateResponseMixin, BaseD
 from beer import public_storage
 
 from .models import PowerUser, FolderAsset, FileAsset
-from .forms import UserForm, FolderAssetForm, FileAssetForm
+from .forms import UserForm, AssetForm
 from .caches import power_cache, member_cache
 from .brewing import BrewError
 from .brewery import Brewery
@@ -306,7 +306,7 @@ class AssetViewMixin(AssetMixin, AssetPathMixin):
 
 
 class AssetFormView(FormView):
-    form_class = FolderAssetForm
+    form_class = AssetForm
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -381,7 +381,6 @@ class AssetEditView(LoginRequiredMixin, UserIsPowerMixin, SingleAssetViewMixin, 
 
 class AssetEditFileView(AssetEditView):
     Asset = FileAsset
-    form_class = FileAssetForm
 
 
 class AssetRemoveView(LoginRequiredMixin, UserIsPowerMixin, SingleAssetViewMixin, TemplateView):

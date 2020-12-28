@@ -43,22 +43,24 @@ class UserForm(forms.Form):
                 }
 
                 if data['domain']:
-                    if len(words) < 2:
-                        self.raiseValidationErrorFile(i, 'must have at least an username and a first name')
-                    if '@' in words[1]:
-                        self.raiseValidationErrorFile(i, 'the second word looks like an email, but should be a first name because you specified a domain')
+                    if len(words) > 1:
+                        if '@' in words[1]:
+                            self.raiseValidationErrorFile(i, 'the second word looks like an email, but should be a first name because you specified a domain')
+                    else:
+                        words.append('')
 
                     kwargs['email'] = '{}@{}'.format(username, data['domain'])
                     kwargs['first_name'] = words[1]
                     kwargs['last_name'] = ' '.join(words[2:])
                 else:
-                    if len(words) < 3:
-                        self.raiseValidationErrorFile(i, 'must have at least an username, an email, and a first name')
-                    if '@' not in words[1]:
-                        self.raiseValidationErrorFile(i, 'the second word does not look like an email, but should be one because you did not specify a domain')
+                    if len(words) > 1:
+                        if '@' not in words[1]:
+                            self.raiseValidationErrorFile(i, 'the second word does not look like an email, but should be one because you did not specify a domain')
+                    else:
+                        self.raiseValidationErrorFile(i, 'must have at least an username and an email')
 
                     kwargs['email'] = words[1]
-                    kwargs['first_name'] = words[2]
+                    kwargs['first_name'] = words[2] if len(words) > 2 else ''
                     kwargs['last_name'] = ' '.join(words[3:])
 
                 self.users[username] = kwargs
@@ -89,18 +91,8 @@ class AssetForm(forms.ModelForm):
         if 'name' in data:
             name = data['name']
             if '/' in name:
-                raise ValidationError({'name': self.slash_message})
+                raise ValidationError({'name': 'The asset name cannot have slashes.'})
             if self.child is None or self.child.name != name:
                 if self.Asset.objects.filter(user=self.user, parent=self.parent, name=name).exists():
-                    raise ValidationError({'name': self.other_message})
+                    raise ValidationError({'name': 'An asset with that name already exists.'})
         return data
-
-
-class FolderAssetForm(AssetForm):
-    slash_message = 'The folder name cannot have slashes.'
-    other_message = 'A folder with that name already exists.'
-
-
-class FileAssetForm(AssetForm):
-    slash_message = 'The file name cannot have slashes.'
-    other_message = 'A file with that name already exists.'

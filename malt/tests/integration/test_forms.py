@@ -7,8 +7,8 @@ from django.core.files import File
 
 from beer.tests import IntegrationTestCase
 
-from ...models import Asset, FolderAsset, FileAsset
-from ...forms import UserForm, FolderAssetForm, FileAssetForm
+from ...models import FolderAsset, FileAsset
+from ...forms import UserForm, AssetForm
 
 User = get_user_model()
 
@@ -110,71 +110,83 @@ class UserFormTests(IntegrationTestCase):
     def testValidWithoutThirdLastAndTruePromote(self):
         self.assertValid('nocl', self.domain, True)
 
-    def testNotValidWithoutFirstFirstAndFalsePromote(self):
-        self.assertNotValid('noaf', self.domain, False)
+    def testValidWithoutFirstFirstAndFalsePromote(self):
+        self.assertValid('noaf', self.domain, False)
 
-    def testNotValidWithoutFirstFirstAndTruePromote(self):
-        self.assertNotValid('noaf', self.domain, True)
+    def testValidWithoutFirstFirstAndTruePromote(self):
+        self.assertValid('noaf', self.domain, True)
 
-    def testNotValidWithoutSecondFirstAndFalsePromote(self):
-        self.assertNotValid('nobf', self.domain, False)
+    def testValidWithoutSecondFirstAndFalsePromote(self):
+        self.assertValid('nobf', self.domain, False)
 
-    def testNotValidWithoutSecondFirstAndTruePromote(self):
-        self.assertNotValid('nobf', self.domain, True)
+    def testValidWithoutSecondFirstAndTruePromote(self):
+        self.assertValid('nobf', self.domain, True)
 
-    def testNotValidWithoutThirdFirstAndFalsePromote(self):
-        self.assertNotValid('nocf', self.domain, False)
+    def testValidWithoutThirdFirstAndFalsePromote(self):
+        self.assertValid('nocf', self.domain, False)
 
-    def testNotValidWithoutThirdFirstAndTruePromote(self):
-        self.assertNotValid('nocf', self.domain, True)
+    def testValidWithoutThirdFirstAndTruePromote(self):
+        self.assertValid('nocf', self.domain, True)
 
-    def testNotValidWithFirstEmailAndFalsePromote(self):
-        self.assertNotValid('noae', self.domain, False)
+    def testNotValidWithFirstAtAndFalsePromote(self):
+        self.assertNotValid('noat', self.domain, False)
 
-    def testNotValidWithFirstEmailAndTruePromote(self):
-        self.assertNotValid('noae', self.domain, True)
+    def testNotValidWithFirstAtAndTruePromote(self):
+        self.assertNotValid('noat', self.domain, True)
 
-    def testNotValidWithSecondEmailAndFalsePromote(self):
-        self.assertNotValid('nobe', self.domain, False)
+    def testNotValidWithSecondAtAndFalsePromote(self):
+        self.assertNotValid('nobt', self.domain, False)
 
-    def testNotValidWithSecondEmailAndTruePromote(self):
-        self.assertNotValid('nobe', self.domain, True)
+    def testNotValidWithSecondAtAndTruePromote(self):
+        self.assertNotValid('nobt', self.domain, True)
 
-    def testNotValidWithThirdEmailAndFalsePromote(self):
-        self.assertNotValid('noce', self.domain, False)
+    def testNotValidWithThirdAtAndFalsePromote(self):
+        self.assertNotValid('noct', self.domain, False)
 
-    def testNotValidWithThirdEmailAndTruePromote(self):
-        self.assertNotValid('noce', self.domain, True)
+    def testNotValidWithThirdAtAndTruePromote(self):
+        self.assertNotValid('noct', self.domain, True)
 
     def testNotValidWithSameFirstAndFalsePromote(self):
-        self.assertNotValid('yesa', self.domain, False)
+        self.assertNotValid('yesau', self.domain, False)
 
     def testNotValidWithSameFirstAndTruePromote(self):
-        self.assertNotValid('yesa', self.domain, True)
+        self.assertNotValid('yesau', self.domain, True)
 
     def testNotValidWithSameSecondAndFalsePromote(self):
-        self.assertNotValid('yesb', self.domain, False)
+        self.assertNotValid('yesbu', self.domain, False)
 
     def testNotValidWithSameSecondAndTruePromote(self):
-        self.assertNotValid('yesb', self.domain, True)
+        self.assertNotValid('yesbu', self.domain, True)
 
     def testNotValidWithSameThirdAndFalsePromote(self):
-        self.assertNotValid('yesc', self.domain, False)
+        self.assertNotValid('yescu', self.domain, False)
 
     def testNotValidWithSameThirdAndTruePromote(self):
-        self.assertNotValid('yesc', self.domain, True)
+        self.assertNotValid('yescu', self.domain, True)
+
+    def testValidWithExtraFirstAndFalsePromote(self):
+        self.assertValid('yesam', self.domain, False)
+
+    def testValidWithExtraFirstAndTruePromote(self):
+        self.assertValid('yesam', self.domain, True)
+
+    def testValidWithExtraSecondAndFalsePromote(self):
+        self.assertValid('yesbm', self.domain, False)
+
+    def testValidWithExtraSecondAndTruePromote(self):
+        self.assertValid('yesbm', self.domain, True)
+
+    def testValidWithExtraThirdAndFalsePromote(self):
+        self.assertValid('yescm', self.domain, False)
+
+    def testValidWithExtraThirdAndTruePromote(self):
+        self.assertValid('yescm', self.domain, True)
 
     def testValidWithSpaceAndFalsePromote(self):
         self.assertValid('space', self.domain, False)
 
     def testValidWithSpaceAndTruePromote(self):
         self.assertValid('space', self.domain, True)
-
-    def testValidWithExtraAndFalsePromote(self):
-        self.assertValid('extra', self.domain, False)
-
-    def testValidWithExtraAndTruePromote(self):
-        self.assertValid('extra', self.domain, True)
 
     def testValidWithEmailWithoutDomainAndFalsePromote(self):
         self.assertValid('email', None, False)
@@ -212,23 +224,23 @@ class UserFormTests(IntegrationTestCase):
     def testValidWithEmailWithoutDomainAndThirdLastAndTruePromote(self):
         self.assertValid('email-nocl', None, True)
 
-    def testNotValidWithEmailWithoutDomainAndFirstFirstAndFalsePromote(self):
-        self.assertNotValid('email-noaf', None, False)
+    def testValidWithEmailWithoutDomainAndFirstFirstAndFalsePromote(self):
+        self.assertValid('email-noaf', None, False)
 
-    def testNotValidWithEmailWithoutDomainAndFirstFirstAndTruePromote(self):
-        self.assertNotValid('email-noaf', None, True)
+    def testValidWithEmailWithoutDomainAndFirstFirstAndTruePromote(self):
+        self.assertValid('email-noaf', None, True)
 
-    def testNotValidWithEmailWithoutDomainAndSecondFirstAndFalsePromote(self):
-        self.assertNotValid('email-nobf', None, False)
+    def testValidWithEmailWithoutDomainAndSecondFirstAndFalsePromote(self):
+        self.assertValid('email-nobf', None, False)
 
-    def testNotValidWithEmailWithoutDomainAndSecondFirstAndTruePromote(self):
-        self.assertNotValid('email-nobf', None, True)
+    def testValidWithEmailWithoutDomainAndSecondFirstAndTruePromote(self):
+        self.assertValid('email-nobf', None, True)
 
-    def testNotValidWithEmailWithoutDomainAndThirdFirstAndFalsePromote(self):
-        self.assertNotValid('email-nocf', None, False)
+    def testValidWithEmailWithoutDomainAndThirdFirstAndFalsePromote(self):
+        self.assertValid('email-nocf', None, False)
 
-    def testNotValidWithEmailWithoutDomainAndThirdFirstAndTruePromote(self):
-        self.assertNotValid('email-nocf', None, True)
+    def testValidWithEmailWithoutDomainAndThirdFirstAndTruePromote(self):
+        self.assertValid('email-nocf', None, True)
 
     def testNotValidWithoutFirstEmailAndDomainAndFalsePromote(self):
         self.assertNotValid('email-noae', None, False)
@@ -248,35 +260,65 @@ class UserFormTests(IntegrationTestCase):
     def testNotValidWithoutThirdEmailAndDomainAndTruePromote(self):
         self.assertNotValid('email-noce', None, True)
 
+    def testNotValidWithoutFirstAtAndDomainAndFalsePromote(self):
+        self.assertNotValid('email-noat', None, False)
+
+    def testNotValidWithoutFirstAtAndDomainAndTruePromote(self):
+        self.assertNotValid('email-noat', None, True)
+
+    def testNotValidWithoutSecondAtAndDomainAndFalsePromote(self):
+        self.assertNotValid('email-nobt', None, False)
+
+    def testNotValidWithoutSecondAtAndDomainAndTruePromote(self):
+        self.assertNotValid('email-nobt', None, True)
+
+    def testNotValidWithoutThirdAtAndDomainAndFalsePromote(self):
+        self.assertNotValid('email-noct', None, False)
+
+    def testNotValidWithoutThirdAtAndDomainAndTruePromote(self):
+        self.assertNotValid('email-noct', None, True)
+
     def testNotValidWithEmailAndSameFirstWithoutDomainAndFalsePromote(self):
-        self.assertNotValid('email-yesa', None, False)
+        self.assertNotValid('email-yesau', None, False)
 
     def testNotValidWithEmailAndSameFirstWithoutDomainAndTruePromote(self):
-        self.assertNotValid('email-yesa', None, True)
+        self.assertNotValid('email-yesau', None, True)
 
     def testNotValidWithEmailAndSameSecondWithoutDomainAndFalsePromote(self):
-        self.assertNotValid('email-yesb', None, False)
+        self.assertNotValid('email-yesbu', None, False)
 
     def testNotValidWithEmailAndSameSecondWithoutDomainAndTruePromote(self):
-        self.assertNotValid('email-yesb', None, True)
+        self.assertNotValid('email-yesbu', None, True)
 
     def testNotValidWithEmailAndSameThirdWithoutDomainAndFalsePromote(self):
-        self.assertNotValid('email-yesc', None, False)
+        self.assertNotValid('email-yescu', None, False)
 
     def testNotValidWithEmailAndSameThirdWithoutDomainAndTruePromote(self):
-        self.assertNotValid('email-yesc', None, True)
+        self.assertNotValid('email-yescu', None, True)
+
+    def testValidWithEmailAndExtraFirstAndFalsePromote(self):
+        self.assertValid('email-yesam', None, False)
+
+    def testValidWithEmailAndExtraFirstAndTruePromote(self):
+        self.assertValid('email-yesam', None, True)
+
+    def testValidWithEmailAndExtraSecondAndFalsePromote(self):
+        self.assertValid('email-yesbm', None, False)
+
+    def testValidWithEmailAndExtraSecondAndTruePromote(self):
+        self.assertValid('email-yesbm', None, True)
+
+    def testValidWithEmailAndExtraThirdAndFalsePromote(self):
+        self.assertValid('email-yescm', None, False)
+
+    def testValidWithEmailAndExtraThirdAndTruePromote(self):
+        self.assertValid('email-yescm', None, True)
 
     def testValidWithEmailAndSpaceWithoutDomainAndFalsePromote(self):
         self.assertValid('email-space', None, False)
 
     def testValidWithEmailAndSpaceWithoutDomainAndTruePromote(self):
         self.assertValid('email-space', None, True)
-
-    def testValidWithEmailAndExtraWithoutDomainAndFalsePromote(self):
-        self.assertValid('email-extra', None, False)
-
-    def testValidWithEmailAndExtraWithoutDomainAndTruePromote(self):
-        self.assertValid('email-extra', None, True)
 
     def testValidWithEmailAndEmptyDomainAndFalsePromote(self):
         self.assertValid('email', self.empty_domain, False)
@@ -293,21 +335,26 @@ class UserFormTests(IntegrationTestCase):
 
 class AssetFormTests:
     name = 'n'
+    child_name = 'cn'
     other_name = 'on'
     empty_name = ''
     white_name = ' \t\n'
-    upper_name = (Asset.name.field.max_length + 1) * 'n'
     slash_name = 'n/n'
 
-    def isValid(self, name, Asset, edit):
+    def setUp(self):
+        self.upper_name = (self.Asset.name.field.max_length + 1) * 'n'
+
+    def isValid(self, name, edit):
         user = User.objects.create_user('u')
-        parent = FolderAsset.objects.create(user=user, parent=None, name='p')
-        child = Asset.objects.create(user=user, parent=parent, name=self.other_name)
+        grand_parent = FolderAsset.objects.create(user=user, parent=None, name='gp')
+        parent = FolderAsset.objects.create(user=user, parent=grand_parent, name='p')
+        child = self.Asset.objects.create(user=user, parent=parent, name=self.child_name)
+        self.Asset.objects.create(user=user, parent=parent, name=self.other_name)
         data = {}
         if name is not None:
             data['name'] = name
         kwargs = {
-            'Asset': Asset,
+            'Asset': self.Asset,
             'user': user,
             'parent': parent,
         }
@@ -315,67 +362,67 @@ class AssetFormTests:
             kwargs['child'] = child
         else:
             kwargs['child'] = None
-        form = self.AssetForm(data, **kwargs)
+        form = AssetForm(data, **kwargs)
         return form.is_valid()
 
-    def assertValid(self, name, Asset, new):
-        self.assertTrue(self.isValid(name, Asset, new))
+    def assertValid(self, name, edit):
+        self.assertTrue(self.isValid(name, edit))
 
-    def assertNotValid(self, name, Asset, new):
-        self.assertFalse(self.isValid(name, Asset, new))
+    def assertNotValid(self, name, edit):
+        self.assertFalse(self.isValid(name, edit))
 
-    def testValidWithFolderAsset(self):
-        self.assertValid(self.name, FolderAsset, False)
+    def testValidWithFalseEdit(self):
+        self.assertValid(self.name, False)
 
-    def testValidWithFileAsset(self):
-        self.assertValid(self.name, FileAsset, False)
+    def testValidWithTrueEdit(self):
+        self.assertValid(self.name, True)
 
-    def testNotValidWithoutNameWithFolderAsset(self):
-        self.assertNotValid(None, FolderAsset, False)
+    def testNotValidWithoutNameAndFalseEdit(self):
+        self.assertNotValid(None, False)
 
-    def testNotValidWithoutNameWithFileAsset(self):
-        self.assertNotValid(None, FileAsset, False)
+    def testNotValidWithoutNameAndTrueEdit(self):
+        self.assertNotValid(None, True)
 
-    def testNotValidWithEmptyNameWithFolderAsset(self):
-        self.assertNotValid(self.empty_name, FolderAsset, False)
+    def testNotValidWithOwnNameAndFalseEdit(self):
+        self.assertNotValid(self.child_name, False)
 
-    def testNotValidWithEmptyNameWithFileAsset(self):
-        self.assertNotValid(self.empty_name, FileAsset, False)
+    def testValidWithOwnNameAndTrueEdit(self):
+        self.assertValid(self.child_name, True)
 
-    def testNotValidWithWhiteNameWithFolderAsset(self):
-        self.assertNotValid(self.white_name, FolderAsset, False)
+    def testNotValidWithSameNameAndFalseEdit(self):
+        self.assertNotValid(self.other_name, False)
 
-    def testNotValidWithWhiteNameWithFileAsset(self):
-        self.assertNotValid(self.white_name, FileAsset, False)
+    def testNotValidWithSameNameAndTrueEdit(self):
+        self.assertNotValid(self.other_name, True)
 
-    def testNotValidWithUpperNameWithFolderAsset(self):
-        self.assertNotValid(self.upper_name, FolderAsset, False)
+    def testNotValidWithEmptyNameAndFalseEdit(self):
+        self.assertNotValid(self.empty_name, False)
 
-    def testNotValidWithUpperNameWithFileAsset(self):
-        self.assertNotValid(self.upper_name, FileAsset, False)
+    def testNotValidWithEmptyNameAndTrueEdit(self):
+        self.assertNotValid(self.empty_name, True)
 
-    def testNotValidWithSlashNameWithFolderAsset(self):
-        self.assertNotValid(self.slash_name, FolderAsset, False)
+    def testNotValidWithWhiteNameAndFalseEdit(self):
+        self.assertNotValid(self.white_name, False)
 
-    def testNotValidWithSlashNameWithFileAsset(self):
-        self.assertNotValid(self.slash_name, FileAsset, False)
+    def testNotValidWithWhiteNameAndTrueEdit(self):
+        self.assertNotValid(self.white_name, True)
 
-    def testNotValidWithSameNameWithFolderAsset(self):
-        self.assertNotValid(self.other_name, FolderAsset, False)
+    def testNotValidWithSlashNameAndFalseEdit(self):
+        self.assertNotValid(self.slash_name, False)
 
-    def testNotValidWithSameNameWithFileAsset(self):
-        self.assertNotValid(self.other_name, FileAsset, False)
+    def testNotValidWithSlashNameAndTrueEdit(self):
+        self.assertNotValid(self.slash_name, True)
 
-    def testNotValidWithSameNameButEditWithFolderAsset(self):
-        self.assertValid(self.other_name, FolderAsset, True)
+    def testNotValidWithUpperNameAndFalseEdit(self):
+        self.assertNotValid(self.upper_name, False)
 
-    def testNotValidWithSameNameButEditWithFileAsset(self):
-        self.assertValid(self.other_name, FileAsset, True)
+    def testNotValidWithUpperNameAndTrueEdit(self):
+        self.assertNotValid(self.upper_name, True)
 
 
 class FolderAssetFormTests(AssetFormTests, IntegrationTestCase):
-    AssetForm = FolderAssetForm
+    Asset = FolderAsset
 
 
 class FileAssetFormTests(AssetFormTests, IntegrationTestCase):
-    AssetForm = FileAssetForm
+    Asset = FileAsset
