@@ -29,7 +29,7 @@ class UserFormTests(IntegrationTestCase):
             content = file.read()
         return File(BytesIO(content), name)
 
-    def isValid(self, name, domain, promote):
+    def build(self, name, domain, promote):
         data = {}
         files = {}
         if name is not None:
@@ -38,23 +38,40 @@ class UserFormTests(IntegrationTestCase):
             data['domain'] = domain
         if promote is not None:
             data['promote'] = promote
-        form = UserForm(data, files)
-        return form.is_valid()
+        return UserForm(data, files)
 
-    def assertValid(self, name, domain, promote):
-        self.assertTrue(self.isValid(name, domain, promote))
+    def assertValid(self, name, domain, promote, users):
+        form = self.build(name, domain, promote)
+        self.assertTrue(form.is_valid())
+        self.assertEqual(len(form.users), len(users))
+        for username, kwargs in form.users.items():
+            user = (username, kwargs['email'], kwargs['first_name'], kwargs['last_name'])
+            self.assertIn(user, users)
 
     def assertNotValid(self, name, domain, promote):
-        self.assertFalse(self.isValid(name, domain, promote))
+        form = self.build(name, domain, promote)
+        self.assertFalse(form.is_valid())
 
     def testValidWithoutPromote(self):
-        self.assertValid('base', self.domain, None)
+        self.assertValid('base', self.domain, None, [
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
+        ])
 
     def testValidWithFalsePromote(self):
-        self.assertValid('base', self.domain, False)
+        self.assertValid('base', self.domain, False, [
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
+        ])
 
     def testValidWithTruePromote(self):
-        self.assertValid('base', self.domain, True)
+        self.assertValid('base', self.domain, True, [
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
+        ])
 
     def testNotValidWithoutFileAndFalsePromote(self):
         self.assertNotValid(None, self.domain, False)
@@ -81,52 +98,110 @@ class UserFormTests(IntegrationTestCase):
         self.assertNotValid('binary', self.domain, True)
 
     def testValidForOneUserAndFalsePromote(self):
-        self.assertValid('one', self.domain, False)
+        self.assertValid('one', self.domain, False, [
+            ('au', 'au@d.com', 'af', 'al'),
+        ])
 
     def testValidForOneUserAndTruePromote(self):
-        self.assertValid('one', self.domain, True)
+        self.assertValid('one', self.domain, True, [
+            ('au', 'au@d.com', 'af', 'al'),
+        ])
 
     def testValidForTwoUsersAndFalsePromote(self):
-        self.assertValid('two', self.domain, False)
+        self.assertValid('two', self.domain, False, [
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+        ])
 
     def testValidForTwoUsersAndTruePromote(self):
-        self.assertValid('two', self.domain, True)
+        self.assertValid('two', self.domain, True, [
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+        ])
 
     def testValidWithoutFirstLastAndFalsePromote(self):
-        self.assertValid('noal', self.domain, False)
+        self.assertValid('noal', self.domain, False, [
+            ('au', 'au@d.com', 'af', ''),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
+        ])
 
     def testValidWithoutFirstLastAndTruePromote(self):
-        self.assertValid('noal', self.domain, True)
+        self.assertValid('noal', self.domain, True, [
+            ('au', 'au@d.com', 'af', ''),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
+        ])
 
     def testValidWithoutSecondLastAndFalsePromote(self):
-        self.assertValid('nobl', self.domain, False)
+        self.assertValid('nobl', self.domain, False, [
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', ''),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
+        ])
 
     def testValidWithoutSecondLastAndTruePromote(self):
-        self.assertValid('nobl', self.domain, True)
+        self.assertValid('nobl', self.domain, True, [
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', ''),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
+        ])
 
     def testValidWithoutThirdLastAndFalsePromote(self):
-        self.assertValid('nocl', self.domain, False)
+        self.assertValid('nocl', self.domain, False, [
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', ''),
+        ])
 
     def testValidWithoutThirdLastAndTruePromote(self):
-        self.assertValid('nocl', self.domain, True)
+        self.assertValid('nocl', self.domain, True, [
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', ''),
+        ])
 
     def testValidWithoutFirstFirstAndFalsePromote(self):
-        self.assertValid('noaf', self.domain, False)
+        self.assertValid('noaf', self.domain, False, [
+            ('au', 'au@d.com', '', ''),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
+        ])
 
     def testValidWithoutFirstFirstAndTruePromote(self):
-        self.assertValid('noaf', self.domain, True)
+        self.assertValid('noaf', self.domain, True, [
+            ('au', 'au@d.com', '', ''),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
+        ])
 
     def testValidWithoutSecondFirstAndFalsePromote(self):
-        self.assertValid('nobf', self.domain, False)
+        self.assertValid('nobf', self.domain, False, [
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', '', ''),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
+        ])
 
     def testValidWithoutSecondFirstAndTruePromote(self):
-        self.assertValid('nobf', self.domain, True)
+        self.assertValid('nobf', self.domain, True, [
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', '', ''),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
+        ])
 
     def testValidWithoutThirdFirstAndFalsePromote(self):
-        self.assertValid('nocf', self.domain, False)
+        self.assertValid('nocf', self.domain, False, [
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', '', ''),
+        ])
 
     def testValidWithoutThirdFirstAndTruePromote(self):
-        self.assertValid('nocf', self.domain, True)
+        self.assertValid('nocf', self.domain, True, [
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', '', ''),
+        ])
 
     def testNotValidWithFirstAtAndFalsePromote(self):
         self.assertNotValid('noat', self.domain, False)
@@ -165,82 +240,180 @@ class UserFormTests(IntegrationTestCase):
         self.assertNotValid('yescu', self.domain, True)
 
     def testValidWithExtraFirstAndFalsePromote(self):
-        self.assertValid('yesam', self.domain, False)
+        self.assertValid('yesam', self.domain, False, [
+            ('au', 'au@d.com', 'af', 'am al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
+        ])
 
     def testValidWithExtraFirstAndTruePromote(self):
-        self.assertValid('yesam', self.domain, True)
+        self.assertValid('yesam', self.domain, True, [
+            ('au', 'au@d.com', 'af', 'am al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
+        ])
 
     def testValidWithExtraSecondAndFalsePromote(self):
-        self.assertValid('yesbm', self.domain, False)
+        self.assertValid('yesbm', self.domain, False, [
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bm bl'),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
+        ])
 
     def testValidWithExtraSecondAndTruePromote(self):
-        self.assertValid('yesbm', self.domain, True)
+        self.assertValid('yesbm', self.domain, True, [
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bm bl'),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
+        ])
 
     def testValidWithExtraThirdAndFalsePromote(self):
-        self.assertValid('yescm', self.domain, False)
+        self.assertValid('yescm', self.domain, False, [
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', 'cm cl'),
+        ])
 
     def testValidWithExtraThirdAndTruePromote(self):
-        self.assertValid('yescm', self.domain, True)
+        self.assertValid('yescm', self.domain, True, [
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', 'cm cl'),
+        ])
 
     def testValidWithSpaceAndFalsePromote(self):
-        self.assertValid('space', self.domain, False)
+        self.assertValid('space', self.domain, False, [
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
+        ])
 
     def testValidWithSpaceAndTruePromote(self):
-        self.assertValid('space', self.domain, True)
+        self.assertValid('space', self.domain, True, [
+            ('au', 'au@d.com', 'af', 'al'),
+            ('bu', 'bu@d.com', 'bf', 'bl'),
+            ('cu', 'cu@d.com', 'cf', 'cl'),
+        ])
 
     def testValidWithEmailWithoutDomainAndFalsePromote(self):
-        self.assertValid('email', None, False)
+        self.assertValid('email', None, False, [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
+        ])
 
     def testValidWithEmailWithoutDomainAndTruePromote(self):
-        self.assertValid('email', None, True)
+        self.assertValid('email', None, True, [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
+        ])
 
     def testValidWithEmailWithoutDomainForOneUserAndFalsePromote(self):
-        self.assertValid('email-one', None, False)
+        self.assertValid('email-one', None, False, [
+            ('au', 'ae@ae.com', 'af', 'al'),
+        ])
 
     def testValidWithEmailWithoutDomainForOneUserAndTruePromote(self):
-        self.assertValid('email-one', None, True)
+        self.assertValid('email-one', None, True, [
+            ('au', 'ae@ae.com', 'af', 'al'),
+        ])
 
     def testValidWithEmailWithoutDomainForTwoUsersAndFalsePromote(self):
-        self.assertValid('email-two', None, False)
+        self.assertValid('email-two', None, False, [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+        ])
 
     def testValidWithEmailWithoutDomainForTwoUsersAndTruePromote(self):
-        self.assertValid('email-two', None, True)
+        self.assertValid('email-two', None, True, [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+        ])
 
     def testValidWithEmailWithoutDomainAndFirstLastAndFalsePromote(self):
-        self.assertValid('email-noal', None, False)
+        self.assertValid('email-noal', None, False, [
+            ('au', 'ae@ae.com', 'af', ''),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
+        ])
 
     def testValidWithEmailWithoutDomainAndFirstLastAndTruePromote(self):
-        self.assertValid('email-noal', None, True)
+        self.assertValid('email-noal', None, True, [
+            ('au', 'ae@ae.com', 'af', ''),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
+        ])
 
     def testValidWithEmailWithoutDomainAndSecondLastAndFalsePromote(self):
-        self.assertValid('email-nobl', None, False)
+        self.assertValid('email-nobl', None, False, [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', ''),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
+        ])
 
     def testValidWithEmailWithoutDomainAndSecondLastAndTruePromote(self):
-        self.assertValid('email-nobl', None, True)
+        self.assertValid('email-nobl', None, True, [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', ''),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
+        ])
 
     def testValidWithEmailWithoutDomainAndThirdLastAndFalsePromote(self):
-        self.assertValid('email-nocl', None, False)
+        self.assertValid('email-nocl', None, False, [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', ''),
+        ])
 
     def testValidWithEmailWithoutDomainAndThirdLastAndTruePromote(self):
-        self.assertValid('email-nocl', None, True)
+        self.assertValid('email-nocl', None, True, [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', ''),
+        ])
 
     def testValidWithEmailWithoutDomainAndFirstFirstAndFalsePromote(self):
-        self.assertValid('email-noaf', None, False)
+        self.assertValid('email-noaf', None, False, [
+            ('au', 'ae@ae.com', '', ''),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
+        ])
 
     def testValidWithEmailWithoutDomainAndFirstFirstAndTruePromote(self):
-        self.assertValid('email-noaf', None, True)
+        self.assertValid('email-noaf', None, True, [
+            ('au', 'ae@ae.com', '', ''),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
+        ])
 
     def testValidWithEmailWithoutDomainAndSecondFirstAndFalsePromote(self):
-        self.assertValid('email-nobf', None, False)
+        self.assertValid('email-nobf', None, False, [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', '', ''),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
+        ])
 
     def testValidWithEmailWithoutDomainAndSecondFirstAndTruePromote(self):
-        self.assertValid('email-nobf', None, True)
+        self.assertValid('email-nobf', None, True, [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', '', ''),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
+        ])
 
     def testValidWithEmailWithoutDomainAndThirdFirstAndFalsePromote(self):
-        self.assertValid('email-nocf', None, False)
+        self.assertValid('email-nocf', None, False, [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', '', ''),
+        ])
 
     def testValidWithEmailWithoutDomainAndThirdFirstAndTruePromote(self):
-        self.assertValid('email-nocf', None, True)
+        self.assertValid('email-nocf', None, True, [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', '', ''),
+        ])
 
     def testNotValidWithoutFirstEmailAndDomainAndFalsePromote(self):
         self.assertNotValid('email-noae', None, False)
@@ -297,40 +470,88 @@ class UserFormTests(IntegrationTestCase):
         self.assertNotValid('email-yescu', None, True)
 
     def testValidWithEmailAndExtraFirstAndFalsePromote(self):
-        self.assertValid('email-yesam', None, False)
+        self.assertValid('email-yesam', None, False, [
+            ('au', 'ae@ae.com', 'af', 'am al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
+        ])
 
     def testValidWithEmailAndExtraFirstAndTruePromote(self):
-        self.assertValid('email-yesam', None, True)
+        self.assertValid('email-yesam', None, True, [
+            ('au', 'ae@ae.com', 'af', 'am al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
+        ])
 
     def testValidWithEmailAndExtraSecondAndFalsePromote(self):
-        self.assertValid('email-yesbm', None, False)
+        self.assertValid('email-yesbm', None, False, [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bm bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
+        ])
 
     def testValidWithEmailAndExtraSecondAndTruePromote(self):
-        self.assertValid('email-yesbm', None, True)
+        self.assertValid('email-yesbm', None, True, [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bm bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
+        ])
 
     def testValidWithEmailAndExtraThirdAndFalsePromote(self):
-        self.assertValid('email-yescm', None, False)
+        self.assertValid('email-yescm', None, False, [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cm cl'),
+        ])
 
     def testValidWithEmailAndExtraThirdAndTruePromote(self):
-        self.assertValid('email-yescm', None, True)
+        self.assertValid('email-yescm', None, True, [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cm cl'),
+        ])
 
     def testValidWithEmailAndSpaceWithoutDomainAndFalsePromote(self):
-        self.assertValid('email-space', None, False)
+        self.assertValid('email-space', None, False, [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
+        ])
 
     def testValidWithEmailAndSpaceWithoutDomainAndTruePromote(self):
-        self.assertValid('email-space', None, True)
+        self.assertValid('email-space', None, True, [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
+        ])
 
     def testValidWithEmailAndEmptyDomainAndFalsePromote(self):
-        self.assertValid('email', self.empty_domain, False)
+        self.assertValid('email', self.empty_domain, False, [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
+        ])
 
     def testValidWithEmailAndEmptyDomainAndTruePromote(self):
-        self.assertValid('email', self.empty_domain, True)
+        self.assertValid('email', self.empty_domain, True, [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
+        ])
 
     def testValidWithEmailAndWhiteDomainAndFalsePromote(self):
-        self.assertValid('email', self.white_domain, False)
+        self.assertValid('email', self.white_domain, False, [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
+        ])
 
     def testValidWithEmailAndWhiteDomainAndTruePromote(self):
-        self.assertValid('email', self.white_domain, True)
+        self.assertValid('email', self.white_domain, True, [
+            ('au', 'ae@ae.com', 'af', 'al'),
+            ('bu', 'be@be.com', 'bf', 'bl'),
+            ('cu', 'ce@ce.com', 'cf', 'cl'),
+        ])
 
 
 class AssetFormTests:
