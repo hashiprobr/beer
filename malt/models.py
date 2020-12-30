@@ -33,15 +33,15 @@ class FolderAsset(Asset):
 
 
 class FileAssetManager(models.Manager):
-    @transaction.atomic
-    def create(self, **kwargs):
+    def get_or_create(self, **kwargs):
         if 'uid' in kwargs:
             raise IntegrityError('uid not allowed in kwargs')
         user = kwargs.pop('user', None)
-        while True:
-            uid = uuid()
-            if not self.filter(user=user, uid=uid).exists():
-                return super().create(user=user, uid=uid, **kwargs)
+        with transaction.atomic():
+            while True:
+                uid = uuid()
+                if not self.filter(user=user, uid=uid).exists():
+                    return super().get_or_create(user=user, uid=uid, **kwargs)
 
 
 class FileAsset(Asset):
