@@ -16,7 +16,7 @@ class YeastError(Exception):
 
 
 class Brewer:
-    def __init__(self, user=None, history=[]):
+    def __init__(self, user, history):
         self.user = user
         self.history = history
 

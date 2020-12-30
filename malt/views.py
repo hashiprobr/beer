@@ -409,15 +409,16 @@ class IndexView(LoginRequiredMixin, TemplateView):
 
 class YeastView(LoginRequiredMixin, TemplateView):
     def get_object(self):
+        yeast = self.Yeast(None, [])
         active = not self.request.resolver_match.view_name.endswith('_draft')
         try:
-            return self.yeast.get_object(active, self.kwargs)
-        except self.yeast.Model.DoesNotExist:
+            return yeast.get_object(active, self.kwargs)
+        except yeast.Model.DoesNotExist:
             raise Http404()
 
 
 class CalendarView(YeastView):
-    yeast = CalendarYeast()
+    Yeast = CalendarYeast
     template_name = 'malt/calendar.html'
 
     def get_context_data(self, **kwargs):
