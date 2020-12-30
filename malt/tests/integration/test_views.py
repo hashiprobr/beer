@@ -955,11 +955,21 @@ class UploadAssetViewTests(PostUploadViewTests, ViewTestCase):
     def exists(self):
         return public_storage.exists(self.key)
 
-    def assertPostsLocal(self, data, expected):
+    def assertPostsLocal(self, data):
+        if settings.CONTAINED:
+            self.assertPosts(data, 404)
+        else:
+            self.assertPosts(data, 302)
+            self.assertTrue(self.exists())
+
+    def assertDoesNotPostLocal(self, data, expected):
         if settings.CONTAINED:
             self.assertPosts(data, 404)
         else:
             self.assertPosts(data, expected)
+
+    def testDoesNotExist(self):
+        self.assertFalse(self.exists())
 
     def testPostBlocks(self):
         data = {
@@ -985,17 +995,13 @@ class UploadAssetViewTests(PostUploadViewTests, ViewTestCase):
         }
         self.assertPostForbidsAfterSuperLogin(data)
 
-    def testDoesNotExist(self):
-        self.assertFalse(self.exists())
-
     def testPosts(self):
         data = {
             'key': self.key,
             'success_action_redirect': self.redirect_url,
             'file': self.open(),
         }
-        self.assertPostsLocal(data, 302)
-        self.assertTrue(self.exists())
+        self.assertPostsLocal(data)
 
     def testPostRejectsWithoutKey(self):
         data = {
@@ -1003,7 +1009,7 @@ class UploadAssetViewTests(PostUploadViewTests, ViewTestCase):
             'success_action_redirect': self.redirect_url,
             'file': self.open(),
         }
-        self.assertPostsLocal(data, 400)
+        self.assertDoesNotPostLocal(data, 400)
 
     def testPostRejectsWithEmptyKey(self):
         data = {
@@ -1011,7 +1017,7 @@ class UploadAssetViewTests(PostUploadViewTests, ViewTestCase):
             'success_action_redirect': self.redirect_url,
             'file': self.open(),
         }
-        self.assertPostsLocal(data, 400)
+        self.assertDoesNotPostLocal(data, 400)
 
     def testPostRejectsWithWhiteKey(self):
         data = {
@@ -1019,7 +1025,7 @@ class UploadAssetViewTests(PostUploadViewTests, ViewTestCase):
             'success_action_redirect': self.redirect_url,
             'file': self.open(),
         }
-        self.assertPostsLocal(data, 400)
+        self.assertDoesNotPostLocal(data, 400)
 
     def testPostRejectsWithoutRedirectURL(self):
         data = {
@@ -1027,7 +1033,7 @@ class UploadAssetViewTests(PostUploadViewTests, ViewTestCase):
             'mock': self.redirect_url,
             'file': self.open(),
         }
-        self.assertPostsLocal(data, 400)
+        self.assertDoesNotPostLocal(data, 400)
 
     def testPostRejectsWithWrongRedirectURL(self):
         data = {
@@ -1035,14 +1041,14 @@ class UploadAssetViewTests(PostUploadViewTests, ViewTestCase):
             'success_action_redirect': 'mock',
             'file': self.open(),
         }
-        self.assertPostsLocal(data, 400)
+        self.assertDoesNotPostLocal(data, 400)
 
     def testPostRejectsWithoutFile(self):
         data = {
             'key': self.key,
             'success_action_redirect': self.redirect_url,
         }
-        self.assertPostsLocal(data, 400)
+        self.assertDoesNotPostLocal(data, 400)
 
     def testPostRejectsWithTwoFiles(self):
         data = {
@@ -1051,7 +1057,7 @@ class UploadAssetViewTests(PostUploadViewTests, ViewTestCase):
             'file': self.open(),
             'mock': self.open(),
         }
-        self.assertPostsLocal(data, 400)
+        self.assertDoesNotPostLocal(data, 400)
 
     def testPostRejectsIfInputNotFile(self):
         data = {
@@ -1059,7 +1065,7 @@ class UploadAssetViewTests(PostUploadViewTests, ViewTestCase):
             'success_action_redirect': self.redirect_url,
             'mock': self.open(),
         }
-        self.assertPostsLocal(data, 400)
+        self.assertDoesNotPostLocal(data, 400)
 
 
 class UploadAssetConfirmViewTests(UploadViewTests, ViewTestCase):
