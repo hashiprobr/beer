@@ -567,8 +567,8 @@ class AssetFormTests:
 
     def isValid(self, name, edit):
         user = User.objects.create_user('u')
-        grand_parent = FolderAsset.objects.create(user=user, parent=None, name='gp')
-        parent = FolderAsset.objects.create(user=user, parent=grand_parent, name='p')
+        grand_parent = FolderAsset.objects.create(user=user, parent=None, name='gpn')
+        parent = FolderAsset.objects.create(user=user, parent=grand_parent, name='pn')
         child = self.Asset.objects.create(user=user, parent=parent, name=self.child_name)
         self.Asset.objects.create(user=user, parent=parent, name=self.other_name)
         data = {}

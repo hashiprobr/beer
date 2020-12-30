@@ -104,16 +104,16 @@ class PowerUserTests(IntegrationTestCase):
 
 
 class FolderAssetTests(IntegrationTestCase):
-    name = 'f'
-    other_name = 'of'
+    name = 'n'
+    other_name = 'on'
 
     def setUp(self):
         self.user = User.objects.create_user('u')
         self.other_user = User.objects.create_user('ou')
 
-        self.grand_parent = FolderAsset.objects.create(user=self.user, parent=None, name='gp')
-        self.parent = FolderAsset.objects.create(user=self.user, parent=self.grand_parent, name='p')
-        self.other_parent = FolderAsset.objects.create(user=self.user, parent=self.grand_parent, name='op')
+        self.grand_parent = FolderAsset.objects.create(user=self.user, parent=None, name='gpn')
+        self.parent = FolderAsset.objects.create(user=self.user, parent=self.grand_parent, name='pn')
+        self.other_parent = FolderAsset.objects.create(user=self.user, parent=self.grand_parent, name='opn')
 
     def exists(self, user, parent, name):
         return FolderAsset.objects.filter(user=user, parent=parent, name=name).exists()
@@ -266,16 +266,16 @@ class FolderAssetTests(IntegrationTestCase):
 
 
 class FileAssetTests(IntegrationTestCase):
-    name = 'f'
-    other_name = 'of'
+    name = 'n'
+    other_name = 'on'
 
     def setUp(self):
         self.user = User.objects.create_user('u')
         self.other_user = User.objects.create_user('ou')
 
-        self.grand_parent = FolderAsset.objects.create(user=self.user, parent=None, name='gp')
-        self.parent = FolderAsset.objects.create(user=self.user, parent=self.grand_parent, name='p')
-        self.other_parent = FolderAsset.objects.create(user=self.user, parent=self.grand_parent, name='op')
+        self.grand_parent = FolderAsset.objects.create(user=self.user, parent=None, name='gpn')
+        self.parent = FolderAsset.objects.create(user=self.user, parent=self.grand_parent, name='pn')
+        self.other_parent = FolderAsset.objects.create(user=self.user, parent=self.grand_parent, name='opn')
 
     def exists(self, user, parent, name):
         return FileAsset.objects.filter(user=user, parent=parent, name=name).exists()

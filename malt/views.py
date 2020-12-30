@@ -191,18 +191,18 @@ class UploadManageView(LoginRequiredMixin, UserIsPowerMixin, AssetMixin, generic
             return HttpResponseBadRequest()
 
         if method == 'code':
-            body['action'] = reverse('upload_code'),
+            body['action'] = reverse('upload_code')
             return JsonResponse(body)
 
         if method == 'asset':
             if not name.strip():
                 return HttpResponseBadRequest('The file name is required.')
-            expected = FileAsset.name.field.max_length
-            actual = len(name)
-            if actual > expected:
-                return HttpResponseBadRequest('Ensure the file name has at most {} characters (it has {}).'.format(expected, actual))
             if '/' in name:
                 return HttpResponseBadRequest('The file name cannot have slashes.')
+            expected = FileAsset.name.field.max_length
+            actual = len(name)
+            if expected < actual:
+                return HttpResponseBadRequest('Ensure the file name has at most {} characters (it has {}).'.format(expected, actual))
 
             try:
                 path = body['path']
@@ -217,8 +217,10 @@ class UploadManageView(LoginRequiredMixin, UserIsPowerMixin, AssetMixin, generic
 
             body = public_storage.post(key, redirect_url)
 
-            if body['action'].startswith('/'):
+            try:
                 body[CSRF_KEY] = request.POST[CSRF_KEY]
+            except KeyError:
+                pass
             return JsonResponse(body)
 
         return HttpResponseNotFound()
@@ -260,6 +262,9 @@ class UploadAssetView(LoginRequiredMixin, UserIsPowerMixin, generic.View):
         if not key.strip():
             return HttpResponseBadRequest()
 
+        if not url.startswith('http://'):
+            return HttpResponseBadRequest()
+
         if len(request.FILES) != 1:
             return HttpResponseBadRequest()
 
@@ -284,10 +289,7 @@ class UploadAssetConfirmView(LoginRequiredMixin, UserIsPowerMixin, AssetPathMixi
 
         paths = key.split('/')
 
-        try:
-            asset = FileAsset.objects.get(user=request.user, uid=paths[-1])
-        except FileAsset.DoesNotExist:
-            return HttpResponseBadRequest()
+        asset = get_object_or_404(FileAsset, user=request.user, uid=paths[-1])
 
         if not asset.active and public_storage.exists(asset.key()):
             asset.active = True
