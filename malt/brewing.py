@@ -139,17 +139,17 @@ class Yeast(Brewer):
                         self.pre_process(clean_meta_data)
 
                     for key, value in meta_data.items():
-                        if key in self.optional:
+                        try:
                             type = self.optional[key]
-                            if not isinstance(value, type):
-                                self.exit('The value of {} must be of type {}.'.format(key, type.__name__))
-                            try:
-                                method = getattr(self, 'process_' + key)
-                            except AttributeError:
-                                self.exit('Processing of {} not implemented.'.format(key))
-                            method(value)
-                        else:
+                        except KeyError:
                             self.exit('Unrecognized argument {}.'.format(key))
+                        if not isinstance(value, type):
+                            self.exit('The value of {} must be of type {}.'.format(key, type.__name__))
+                        try:
+                            method = getattr(self, 'process_' + key)
+                        except AttributeError:
+                            self.exit('Processing of {} not implemented.'.format(key))
+                        method(value)
 
                     data = '\n'.join(lines[(i + 1):])
                     break

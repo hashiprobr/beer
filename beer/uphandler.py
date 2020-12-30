@@ -10,9 +10,9 @@ COOKIE_KEY = 'djangochannel'
 class ChannelFileUploadHandler:
     def __init__(self, request=None):
         super().__init__(request)
-        if COOKIE_KEY in request.COOKIES:
+        try:
             self.channel_name = request.COOKIES[COOKIE_KEY]
-        else:
+        except KeyError:
             self.channel_name = None
 
     def send_consumer(self, method, *args):
