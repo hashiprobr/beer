@@ -39,6 +39,9 @@ nav > ul {
     white-space: nowrap;
     user-select: none;
 }
+.profile p:focus {
+    outline: none;
+}
 .profile p::before {
     content: "\25be\a0";
 }
@@ -49,7 +52,8 @@ nav > ul {
     background-color: #000000;
     box-shadow: 2px 2px 6px #666666;
 }
-.profile:hover ul {
+.profile:hover ul,
+.profile:focus-within ul {
     display: block;
 }
 
