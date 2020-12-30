@@ -24,7 +24,7 @@ class UserForm(forms.Form):
 
         content = file.read()
         try:
-            text = content.decode('utf-8')
+            text = content.decode()
         except UnicodeDecodeError:
             raise ValidationError({'file': 'The file cannot be binary.'})
 

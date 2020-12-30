@@ -34,10 +34,10 @@ def sign_post(url, bucket, key, redirect):
     }
     policy['conditions'].extend([{k: v} for k, v in fields.items()])
 
-    string_to_sign = b64encode(json.dumps(policy).encode('utf-8'))
+    string_to_sign = b64encode(json.dumps(policy).encode())
     secret_access_key = 'AWS4' + settings.AWS_SECRET_ACCESS_KEY
-    date_key = sign(secret_access_key.encode('utf-8'), date.encode('utf-8'))
-    date_region_key = sign(date_key, settings.AWS_S3_REGION_NAME.encode('utf-8'))
+    date_key = sign(secret_access_key.encode(), date.encode())
+    date_region_key = sign(date_key, settings.AWS_S3_REGION_NAME.encode())
     date_region_service_key = sign(date_region_key, b's3')
     signing_key = sign(date_region_service_key, b'aws4_request')
     signature = sign(signing_key, string_to_sign)
@@ -45,7 +45,7 @@ def sign_post(url, bucket, key, redirect):
     body = {
         'action': '{}/{}'.format(url, bucket),
         'key': key,
-        'policy': string_to_sign.decode('utf-8'),
+        'policy': string_to_sign.decode(),
         'x-amz-signature': signature.hex(),
     }
     body.update(fields)

@@ -27,7 +27,7 @@ YEASTS = {Yeast.name: Yeast for Yeast in [
 class Grower(Brewer):
     def grow(self, content, Yeasts):
         try:
-            text = content.decode('utf-8')
+            text = content.decode()
         except UnicodeDecodeError:
             self.print('File seems to be binary.')
             return None

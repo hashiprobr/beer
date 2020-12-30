@@ -57,7 +57,7 @@ class PassPassMockYeast(PassMockYeast):
 
 class MockGrower(Brewer):
     def grow(self, content, Yeasts):
-        type = content.decode('utf-8')
+        type = content.decode()
         try:
             Yeast = Yeasts[type]
         except KeyError:
