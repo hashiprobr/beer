@@ -27,6 +27,9 @@ class PowerUserTests(IntegrationTestCase):
     def retrieve(self, user):
         return PowerUser.objects.get(user=user)
 
+    def create_retrieve(self, user):
+        return PowerUser.objects.get_or_create(user=user)
+
     def update(self, power_user, user):
         power_user.user = user
         power_user.save()
@@ -52,6 +55,16 @@ class PowerUserTests(IntegrationTestCase):
         with self.assertRaises(IntegrityError):
             self.create(user)
 
+    def assertCreatesToRetrieve(self, user):
+        _, created = self.create_retrieve(user)
+        self.assertExists(user)
+        self.assertTrue(created)
+
+    def assertDoesNotCreateToRetrieve(self, user):
+        self.create(user)
+        _, created = self.create_retrieve(user)
+        self.assertFalse(created)
+
     def assertUpdates(self, power_user, user):
         self.update(power_user, user)
         self.assertExists(user)
@@ -76,6 +89,12 @@ class PowerUserTests(IntegrationTestCase):
     def testDoesNotCreateWithSameUser(self):
         self.create(self.user)
         self.assertDoesNotCreate(self.user)
+
+    def testCreatesToRetrieve(self):
+        self.assertCreatesToRetrieve(self.user)
+
+    def testDoesNotCreateToRetrieve(self):
+        self.assertDoesNotCreateToRetrieve(self.user)
 
     def testUpdates(self):
         power_user = self.create(self.user)
@@ -124,6 +143,9 @@ class FolderAssetTests(IntegrationTestCase):
     def retrieve(self, user, parent, name):
         return FolderAsset.objects.get(user=user, parent=parent, name=name)
 
+    def create_retrieve(self, user, parent, name):
+        return FolderAsset.objects.get_or_create(user=user, parent=parent, name=name)
+
     def update(self, folder_asset, user, parent, name):
         folder_asset.user = user
         folder_asset.parent = parent
@@ -152,6 +174,16 @@ class FolderAssetTests(IntegrationTestCase):
     def assertDoesNotCreate(self, user, parent, name):
         with self.assertRaises(IntegrityError):
             self.create(user, parent, name)
+
+    def assertCreatesToRetrieve(self, user, parent, name):
+        _, created = self.create_retrieve(user, parent, name)
+        self.assertExists(user, parent, name)
+        self.assertTrue(created)
+
+    def assertDoesNotCreateToRetrieve(self, user, parent, name):
+        self.create(user, parent, name)
+        _, created = self.create_retrieve(user, parent, name)
+        self.assertFalse(created)
 
     def assertUpdates(self, folder_asset, user, parent, name):
         self.update(folder_asset, user, parent, name)
@@ -198,6 +230,12 @@ class FolderAssetTests(IntegrationTestCase):
     def testDoesNotCreateWithSameKey(self):
         self.create(self.user, self.parent, self.name)
         self.assertDoesNotCreate(self.user, self.parent, self.name)
+
+    def testCreatesToRetrieve(self):
+        self.assertCreatesToRetrieve(self.user, self.parent, self.name)
+
+    def testDoesNotCreateToRetrieve(self):
+        self.assertDoesNotCreateToRetrieve(self.user, self.parent, self.name)
 
     def testUpdates(self):
         folder_asset = self.create(self.user, self.parent, self.name)
@@ -286,6 +324,9 @@ class FileAssetTests(IntegrationTestCase):
     def retrieve(self, user, parent, name):
         return FileAsset.objects.get(user=user, parent=parent, name=name)
 
+    def create_retrieve(self, user, parent, name):
+        return FileAsset.objects.get_or_create(user=user, parent=parent, name=name)
+
     def update(self, file_asset, user, parent, name):
         file_asset.user = user
         file_asset.parent = parent
@@ -314,6 +355,16 @@ class FileAssetTests(IntegrationTestCase):
     def assertDoesNotCreate(self, user, parent, name):
         with self.assertRaises(IntegrityError):
             self.create(user, parent, name)
+
+    def assertCreatesToRetrieve(self, user, parent, name):
+        _, created = self.create_retrieve(user, parent, name)
+        self.assertExists(user, parent, name)
+        self.assertTrue(created)
+
+    def assertDoesNotCreateToRetrieve(self, user, parent, name):
+        self.create(user, parent, name)
+        _, created = self.create_retrieve(user, parent, name)
+        self.assertFalse(created)
 
     def assertUpdates(self, file_asset, user, parent, name):
         self.update(file_asset, user, parent, name)
@@ -360,6 +411,12 @@ class FileAssetTests(IntegrationTestCase):
     def testDoesNotCreateWithSameKey(self):
         self.create(self.user, self.parent, self.name)
         self.assertDoesNotCreate(self.user, self.parent, self.name)
+
+    def testCreatesToRetrieve(self):
+        self.assertCreatesToRetrieve(self.user, self.parent, self.name)
+
+    def testDoesNotCreateToRetrieve(self):
+        self.assertDoesNotCreateToRetrieve(self.user, self.parent, self.name)
 
     def testUpdates(self):
         file_asset = self.create(self.user, self.parent, self.name)

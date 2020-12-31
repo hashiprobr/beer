@@ -45,12 +45,12 @@ class FileAssetManager(models.Manager):
     @transaction.atomic
     def create(self, **kwargs):
         user, uid = self.pop(kwargs)
-        return super().create(user=user, uid=uid, **kwargs)
+        return super().create(user=user, **kwargs, uid=uid)
 
     @transaction.atomic
     def get_or_create(self, **kwargs):
         user, uid = self.pop(kwargs)
-        return super().get_or_create(user=user, uid=uid, **kwargs)
+        return super().get_or_create(user=user, **kwargs, defaults={'uid': uid})
 
 
 class FileAsset(Asset):
