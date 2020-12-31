@@ -1,28 +1,46 @@
-.user label.boolean {
+.bulk label.boolean {
     align-items: center;
     font-size: .75rem;
     font-family: "Open Sans", sans-serif;
     font-weight: lighter;
 }
-.user label.boolean input {
+.bulk label.boolean input {
     width: auto;
 }
-.user label.boolean span::before {
+.bulk label.boolean span::before {
     content: "\a0";
 }
-.user label.boolean span::after {
+.bulk label.boolean span::after {
     content: normal;
 }
 
-.user label:not(.boolean) {
+.bulk label:not(.boolean) {
     display: block;
 }
-.user label:not(.boolean) span {
+.bulk label:not(.boolean) span {
     margin-bottom: .25rem;
 }
-.user label:not(.boolean) span::after {
+.bulk label:not(.boolean) span::after {
     content: ":";
 }
-.user label:not(.boolean) input {
+.bulk label:not(.boolean) input {
     width: 15rem;
+}
+
+.filter {
+    width: auto;
+}
+
+.filter input {
+    display: inline;
+}
+
+.filter input[type="text"] {
+    width: 15rem;
+}
+
+.filter input[type="submit"] {
+    width: auto;
+    margin-top: 0;
+    margin-bottom: 0;
 }

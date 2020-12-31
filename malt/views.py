@@ -124,14 +124,22 @@ class UserManageView(LoginRequiredMixin, UserIsSuperMixin, UserViewMixin, FormVi
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        users = User.objects.all().order_by('username')
+        try:
+            filter = self.request.GET['filter'].strip()
+        except KeyError:
+            filter = ''
+        if filter:
+            users = User.objects.filter(username__icontains=filter).order_by('username')
+        else:
+            users = User.objects.all().order_by('username')
         paginator = Paginator(users, PAGE_SIZE)
         try:
             number = int(self.request.GET['page'])
             users = paginator.page(number)
-        except (KeyError, TypeError, EmptyPage):
+        except (KeyError, ValueError, EmptyPage):
             users = paginator.page(1)
         users.power_pks = PowerUser.objects.filter(user__in=users).values_list('user', flat=True)
+        context['filter'] = filter
         context['users'] = users
         context['focus'] = True
         return context

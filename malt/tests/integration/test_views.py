@@ -16,10 +16,19 @@ User = get_user_model()
 
 
 class UserViewTests:
-    username = '528070b65f32f4f7'
-    power_username = '1af81dab46c4d2c8'
-    super_username = '35fde5760c42b7bc'
+    username = '1af81dab46c4d2c8'
+    power_username = '35fde5760c42b7bc'
+    super_username = '528070b65f32f4f7'
     other_username = 'bba8253c7b9a27d2'
+
+    usernames = [
+        'aaadddeee',
+        'aaaeeeddd',
+        'fffbbbggg',
+        'gggbbbfff',
+        'hhhiiiccc',
+        'iiihhhccc',
+    ]
 
     password = 'p'
     power_password = 'pp'
@@ -125,7 +134,20 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
         }
         return super().post(kwargs=self.kwargs(), data=data)
 
-    def assertGets(self, n, page, length, left, center, right):
+    def assertGetsFilter(self, filter, expected):
+        for username in self.usernames:
+            User.objects.create_user(username)
+        self.superLogin()
+        if filter is None:
+            query = None
+        else:
+            query = {'filter': filter}
+        html = self.get_html(kwargs=self.kwargs(), query=query)
+        trs = html.select('tbody tr')
+        actual = [self.string(tr.select_one('td')) for tr in trs]
+        self.assertEqual(expected, actual)
+
+    def assertGetsPage(self, n, page, length, left, center, right):
         for i in range(n - 3):
             User.objects.create_user(str(i))
         self.superLogin()
@@ -153,98 +175,128 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             else:
                 self.assertNotPower(user)
 
+    def testGetsWithoutFilter(self):
+        self.assertGetsFilter(None, [
+            self.username,
+            self.power_username,
+            self.super_username,
+            *self.usernames,
+        ])
+
+    def testGetsWithPrefixFilter(self):
+        self.assertGetsFilter('aaa', [
+            'aaadddeee',
+            'aaaeeeddd',
+        ])
+
+    def testGetsWithMiddleFilter(self):
+        self.assertGetsFilter('bbb', [
+            'fffbbbggg',
+            'gggbbbfff',
+        ])
+
+    def testGetsWithSuffixFilter(self):
+        self.assertGetsFilter('ccc', [
+            'hhhiiiccc',
+            'iiihhhccc',
+        ])
+
+    def testGetsWithBadFilter(self):
+        self.assertGetsFilter('ooo', [
+        ])
+
     def testPageSize(self):
         self.assertGreaterEqual(PAGE_SIZE, 6)
 
     def testGetsForHalfPageWithoutPage(self):
-        self.assertGets(PAGE_SIZE // 2, None, PAGE_SIZE // 2, False, '1 of 1', False)
+        self.assertGetsPage(PAGE_SIZE // 2, None, PAGE_SIZE // 2, False, '1 of 1', False)
 
     def testGetsForHalfPageWithPageZero(self):
-        self.assertGets(PAGE_SIZE // 2, 0, PAGE_SIZE // 2, False, '1 of 1', False)
+        self.assertGetsPage(PAGE_SIZE // 2, 0, PAGE_SIZE // 2, False, '1 of 1', False)
 
     def testGetsForHalfPageWithPageOne(self):
-        self.assertGets(PAGE_SIZE // 2, 1, PAGE_SIZE // 2, False, '1 of 1', False)
+        self.assertGetsPage(PAGE_SIZE // 2, 1, PAGE_SIZE // 2, False, '1 of 1', False)
 
     def testGetsForHalfPageWithPageTwo(self):
-        self.assertGets(PAGE_SIZE // 2, 2, PAGE_SIZE // 2, False, '1 of 1', False)
+        self.assertGetsPage(PAGE_SIZE // 2, 2, PAGE_SIZE // 2, False, '1 of 1', False)
 
     def testGetsForOnePageWithoutPage(self):
-        self.assertGets(PAGE_SIZE, None, PAGE_SIZE, False, '1 of 1', False)
+        self.assertGetsPage(PAGE_SIZE, None, PAGE_SIZE, False, '1 of 1', False)
 
     def testGetsForOnePageWithPageZero(self):
-        self.assertGets(PAGE_SIZE, 0, PAGE_SIZE, False, '1 of 1', False)
+        self.assertGetsPage(PAGE_SIZE, 0, PAGE_SIZE, False, '1 of 1', False)
 
     def testGetsForOnePageWithPageOne(self):
-        self.assertGets(PAGE_SIZE, 1, PAGE_SIZE, False, '1 of 1', False)
+        self.assertGetsPage(PAGE_SIZE, 1, PAGE_SIZE, False, '1 of 1', False)
 
     def testGetsForOnePageWithPageTwo(self):
-        self.assertGets(PAGE_SIZE, 2, PAGE_SIZE, False, '1 of 1', False)
+        self.assertGetsPage(PAGE_SIZE, 2, PAGE_SIZE, False, '1 of 1', False)
 
     def testGetsForOneHalfPageWithoutPage(self):
-        self.assertGets(3 * PAGE_SIZE // 2, None, PAGE_SIZE, False, '1 of 2', True)
+        self.assertGetsPage(3 * PAGE_SIZE // 2, None, PAGE_SIZE, False, '1 of 2', True)
 
     def testGetsForOneHalfPageWithPageZero(self):
-        self.assertGets(3 * PAGE_SIZE // 2, 0, PAGE_SIZE, False, '1 of 2', True)
+        self.assertGetsPage(3 * PAGE_SIZE // 2, 0, PAGE_SIZE, False, '1 of 2', True)
 
     def testGetsForOneHalfPageWithPageOne(self):
-        self.assertGets(3 * PAGE_SIZE // 2, 1, PAGE_SIZE, False, '1 of 2', True)
+        self.assertGetsPage(3 * PAGE_SIZE // 2, 1, PAGE_SIZE, False, '1 of 2', True)
 
     def testGetsForOneHalfPageWithPageTwo(self):
-        self.assertGets(3 * PAGE_SIZE // 2, 2, PAGE_SIZE // 2, True, '2 of 2', False)
+        self.assertGetsPage(3 * PAGE_SIZE // 2, 2, PAGE_SIZE // 2, True, '2 of 2', False)
 
     def testGetsForOneHalfPageWithPageThree(self):
-        self.assertGets(3 * PAGE_SIZE // 2, 3, PAGE_SIZE, False, '1 of 2', True)
+        self.assertGetsPage(3 * PAGE_SIZE // 2, 3, PAGE_SIZE, False, '1 of 2', True)
 
     def testGetsForTwoPagesWithoutPage(self):
-        self.assertGets(2 * PAGE_SIZE, None, PAGE_SIZE, False, '1 of 2', True)
+        self.assertGetsPage(2 * PAGE_SIZE, None, PAGE_SIZE, False, '1 of 2', True)
 
     def testGetsForTwoPagesWithPageZero(self):
-        self.assertGets(2 * PAGE_SIZE, 0, PAGE_SIZE, False, '1 of 2', True)
+        self.assertGetsPage(2 * PAGE_SIZE, 0, PAGE_SIZE, False, '1 of 2', True)
 
     def testGetsForTwoPagesWithPageOne(self):
-        self.assertGets(2 * PAGE_SIZE, 1, PAGE_SIZE, False, '1 of 2', True)
+        self.assertGetsPage(2 * PAGE_SIZE, 1, PAGE_SIZE, False, '1 of 2', True)
 
     def testGetsForTwoPagesWithPageTwo(self):
-        self.assertGets(2 * PAGE_SIZE, 2, PAGE_SIZE, True, '2 of 2', False)
+        self.assertGetsPage(2 * PAGE_SIZE, 2, PAGE_SIZE, True, '2 of 2', False)
 
     def testGetsForTwoPagesWithPageThree(self):
-        self.assertGets(2 * PAGE_SIZE, 3, PAGE_SIZE, False, '1 of 2', True)
+        self.assertGetsPage(2 * PAGE_SIZE, 3, PAGE_SIZE, False, '1 of 2', True)
 
     def testGetsForTwoHalfPagesWithoutPage(self):
-        self.assertGets(5 * PAGE_SIZE // 2, None, PAGE_SIZE, False, '1 of 3', True)
+        self.assertGetsPage(5 * PAGE_SIZE // 2, None, PAGE_SIZE, False, '1 of 3', True)
 
     def testGetsForTwoHalfPagesWithPageZero(self):
-        self.assertGets(5 * PAGE_SIZE // 2, 0, PAGE_SIZE, False, '1 of 3', True)
+        self.assertGetsPage(5 * PAGE_SIZE // 2, 0, PAGE_SIZE, False, '1 of 3', True)
 
     def testGetsForTwoHalfPagesWithPageOne(self):
-        self.assertGets(5 * PAGE_SIZE // 2, 1, PAGE_SIZE, False, '1 of 3', True)
+        self.assertGetsPage(5 * PAGE_SIZE // 2, 1, PAGE_SIZE, False, '1 of 3', True)
 
     def testGetsForTwoHalfPagesWithPageTwo(self):
-        self.assertGets(5 * PAGE_SIZE // 2, 2, PAGE_SIZE, True, '2 of 3', True)
+        self.assertGetsPage(5 * PAGE_SIZE // 2, 2, PAGE_SIZE, True, '2 of 3', True)
 
     def testGetsForTwoHalfPagesWithPageThree(self):
-        self.assertGets(5 * PAGE_SIZE // 2, 3, PAGE_SIZE // 2, True, '3 of 3', False)
+        self.assertGetsPage(5 * PAGE_SIZE // 2, 3, PAGE_SIZE // 2, True, '3 of 3', False)
 
     def testGetsForTwoHalfPagesWithPageFour(self):
-        self.assertGets(5 * PAGE_SIZE // 2, 4, PAGE_SIZE, False, '1 of 3', True)
+        self.assertGetsPage(5 * PAGE_SIZE // 2, 4, PAGE_SIZE, False, '1 of 3', True)
 
     def testGetsForThreePagesWithoutPage(self):
-        self.assertGets(3 * PAGE_SIZE, None, PAGE_SIZE, False, '1 of 3', True)
+        self.assertGetsPage(3 * PAGE_SIZE, None, PAGE_SIZE, False, '1 of 3', True)
 
     def testGetsForThreePagesWithPageZero(self):
-        self.assertGets(3 * PAGE_SIZE, 0, PAGE_SIZE, False, '1 of 3', True)
+        self.assertGetsPage(3 * PAGE_SIZE, 0, PAGE_SIZE, False, '1 of 3', True)
 
     def testGetsForThreePagesWithPageOne(self):
-        self.assertGets(3 * PAGE_SIZE, 1, PAGE_SIZE, False, '1 of 3', True)
+        self.assertGetsPage(3 * PAGE_SIZE, 1, PAGE_SIZE, False, '1 of 3', True)
 
     def testGetsForThreePagesWithPageTwo(self):
-        self.assertGets(3 * PAGE_SIZE, 2, PAGE_SIZE, True, '2 of 3', True)
+        self.assertGetsPage(3 * PAGE_SIZE, 2, PAGE_SIZE, True, '2 of 3', True)
 
     def testGetsForThreePagesWithPageThree(self):
-        self.assertGets(3 * PAGE_SIZE, 3, PAGE_SIZE, True, '3 of 3', False)
+        self.assertGetsPage(3 * PAGE_SIZE, 3, PAGE_SIZE, True, '3 of 3', False)
 
     def testGetsForThreePagesWithPageFour(self):
-        self.assertGets(3 * PAGE_SIZE, 4, PAGE_SIZE, False, '1 of 3', True)
+        self.assertGetsPage(3 * PAGE_SIZE, 4, PAGE_SIZE, False, '1 of 3', True)
 
     def testDoesNotExist(self):
         self.assertDoesNotExist('au')

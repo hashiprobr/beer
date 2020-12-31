@@ -6,7 +6,7 @@
     <h2>
         Bulk add or edit
     </h2>
-    <form class="user" method="post" enctype="multipart/form-data">
+    <form class="bulk" method="post" enctype="multipart/form-data">
         {% csrf_token %}
 
         {{ form.non_field_errors }}
@@ -37,41 +37,47 @@
     <h2>
         Edit, promote, or demote
     </h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Username</th>
-                <th>Email</th>
-                <th></th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for user in users %}
+    <form class="filter" method="get">
+        <input type="text" name="filter"{% if filter %} value="{{ filter }}"{% endif %}>
+        <input type="submit" value="Filter">
+    </form>
+    {% if users %}
+        <table>
+            <thead>
                 <tr>
-                    <td>{{ user.get_username }}</td>
-                    <td>{{ user.email }}</td>
-                    <td><a href="{% url 'user_edit' pk=user.pk %}{{ suffix }}">edit</a></td>
-                    {% if user.pk in users.power_pks %}
-                        <td><a href="{% url 'user_demote' pk=user.pk %}{{ suffix }}">demote</a></td>
-                    {% else %}
-                        <td><a href="{% url 'user_promote' pk=user.pk %}{{ suffix }}">promote</a></td>
-                    {% endif %}
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th></th>
+                    <th></th>
                 </tr>
-            {% endfor %}
-        </tbody>
-        <caption>
-            {% if users.has_previous %}
-                <a href="?page={{ users.previous_page_number }}">🡨</a>
-            {% else %}
-                🡨
-            {% endif %}
-            {{ users.number }} of {{ users.paginator.num_pages }}
-            {% if users.has_next %}
-                <a href="?page={{ users.next_page_number }}">🡪</a>
-            {% else %}
-                🡪
-            {% endif %}
-        </caption>
-    </table>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                    <tr>
+                        <td>{{ user.get_username }}</td>
+                        <td>{{ user.email }}</td>
+                        <td><a href="{% url 'user_edit' pk=user.pk %}{{ suffix }}">edit</a></td>
+                        {% if user.pk in users.power_pks %}
+                            <td><a href="{% url 'user_demote' pk=user.pk %}{{ suffix }}">demote</a></td>
+                        {% else %}
+                            <td><a href="{% url 'user_promote' pk=user.pk %}{{ suffix }}">promote</a></td>
+                        {% endif %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+            <caption>
+                {% if users.has_previous %}
+                    <a href="?{% if filter %}filter={{ filter }}&{% endif %}page={{ users.previous_page_number }}">🡨</a>
+                {% else %}
+                    🡨
+                {% endif %}
+                {{ users.number }} of {{ users.paginator.num_pages }}
+                {% if users.has_next %}
+                    <a href="?{% if filter %}filter={{ filter }}&{% endif %}page={{ users.next_page_number }}">🡪</a>
+                {% else %}
+                    🡪
+                {% endif %}
+            </caption>
+        </table>
+    {% endif %}
 {% endblock %}
