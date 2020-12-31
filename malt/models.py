@@ -36,6 +36,8 @@ class FileAssetManager(models.Manager):
     def pop(self, kwargs):
         if 'uid' in kwargs:
             raise IntegrityError('uid not allowed in kwargs')
+        if 'active' in kwargs:
+            raise IntegrityError('active not allowed in kwargs')
         user = kwargs.pop('user', None)
         while True:
             uid = uuid()
