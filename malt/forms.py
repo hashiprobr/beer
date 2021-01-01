@@ -38,7 +38,7 @@ class UserForm(forms.Form):
                 if username in self.users:
                     self.raiseValidationErrorFile(i, 'username already seen in line {}'.format(self.users[username]['line']))
 
-                kwargs = {
+                defaults = {
                     'line': i,
                 }
 
@@ -49,9 +49,9 @@ class UserForm(forms.Form):
                     else:
                         words.append('')
 
-                    kwargs['email'] = '{}@{}'.format(username, data['domain'])
-                    kwargs['first_name'] = words[1]
-                    kwargs['last_name'] = ' '.join(words[2:])
+                    defaults['email'] = '{}@{}'.format(username, data['domain'])
+                    defaults['first_name'] = words[1]
+                    defaults['last_name'] = ' '.join(words[2:])
                 else:
                     if len(words) > 1:
                         if '@' not in words[1]:
@@ -59,17 +59,17 @@ class UserForm(forms.Form):
                     else:
                         self.raiseValidationErrorFile(i, 'must have at least an username and an email')
 
-                    kwargs['email'] = words[1]
-                    kwargs['first_name'] = words[2] if len(words) > 2 else ''
-                    kwargs['last_name'] = ' '.join(words[3:])
+                    defaults['email'] = words[1]
+                    defaults['first_name'] = words[2] if len(words) > 2 else ''
+                    defaults['last_name'] = ' '.join(words[3:])
 
-                self.users[username] = kwargs
+                self.users[username] = defaults
 
         if not self.users:
             raise ValidationError({'file': 'The file cannot be empty.'})
 
-        for kwargs in self.users.values():
-            del kwargs['line']
+        for defaults in self.users.values():
+            del defaults['line']
 
         return data
 

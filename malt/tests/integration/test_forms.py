@@ -44,8 +44,8 @@ class UserFormTests(IntegrationTestCase):
         form = self.build(name, domain, promote)
         self.assertTrue(form.is_valid())
         self.assertEqual(len(form.users), len(users))
-        for username, kwargs in form.users.items():
-            user = (username, kwargs['email'], kwargs['first_name'], kwargs['last_name'])
+        for username, defaults in form.users.items():
+            user = (username, defaults['email'], defaults['first_name'], defaults['last_name'])
             self.assertIn(user, users)
 
     def assertNotValid(self, name, domain, promote):

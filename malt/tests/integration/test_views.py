@@ -744,6 +744,11 @@ class UserPromoteViewTests(SpecificUserViewTests, ViewTestCase):
         self.assertPosts()
         self.assertPower(self.user)
 
+    def testPostsPosts(self):
+        self.assertPosts()
+        self.assertPosts()
+        self.assertPower(self.user)
+
 
 class UserDemoteViewTests(SpecificUserViewTests, ViewTestCase):
     view_name = 'user_demote'
@@ -755,6 +760,11 @@ class UserDemoteViewTests(SpecificUserViewTests, ViewTestCase):
         self.assertPower(self.power_user)
 
     def testPosts(self):
+        self.assertPosts()
+        self.assertNotPower(self.power_user)
+
+    def testPostsPosts(self):
+        self.assertPosts()
         self.assertPosts()
         self.assertNotPower(self.power_user)
 
