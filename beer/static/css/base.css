@@ -168,10 +168,6 @@ form li {
     border-color: #fff2cc;
 }
 
-.secondary {
-    background-color: #f4cccc;
-}
-
 .card > *:first-child {
     background-color: #ffffff;
 }
@@ -184,9 +180,6 @@ form li {
 }
 
 .large {
-    width: 80ch;
-    max-width: 100%;
-    margin: 1rem;
     padding-bottom: 1rem;
 }
 .large > *:first-child {

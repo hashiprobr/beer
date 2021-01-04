@@ -3,8 +3,9 @@ from urllib.parse import urlencode
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.core.exceptions import ValidationError
 from django.core.paginator import EmptyPage, Paginator
-from django.http import Http404, HttpResponseNotFound, HttpResponseBadRequest, JsonResponse
+from django.http import HttpResponseNotFound, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views import generic
@@ -12,6 +13,7 @@ from django.views.generic.base import ContextMixin, TemplateResponseMixin
 from django.views.generic.detail import SingleObjectTemplateResponseMixin, BaseDetailView
 
 from beer import public_storage
+from beer.utils import collapse
 
 from .models import PowerUser, FolderAsset, FileAsset
 from .forms import UserForm, AssetForm
@@ -62,7 +64,7 @@ class AssetMixin:
 class AssetPathMixin:
     def get_url(self, names):
         if names:
-            return reverse('asset_folder', kwargs={'path': '/'.join(names)})
+            return reverse('asset_manage_folder', kwargs={'path': '/'.join(names)})
         else:
             return reverse('asset_manage')
 
@@ -118,7 +120,7 @@ class UserManageView(LoginRequiredMixin, UserIsSuperMixin, UserViewMixin, FormVi
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         try:
-            filter = self.request.GET['filter'].strip()
+            filter = collapse(self.request.GET['filter'])
         except KeyError:
             filter = ''
         if filter:
@@ -187,8 +189,8 @@ class UploadManageView(LoginRequiredMixin, UserIsPowerMixin, AssetMixin, generic
         body = request.POST.dict()
 
         try:
-            method = body.pop('method')
-            name = body.pop('name')
+            method = collapse(body.pop('method'))
+            name = collapse(body.pop('name'))
         except KeyError:
             return HttpResponseBadRequest()
 
@@ -197,17 +199,16 @@ class UploadManageView(LoginRequiredMixin, UserIsPowerMixin, AssetMixin, generic
             return JsonResponse(body)
 
         if method == 'asset':
-            if not name.strip():
-                return HttpResponseBadRequest('The file name is required.')
-            if '/' in name:
-                return HttpResponseBadRequest('The file name cannot have slashes.')
-            expected = FileAsset.name.field.max_length
-            actual = len(name)
-            if expected < actual:
-                return HttpResponseBadRequest('Ensure the file name has at most {} characters (it has {}).'.format(expected, actual))
+            if not name:
+                return HttpResponseBadRequest('This field is required.')
+            for validator in FileAsset.name.field.validators:
+                try:
+                    validator(name)
+                except ValidationError as error:
+                   return HttpResponseBadRequest(error)
 
             try:
-                path = body['path']
+                path = collapse(body['path'])
             except KeyError:
                 return HttpResponseBadRequest()
 
@@ -256,12 +257,12 @@ class UploadAssetView(LoginRequiredMixin, UserIsPowerMixin, generic.View):
             return HttpResponseNotFound()
 
         try:
-            key = request.POST['key']
-            url = request.POST['success_action_redirect']
+            key = collapse(request.POST['key'])
+            url = collapse(request.POST['success_action_redirect'])
         except KeyError:
             return HttpResponseBadRequest()
 
-        if not key.strip():
+        if not key:
             return HttpResponseBadRequest()
 
         if not url.startswith('http://'):
@@ -282,10 +283,8 @@ class UploadAssetView(LoginRequiredMixin, UserIsPowerMixin, generic.View):
 
 class UploadAssetConfirmView(LoginRequiredMixin, UserIsPowerMixin, AssetPathMixin, generic.View):
     def get(self, request, *args, **kwargs):
-        body = request.GET.dict()
-
         try:
-            key = body['key']
+            key = collapse(request.GET['key'])
         except KeyError:
             return HttpResponseBadRequest()
 
@@ -410,21 +409,24 @@ class IndexView(LoginRequiredMixin, TemplateView):
 
 
 class YeastView(LoginRequiredMixin, TemplateView):
+    def get_kwargs(self):
+        kwargs = self.kwargs
+        self.Yeast.update_kwargs(kwargs)
+        return kwargs
+
     def get_object(self):
-        yeast = self.Yeast(None, [])
+        kwargs = self.get_kwargs()
         active = not self.request.resolver_match.view_name.endswith('_draft')
-        try:
-            return yeast.get_object(active, self.kwargs)
-        except yeast.Model.DoesNotExist:
-            raise Http404()
+        return get_object_or_404(self.Yeast.Model, **kwargs, active=active)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        object = self.get_object()
+        context['object'] = object
+        self.Yeast.update_context_data(context, object)
+        return context
 
 
 class CalendarView(YeastView):
     Yeast = CalendarYeast
-    template_name = 'malt/calendar.html'
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        calendar = self.get_object()
-        context['active'] = calendar.active
-        return context
+    template_name = 'malt/yeast/calendar.html'

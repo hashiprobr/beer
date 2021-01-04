@@ -9,8 +9,8 @@ from ...models import (
     Weekday,
     PowerUser,
     FolderAsset, FileAsset,
-    Calendar, DraftCalendar,
-    Course, DraftCourse,
+    Calendar,
+    Course,
     Schedule,
     SingleEvent, WeeklyEvent,
     CalendarCancelation, ScheduleCancelation,
@@ -350,6 +350,8 @@ class FileAssetTests(IntegrationTestCase):
         file_asset.user = user
         file_asset.parent = parent
         file_asset.name = name
+        file_asset.uid = ''
+        file_asset.active = True
         file_asset.save()
 
     def delete(self, user, parent, name):
@@ -361,8 +363,7 @@ class FileAssetTests(IntegrationTestCase):
         self.assertEqual(user, file_asset.user)
         self.assertEqual(parent, file_asset.parent)
         self.assertEqual(name, file_asset.name)
-        self.assertTrue(file_asset.uid)
-        self.assertFalse(file_asset.active)
+        return file_asset
 
     def assertDoesNotExist(self, user, parent, name):
         self.assertFalse(self.exists(user, parent, name))
@@ -371,7 +372,9 @@ class FileAssetTests(IntegrationTestCase):
 
     def assertCreates(self, user, parent, name):
         self.create(user, parent, name)
-        self.assertExists(user, parent, name)
+        file_asset = self.assertExists(user, parent, name)
+        self.assertTrue(file_asset.uid)
+        self.assertFalse(file_asset.active)
 
     def assertDoesNotCreate(self, user, parent, name, **kwargs):
         with self.assertRaises(DatabaseError):
@@ -393,7 +396,9 @@ class FileAssetTests(IntegrationTestCase):
 
     def assertUpdates(self, file_asset, user, parent, name):
         self.update(file_asset, user, parent, name)
-        self.assertExists(user, parent, name)
+        file_asset = self.assertExists(user, parent, name)
+        self.assertFalse(file_asset.uid)
+        self.assertTrue(file_asset.active)
 
     def assertDoesNotUpdate(self, file_asset, user, parent, name):
         with self.assertRaises(DatabaseError):
@@ -542,9 +547,9 @@ class BaseCalendarTests:
     other_title = 'ot'
 
     def setUp(self):
-        self.upper_slug = (self.Model.slug.field.max_length + 1) * 's'
+        self.upper_slug = (Calendar.slug.field.max_length + 1) * 's'
 
-        self.upper_title = (self.Model.title.field.max_length + 1) * 't'
+        self.upper_title = (Calendar.title.field.max_length + 1) * 't'
 
         self.user = User.objects.create_user('u')
         self.other_user = User.objects.create_user('ou')
@@ -556,40 +561,42 @@ class BaseCalendarTests:
         self.other_end_date = date(1983, 5, 26)
 
     def exists(self, user, slug, title, begin_date, end_date):
-        return self.Model.objects.filter(user=user, slug=slug, title=title, begin_date=begin_date, end_date=end_date).exists()
+        return Calendar.objects.filter(user=user, slug=slug, active=self.active, title=title, begin_date=begin_date, end_date=end_date).exists()
 
     def create(self, user, slug, title, begin_date, end_date):
-        return self.Model.objects.create(user=user, slug=slug, title=title, begin_date=begin_date, end_date=end_date)
+        return Calendar.objects.create(user=user, slug=slug, active=self.active, title=title, begin_date=begin_date, end_date=end_date)
 
     def retrieve(self, user, slug, title, begin_date, end_date):
-        return self.Model.objects.get(user=user, slug=slug, title=title, begin_date=begin_date, end_date=end_date)
+        return Calendar.objects.get(user=user, slug=slug, active=self.active, title=title, begin_date=begin_date, end_date=end_date)
 
     def create_retrieve(self, user, slug, title, begin_date, end_date):
-        return self.Model.objects.get_or_create(user=user, slug=slug, title=title, begin_date=begin_date, end_date=end_date)
+        return Calendar.objects.get_or_create(user=user, slug=slug, active=self.active, title=title, begin_date=begin_date, end_date=end_date)
 
     def update(self, calendar, user, slug, title, begin_date, end_date):
         calendar.user = user
         calendar.slug = slug
+        calendar.active = self.active
         calendar.title = title
         calendar.begin_date = begin_date
         calendar.end_date = end_date
         calendar.save()
 
     def delete(self, user, slug, title, begin_date, end_date):
-        self.Model.objects.filter(user=user, slug=slug, title=title, begin_date=begin_date, end_date=end_date).delete()
+        Calendar.objects.filter(user=user, slug=slug, active=self.active, title=title, begin_date=begin_date, end_date=end_date).delete()
 
     def assertExists(self, user, slug, title, begin_date, end_date):
         self.assertTrue(self.exists(user, slug, title, begin_date, end_date))
         calendar = self.retrieve(user, slug, title, begin_date, end_date)
         self.assertEqual(user, calendar.user)
         self.assertEqual(slug, calendar.slug)
+        self.assertEqual(self.active, calendar.active)
         self.assertEqual(title, calendar.title)
         self.assertEqual(begin_date, calendar.begin_date)
         self.assertEqual(end_date, calendar.end_date)
 
     def assertDoesNotExist(self, user, slug, title, begin_date, end_date):
         self.assertFalse(self.exists(user, slug, title, begin_date, end_date))
-        with self.assertRaises(self.Model.DoesNotExist):
+        with self.assertRaises(Calendar.DoesNotExist):
             self.retrieve(user, slug, title, begin_date, end_date)
 
     def assertCreates(self, user, slug, title, begin_date, end_date):
@@ -734,12 +741,12 @@ class BaseCalendarTests:
         self.assertDoesNotExist(self.user, self.slug, self.title, self.begin_date, self.end_date)
 
 
-class CalendarTests(BaseCalendarTests, IntegrationTestCase):
-    Model = Calendar
-
-
 class DraftCalendarTests(BaseCalendarTests, IntegrationTestCase):
-    Model = DraftCalendar
+    active = False
+
+
+class CalendarTests(BaseCalendarTests, IntegrationTestCase):
+    active = True
 
 
 class BaseCourseTests:
@@ -750,49 +757,51 @@ class BaseCourseTests:
     other_title = 'ot'
 
     def setUp(self):
-        self.upper_slug = (self.Model.slug.field.max_length + 1) * 's'
+        self.upper_slug = (Course.slug.field.max_length + 1) * 's'
 
-        self.upper_title = (self.Model.title.field.max_length + 1) * 't'
+        self.upper_title = (Course.title.field.max_length + 1) * 't'
 
         user = User.objects.create_user('u')
         begin_date = date(1983, 4, 25)
         end_date = date(1983, 5, 25)
-        self.calendar = Calendar.objects.create(user=user, slug='cs', title='ct', begin_date=begin_date, end_date=end_date)
+        self.calendar = Calendar.objects.create(user=user, slug='cs', active=True, title='ct', begin_date=begin_date, end_date=end_date)
         other_begin_date = date(1983, 4, 26)
         other_end_date = date(1983, 5, 26)
-        self.other_calendar = Calendar.objects.create(user=user, slug='ocs', title='oct', begin_date=other_begin_date, end_date=other_end_date)
+        self.other_calendar = Calendar.objects.create(user=user, slug='ocs', active=True, title='oct', begin_date=other_begin_date, end_date=other_end_date)
 
     def exists(self, calendar, slug, title):
-        return self.Model.objects.filter(calendar=calendar, slug=slug, title=title).exists()
+        return Course.objects.filter(calendar=calendar, slug=slug, active=self.active, title=title).exists()
 
     def create(self, calendar, slug, title):
-        return self.Model.objects.create(calendar=calendar, slug=slug, title=title)
+        return Course.objects.create(calendar=calendar, slug=slug, active=self.active, title=title)
 
     def retrieve(self, calendar, slug, title):
-        return self.Model.objects.get(calendar=calendar, slug=slug, title=title)
+        return Course.objects.get(calendar=calendar, slug=slug, active=self.active, title=title)
 
     def create_retrieve(self, calendar, slug, title):
-        return self.Model.objects.get_or_create(calendar=calendar, slug=slug, title=title)
+        return Course.objects.get_or_create(calendar=calendar, slug=slug, active=self.active, title=title)
 
     def update(self, course, calendar, slug, title):
         course.calendar = calendar
         course.slug = slug
+        course.active = self.active
         course.title = title
         course.save()
 
     def delete(self, calendar, slug, title):
-        self.Model.objects.filter(calendar=calendar, slug=slug, title=title).delete()
+        Course.objects.filter(calendar=calendar, slug=slug, active=self.active, title=title).delete()
 
     def assertExists(self, calendar, slug, title):
         self.assertTrue(self.exists(calendar, slug, title))
         course = self.retrieve(calendar, slug, title)
         self.assertEqual(calendar, course.calendar)
         self.assertEqual(slug, course.slug)
+        self.assertEqual(self.active, course.active)
         self.assertEqual(title, course.title)
 
     def assertDoesNotExist(self, calendar, slug, title):
         self.assertFalse(self.exists(calendar, slug, title))
-        with self.assertRaises(self.Model.DoesNotExist):
+        with self.assertRaises(Course.DoesNotExist):
             self.retrieve(calendar, slug, title)
 
     def assertCreates(self, calendar, slug, title):
@@ -916,12 +925,12 @@ class BaseCourseTests:
         self.assertDoesNotExist(self.calendar, self.slug, self.title)
 
 
-class CourseTests(BaseCourseTests, IntegrationTestCase):
-    Model = Course
-
-
 class DraftCourseTests(BaseCourseTests, IntegrationTestCase):
-    Model = DraftCourse
+    active = False
+
+
+class CourseTests(BaseCourseTests, IntegrationTestCase):
+    active = True
 
 
 class ScheduleTests(IntegrationTestCase):
@@ -934,9 +943,9 @@ class ScheduleTests(IntegrationTestCase):
         user = User.objects.create_user('u')
         begin_date = date(1983, 4, 25)
         end_date = date(1983, 5, 25)
-        calendar = Calendar.objects.create(user=user, slug='cas', title='cat', begin_date=begin_date, end_date=end_date)
-        self.course = Course.objects.create(calendar=calendar, slug='cos', title='cot')
-        self.other_course = Course.objects.create(calendar=calendar, slug='ocos', title='ocot')
+        calendar = Calendar.objects.create(user=user, slug='cas', active=True, title='cat', begin_date=begin_date, end_date=end_date)
+        self.course = Course.objects.create(calendar=calendar, slug='cos', active=True, title='cot')
+        self.other_course = Course.objects.create(calendar=calendar, slug='ocos', active=True, title='ocot')
 
     def exists(self, course, title):
         return Schedule.objects.filter(course=course, title=title).exists()
@@ -1068,8 +1077,8 @@ class SingleEventTests(IntegrationTestCase):
         user = User.objects.create_user('u')
         begin_date = date(1983, 4, 26)
         end_date = date(1983, 5, 26)
-        calendar = Calendar.objects.create(user=user, slug='cas', title='cat', begin_date=begin_date, end_date=end_date)
-        course = Course.objects.create(calendar=calendar, slug='cos', title='cot')
+        calendar = Calendar.objects.create(user=user, slug='cas', active=True, title='cat', begin_date=begin_date, end_date=end_date)
+        course = Course.objects.create(calendar=calendar, slug='cos', active=True, title='cot')
         self.schedule = Schedule.objects.create(course=course, title='st')
         self.other_schedule = Schedule.objects.create(course=course, title='ost')
 
@@ -1252,8 +1261,8 @@ class WeeklyEventTests(IntegrationTestCase):
         user = User.objects.create_user('u')
         begin_date = date(1983, 4, 26)
         end_date = date(1983, 5, 26)
-        calendar = Calendar.objects.create(user=user, slug='cas', title='cat', begin_date=begin_date, end_date=end_date)
-        course = Course.objects.create(calendar=calendar, slug='cos', title='cot')
+        calendar = Calendar.objects.create(user=user, slug='cas', active=True, title='cat', begin_date=begin_date, end_date=end_date)
+        course = Course.objects.create(calendar=calendar, slug='cos', active=True, title='cot')
         self.schedule = Schedule.objects.create(course=course, title='st')
         self.other_schedule = Schedule.objects.create(course=course, title='ost')
 
@@ -1430,10 +1439,10 @@ class CalendarCancelationTests(IntegrationTestCase):
         user = User.objects.create_user('u')
         begin_date = date(1983, 4, 25)
         end_date = date(1983, 5, 25)
-        self.calendar = Calendar.objects.create(user=user, slug='cs', title='ct', begin_date=begin_date, end_date=end_date)
+        self.calendar = Calendar.objects.create(user=user, slug='cs', active=True, title='ct', begin_date=begin_date, end_date=end_date)
         other_begin_date = date(1983, 4, 26)
         other_end_date = date(1983, 5, 26)
-        self.other_calendar = Calendar.objects.create(user=user, slug='ocs', title='oct', begin_date=other_begin_date, end_date=other_end_date)
+        self.other_calendar = Calendar.objects.create(user=user, slug='ocs', active=True, title='oct', begin_date=other_begin_date, end_date=other_end_date)
 
     def exists(self, calendar, date, title):
         return CalendarCancelation.objects.filter(calendar=calendar, date=date, title=title).exists()
@@ -1595,8 +1604,8 @@ class ScheduleCancelationTests(IntegrationTestCase):
         user = User.objects.create_user('u')
         begin_date = date(1983, 4, 26)
         end_date = date(1983, 5, 26)
-        calendar = Calendar.objects.create(user=user, slug='cas', title='cat', begin_date=begin_date, end_date=end_date)
-        course = Course.objects.create(calendar=calendar, slug='cos', title='cot')
+        calendar = Calendar.objects.create(user=user, slug='cas', active=True, title='cat', begin_date=begin_date, end_date=end_date)
+        course = Course.objects.create(calendar=calendar, slug='cos', active=True, title='cot')
         self.schedule = Schedule.objects.create(course=course, title='st')
         self.other_schedule = Schedule.objects.create(course=course, title='ost')
 

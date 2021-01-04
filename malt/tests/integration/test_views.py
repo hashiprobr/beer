@@ -1434,7 +1434,7 @@ class AssetManageViewTests(AssetViewTests, ViewTestCase):
 
 
 class AssetFolderManageViewTests(AssetFolderViewTests, AssetManageViewTests):
-    view_name = 'asset_folder'
+    view_name = 'asset_manage_folder'
 
     def setUp(self):
         super().setUp()

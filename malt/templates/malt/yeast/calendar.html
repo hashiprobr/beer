@@ -1,0 +1,28 @@
+{% extends 'malt/yeast/base.html' %}
+
+{% block title %}Calendar{% endblock %}
+
+{% block subtitle %}Calendar{% endblock %}
+
+{% block subbody %}
+    <p>
+        {{ object.user }}
+    </p>
+    <p>
+        {{ object.slug }}
+    </p>
+    <p>
+        {{ object.title }}
+    </p>
+    <p>
+        {{ object.begin_date }}
+    </p>
+    <p>
+        {{ object.end_date }}
+    </p>
+    {% for cancelation in cancelations %}
+        <p>
+            {{ cancelation.date }}, {{ cancelation.title }}
+        </p>
+    {% endfor %}
+{% endblock %}

@@ -21,6 +21,7 @@ else:
     from django.contrib.staticfiles.testing import StaticLiveServerTestCase as SyncLiveServerTestCase
 
 from .. import public_storage, private_storage
+from ..utils import collapse
 
 
 FILES_DIR = 'files'
@@ -81,7 +82,7 @@ class ViewTestCase(IntegrationTestCase):
         return json.loads(response.content)
 
     def string(self, element):
-        return ' '.join(''.join(element.find_all(text=True)).strip().split())
+        return collapse(''.join(element.find_all(text=True)))
 
 
 class AcceptanceTestCase:
@@ -207,7 +208,7 @@ class AcceptanceTestCase:
         return WebDriverWait(self.driver, timeout).until(lambda driver: condition(*args), 'Exceeded {} seconds'.format(timeout))
 
     def text(self, element):
-        return ' '.join(element.text.strip().split())
+        return collapse(element.text)
 
 
 class AcceptanceSyncTestCase(FilesMixin, ClearMixin, AcceptanceTestCase, SyncLiveServerTestCase):

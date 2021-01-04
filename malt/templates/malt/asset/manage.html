@@ -20,7 +20,7 @@
                 {% for folder in folders %}
                     <tr>
                         {% with path=prefix|append:folder.name %}
-                            <td><a href="{% url 'asset_folder' path=path %}">{{ folder.name }}</a></td>
+                            <td><a href="{% url 'asset_manage_folder' path=path %}">{{ folder.name }}</a></td>
                             <td><a href="{% url 'asset_edit' path=path %}">edit</a></td>
                             <td><a href="{% url 'asset_remove' path=path %}">remove</a></td>
                         {% endwith %}

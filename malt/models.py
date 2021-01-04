@@ -1,6 +1,7 @@
-from datetime import time
+import datetime
 
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.db import models, transaction, IntegrityError
 from django.db.models import F, Q
 from shortuuid import uuid
@@ -8,6 +9,11 @@ from shortuuid import uuid
 from beer import public_storage
 
 User = get_user_model()
+
+
+def validate_slash(value):
+    if '/' in value:
+        raise ValidationError('This value cannot have slashes.')
 
 
 class Weekday(models.IntegerChoices):
@@ -32,7 +38,7 @@ class Asset(models.Model):
         ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    name = models.CharField(max_length=22)
+    name = models.CharField(max_length=22, validators=[validate_slash])
 
     def names(self):
         if self.parent is None:
@@ -86,14 +92,18 @@ class YeastModel(models.Model):
         abstract = True
 
     slug = models.SlugField(max_length=22)
+    active = models.BooleanField()
+    timestamp = models.DateTimeField(auto_now=True)
     title = models.CharField(max_length=44)
 
 
-class BaseCalendar(YeastModel):
+class Calendar(YeastModel):
     class Meta:
-        abstract = True
         unique_together = [
-            ('user', 'slug'),
+            ('user', 'slug', 'active'),
+        ]
+        constraints = [
+            models.CheckConstraint(name='calendar_dates_order', check=Q(begin_date__lte=F('end_date'))),
         ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -101,36 +111,13 @@ class BaseCalendar(YeastModel):
     end_date = models.DateField()
 
 
-class Calendar(BaseCalendar):
-    class Meta(BaseCalendar.Meta):
-        constraints = [
-            models.CheckConstraint(name='calendar_dates_order', check=Q(begin_date__lte=F('end_date'))),
-        ]
-
-
-class DraftCalendar(BaseCalendar):
-    class Meta(BaseCalendar.Meta):
-        constraints = [
-            models.CheckConstraint(name='draft_calendar_dates_order', check=Q(begin_date__lte=F('end_date'))),
-        ]
-
-
-class BaseCourse(YeastModel):
+class Course(YeastModel):
     class Meta:
-        abstract = True
         unique_together = [
-            ('calendar', 'slug'),
+            ('calendar', 'slug', 'active'),
         ]
 
     calendar = models.ForeignKey(Calendar, on_delete=models.CASCADE)
-
-
-class Course(BaseCourse):
-    pass
-
-
-class DraftCourse(BaseCourse):
-    pass
 
 
 class Schedule(models.Model):
@@ -149,7 +136,7 @@ class Event(models.Model):
 
     @classmethod
     def time(cls, hour, minute):
-        return time(hour, minute, 0, 0, None)
+        return datetime.time(hour, minute, 0, 0, None)
 
 
 class SingleEvent(Event):
@@ -174,8 +161,8 @@ class Cancelation(models.Model):
     class Meta:
         abstract = True
 
-    title = models.CharField(max_length=44)
     date = models.DateField()
+    title = models.CharField(max_length=44)
 
 
 class CalendarCancelation(Cancelation):

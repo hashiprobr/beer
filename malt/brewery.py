@@ -83,14 +83,15 @@ class Grower(Brewer):
 class Primer(Brewer):
     def prime(self, meta, sugars, Yeasts):
         try:
-            type = meta.pop('view_name')
+            view_name = meta.pop('view_name')
         except KeyError:
             self.exit('Page not found.')
 
-        if type.endswith('_draft'):
-            type = type[:-6]
+        if view_name.endswith('_draft'):
+            type = view_name[:-6]
             active = False
         else:
+            type = view_name
             active = True
 
         try:
@@ -105,9 +106,7 @@ class Primer(Brewer):
         except YeastError:
             self.exit('Page not valid.')
 
-        clean_meta['active'] = active
-
-        return yeast.referment(clean_meta, sugars)
+        return yeast.referment(clean_meta, sugars, active)
 
 
 class Brewery(Brewer):

@@ -90,8 +90,6 @@ class AssetForm(forms.ModelForm):
         data = super().clean()
         if 'name' in data:
             name = data['name']
-            if '/' in name:
-                raise ValidationError({'name': 'The asset name cannot have slashes.'})
             if self.child is None or self.child.name != name:
                 if self.Asset.objects.filter(user=self.user, parent=self.parent, name=name).exists():
                     raise ValidationError({'name': 'An asset with that name already exists.'})

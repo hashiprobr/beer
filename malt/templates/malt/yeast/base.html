@@ -1,0 +1,23 @@
+{% extends 'malt/base.html' %}
+
+{% block subcss %}
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'malt/css/yeast.css' %}">
+{% endblock %}
+
+{% block header %}
+    <header{% if not object.active %} class="draft"{% endif %}>
+        <p>
+            {% if object.active %}
+                Published
+            {% else %}
+                Uploaded
+            {% endif %}
+            in {{ object.timestamp }}.
+        </p>
+        <p><a href="">edit</a></p>
+        {% if not object.active %}
+            <p><a href="">publish</a></p>
+        {% endif %}
+    </header>
+{% endblock %}

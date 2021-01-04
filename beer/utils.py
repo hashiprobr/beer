@@ -6,6 +6,10 @@ from django.utils.module_loading import import_string
 from .filestore import PublicLocalStorage, PrivateLocalStorage
 
 
+def collapse(value):
+    return ' '.join(value.strip().split())
+
+
 def build_urlpatterns():
     urlpatterns = []
 

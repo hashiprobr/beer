@@ -48,16 +48,22 @@
         </div>
     </nav>
     <div class="deck">
-        {% block header %}
+        {% block left %}
         {% endblock %}
-        <main class="card primary large">
-            <h1>
-                {% block subtitle %}{% endblock %}
-            </h1>
-            {% block subbody %}
+        <div class="center">
+            {% block header %}
             {% endblock %}
-        </main>
-        {% block footer %}
+            <main class="card primary large">
+                <h1>
+                    {% block subtitle %}{% endblock %}
+                </h1>
+                {% block subbody %}
+                {% endblock %}
+            </main>
+            {% block footer %}
+            {% endblock %}
+        </div>
+        {% block right %}
         {% endblock %}
     </div>
 {% endblock %}
