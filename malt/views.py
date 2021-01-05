@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.exceptions import ValidationError
 from django.core.paginator import EmptyPage, Paginator
+from django.db import models, transaction
 from django.http import HttpResponseNotFound, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
@@ -215,6 +216,7 @@ class UploadManageView(LoginRequiredMixin, UserIsPowerMixin, AssetMixin, generic
             _, parent = self.get_objects(path)
 
             asset, _ = FileAsset.objects.get_or_create(user=request.user, parent=parent, name=name)
+
             key = asset.key()
             redirect_url = '{}://{}{}'.format(request.scheme, request.get_host(), reverse('upload_asset_confirm'))
 
@@ -408,10 +410,12 @@ class IndexView(LoginRequiredMixin, TemplateView):
         return context
 
 
-class YeastView(LoginRequiredMixin, TemplateView):
+class YeastMixin:
     def get_kwargs(self):
-        kwargs = self.kwargs
+        kwargs = self.kwargs.copy()
+        slug = kwargs.pop('slug')
         self.Yeast.update_kwargs(kwargs)
+        kwargs['slug'] = slug
         return kwargs
 
     def get_object(self):
@@ -422,11 +426,97 @@ class YeastView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         object = self.get_object()
-        context['object'] = object
         self.Yeast.update_context_data(context, object)
+        context['object'] = object
+        if object.active:
+            context['edit_url'] = reverse(self.Yeast.name + '_edit', kwargs=self.kwargs)
+        else:
+            context['edit_url'] = reverse(self.Yeast.name + '_edit_draft', kwargs=self.kwargs)
+            context['publish_url'] = reverse(self.Yeast.name + '_publish_draft', kwargs=self.kwargs)
         return context
 
 
-class CalendarView(YeastView):
+class YAMLYeastMixin(YeastMixin):
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        object = context['object']
+        context['title'] = object.title
+        return context
+
+
+class YeastEditView(FormView):
+    template_name = 'malt/yeast/edit.html'
+
+
+class YeastPublishView(TemplateView):
+    template_name = 'malt/yeast/publish.html'
+
+    def post(self, request, *args, **kwargs):
+        with transaction.atomic():
+            object_draft = self.get_object()
+
+            kwargs = self.get_kwargs()
+            try:
+                object = self.Yeast.Model.objects.get(**kwargs, active=True)
+            except self.Yeast.Model.DoesNotExist:
+                object = self.get_object()
+                object.pk = None
+                object.active = True
+                object.save()
+
+                kwargs = {self.Yeast.name: object}
+                for query in self.Yeast.get_queries(object_draft):
+                    query.update(**kwargs)
+
+                object_draft.delete()
+            else:
+                names = set(field.name for field in self.Yeast.Model._meta.fields)
+
+                exclude = {'id', 'timestamp'}
+                for constraint in self.Yeast.Model._meta.constraints:
+                    if isinstance(constraint, models.UniqueConstraint):
+                        exclude.update(constraint.fields)
+
+                for name in names - exclude:
+                    temp = getattr(object, name)
+                    setattr(object, name, getattr(object_draft, name))
+                    setattr(object_draft, name, temp)
+
+                object_draft.save()
+                object.save()
+
+                children_draft = []
+                for query in self.Yeast.get_queries(object_draft):
+                    children_draft.extend(child for child in query)
+                    query.delete()
+
+                children = []
+                for query in self.Yeast.get_queries(object):
+                    children.extend(child for child in query)
+                    query.delete()
+
+                for child in children_draft:
+                    setattr(child, self.Yeast.name, object)
+                    child.save()
+
+                for child in children:
+                    setattr(child, self.Yeast.name, object_draft)
+                    child.save()
+
+        return redirect(reverse(self.Yeast.name, kwargs=self.kwargs))
+
+
+class CalendarMixin(YAMLYeastMixin):
     Yeast = CalendarYeast
+
+
+class CalendarView(LoginRequiredMixin, CalendarMixin, TemplateView):
     template_name = 'malt/yeast/calendar.html'
+
+
+class CalendarEditView(LoginRequiredMixin, CalendarMixin, YeastEditView):
+    pass
+
+
+class CalendarPublishView(LoginRequiredMixin, CalendarMixin, YeastPublishView):
+    pass

@@ -42,7 +42,7 @@ class Grower(Brewer):
                 try:
                     meta = yaml.load('\n'.join(lines[:i]), Loader=yaml.Loader)
                 except YAMLError as error:
-                    self.print('Preamble is not valid YAML: {}'.format(error))
+                    self.print('Preamble is not valid YAML: {}.'.format(error))
                     return None
                 self.print('Preamble is valid YAML.')
 
@@ -70,7 +70,7 @@ class Grower(Brewer):
                 try:
                     clean_meta = yeast.clean(meta)
                 except YeastError as error:
-                    self.print('Preamble does not describe a valid {}: {}'.format(type, error))
+                    self.print('Preamble does not describe a valid {}: {}.'.format(type, error))
                     return None
                 self.print('Preamble describes a valid {}.'.format(type))
 
@@ -99,12 +99,12 @@ class Primer(Brewer):
         except KeyError:
             self.exit('File does not have an yeast and page is not editable.')
 
-        yeast = Yeast(self.user, [])
+        yeast = Yeast(self.user, self.history)
 
         try:
             clean_meta = yeast.clean(meta)
-        except YeastError:
-            self.exit('Page not valid.')
+        except YeastError as error:
+            self.exit('Page not valid: {}.'.format(error))
 
         return yeast.referment(clean_meta, sugars, active)
 
@@ -136,7 +136,7 @@ class Brewery(Brewer):
             try:
                 members = enzyme.convert(content)
             except EnzymeError as error:
-                self.print('File is not a valid {} archive: {}'.format(enzyme.extension, error))
+                self.print('File is not a valid {} archive: {}.'.format(enzyme.extension, error))
                 continue
             self.print('File is a valid {} archive.'.format(enzyme.extension))
 

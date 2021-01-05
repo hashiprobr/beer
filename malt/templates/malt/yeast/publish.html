@@ -1,0 +1,14 @@
+{% extends 'malt/yeast/base.html' %}
+
+{% block subbody %}
+    <h2>
+        Publish?
+    </h2>
+    <p>
+        The current published version will become the new draft version.
+    </p>
+    <form method="post">
+        {% csrf_token %}
+        <input type="submit" value="Confirm">
+    </form>
+{% endblock %}

@@ -33,9 +33,6 @@ class PowerUser(models.Model):
 class Asset(models.Model):
     class Meta:
         abstract = True
-        unique_together = [
-            ('user', 'parent', 'name'),
-        ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     name = models.CharField(max_length=22, validators=[validate_slash])
@@ -48,6 +45,11 @@ class Asset(models.Model):
 
 
 class FolderAsset(Asset):
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(name='folderasset_unique', fields=['user', 'parent', 'name']),
+        ]
+
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True)
 
 
@@ -75,6 +77,11 @@ class FileAssetManager(models.Manager):
 
 
 class FileAsset(Asset):
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(name='fileasset_unique', fields=['user', 'parent', 'name']),
+        ]
+
     parent = models.ForeignKey(FolderAsset, on_delete=models.CASCADE, null=True)
     uid = models.CharField(max_length=22)
     active = models.BooleanField(default=False)
@@ -94,30 +101,29 @@ class YeastModel(models.Model):
     slug = models.SlugField(max_length=22)
     active = models.BooleanField()
     timestamp = models.DateTimeField(auto_now=True)
-    title = models.CharField(max_length=44)
 
 
 class Calendar(YeastModel):
     class Meta:
-        unique_together = [
-            ('user', 'slug', 'active'),
-        ]
         constraints = [
+            models.UniqueConstraint(name='calendar_unique', fields=['user', 'slug', 'active']),
             models.CheckConstraint(name='calendar_dates_order', check=Q(begin_date__lte=F('end_date'))),
         ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+    title = models.CharField(max_length=44)
     begin_date = models.DateField()
     end_date = models.DateField()
 
 
 class Course(YeastModel):
     class Meta:
-        unique_together = [
-            ('calendar', 'slug', 'active'),
+        constraints = [
+            models.UniqueConstraint(name='course_unique', fields=['calendar', 'slug', 'active']),
         ]
 
     calendar = models.ForeignKey(Calendar, on_delete=models.CASCADE)
+    title = models.CharField(max_length=44)
 
 
 class Schedule(models.Model):
@@ -167,8 +173,8 @@ class Cancelation(models.Model):
 
 class CalendarCancelation(Cancelation):
     class Meta:
-        unique_together = [
-            ('calendar', 'date'),
+        constraints = [
+            models.UniqueConstraint(name='calendarcancelation_unique', fields=['calendar', 'date']),
         ]
 
     calendar = models.ForeignKey(Calendar, on_delete=models.CASCADE)
@@ -176,8 +182,8 @@ class CalendarCancelation(Cancelation):
 
 class ScheduleCancelation(Cancelation):
     class Meta:
-        unique_together = [
-            ('schedule', 'date'),
+        constraints = [
+            models.UniqueConstraint(name='schedulecancelation_unique', fields=['schedule', 'date']),
         ]
 
     schedule = models.ForeignKey(Schedule, on_delete=models.CASCADE)

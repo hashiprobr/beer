@@ -9,48 +9,64 @@ class CalendarYeast(YAMLYeast):
     name = 'calendar'
 
     @classmethod
+    def get_cancelations(cls, object):
+        return CalendarCancelation.objects.filter(calendar=object)
+
+    @classmethod
+    def get_queries(cls, object):
+        return [
+            cls.get_cancelations(object),
+        ]
+
+    @classmethod
     def update_kwargs(cls, kwargs):
-        kwargs['user__username'] = kwargs.pop('username')
+        kwargs['user__username'] = kwargs.pop('user')
 
     @classmethod
     def update_context_data(self, context, object):
-        context['cancelations'] = CalendarCancelation.objects.filter(calendar=object)
+        context['cancelations'] = self.get_cancelations(object)
 
     def process(self, meta, data):
-        root = self.parse_dict(data)
+        model_kwargs = {
+            'user': self.user,
+        }
 
-        begin_date = self.get_or_exit(root, 'begin_date', datetime.date)
-        self.validate(self.Model, 'begin_date', begin_date)
+        view_kwargs = {
+            'user': self.user.get_username(),
+        }
 
-        end_date = self.get_or_exit(root, 'end_date', datetime.date)
-        self.validate(self.Model, 'end_date', end_date)
-
+        root = self.parse(data)
+        title = self.get_or_exit(root, 'title', str, self.Model)
+        begin_date = self.get_or_exit(root, 'begin_date', datetime.date, self.Model)
+        end_date = self.get_or_exit(root, 'end_date', datetime.date, self.Model)
         if begin_date > end_date:
             self.exit('Begin date later than end date.')
 
-        model_kwargs = {'user': self.user}
-        defaults = {'begin_date': begin_date, 'end_date': end_date}
+        defaults = {
+            'title': title,
+            'begin_date': begin_date,
+            'end_date': end_date,
+        }
         objects = self.pre_process(model_kwargs, defaults)
-        view_kwargs = {'username': self.user.get_username()}
 
-        cancelations = self.get(root, 'cancelations', list)
-        if cancelations is not None:
-            dates = set()
-            for cancelation in self.iterate(cancelations, dict):
-                date = self.get_or_exit(cancelation, 'date', datetime.date)
-                self.validate(CalendarCancelation, 'date', date)
-                if date in dates:
-                    self.exit('Date repeated.')
-                if date < begin_date or date > end_date:
-                    self.exit('Date outside calendar interval.')
-                dates.add(date)
+        dates = set()
+        for cancelation in self.iterate(root, 'cancelations', dict):
+            date = self.get_or_exit(cancelation, 'date', datetime.date, CalendarCancelation)
+            if date in dates:
+                self.exit('Date repeated.')
+            if date < begin_date or date > end_date:
+                self.exit('Date outside calendar interval.')
+            title = self.get_or_exit(cancelation, 'title', str, CalendarCancelation)
+            dates.add(date)
 
-                title = self.get_or_exit(cancelation, 'title', str)
-                self.validate(CalendarCancelation, 'title', title)
+            kwargs = {
+                'calendar': objects[0],
+                'date': date,
+                'title': title,
+            }
+            objects.append(CalendarCancelation(**kwargs))
 
-                objects.append(CalendarCancelation(calendar=objects[0], date=date, title=title))
-
-        return model_kwargs, objects, view_kwargs
+        return model_kwargs, view_kwargs, objects
 
 
 class CourseYeast(YAMLYeast):

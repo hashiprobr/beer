@@ -31,7 +31,15 @@ class Brewer:
 
 
 class Yeast(Brewer):
-    expected = []
+    keys = []
+
+    @classmethod
+    def get_keys(cls):
+        return ['slug'] + cls.keys
+
+    @classmethod
+    def get_queries(cls, object):
+        return []
 
     @classmethod
     def update_kwargs(cls, kwargs):
@@ -49,7 +57,7 @@ class Yeast(Brewer):
 
     def clean(self, meta):
         clean_meta = {}
-        for key in ['slug', 'title'] + self.expected:
+        for key in self.get_keys():
             try:
                 value = meta[key]
             except KeyError:
@@ -70,6 +78,11 @@ class Yeast(Brewer):
             except ValidationError as error:
                 self.exit(error.messages[0])
 
+    def pop(self, meta, key, Model):
+        value = meta.pop(key)
+        self.validate(Model, 'slug', value)
+        return value
+
     def pre_process(self, kwargs, defaults):
         return [self.Model(**kwargs, **defaults)]
 
@@ -81,24 +94,18 @@ class Yeast(Brewer):
 
     def ferment(self, meta, data, sugars):
         self.print('File has an yeast!')
-
         self.print('type: ' + self.name)
 
-        slug = meta.pop('slug')
-        self.validate(self.Model, 'slug', slug)
+        slug = self.pop(meta, 'slug', self.Model)
 
         active = False
 
-        title = meta.pop('title')
-        self.validate(self.Model, 'title', title)
-
-        model_kwargs, objects, view_kwargs = self.process(meta, data)
+        model_kwargs, view_kwargs, objects = self.process(meta, data)
         model_kwargs['slug'] = slug
         model_kwargs['active'] = active
-        setattr(objects[0], 'slug', slug)
-        setattr(objects[0], 'active', active)
-        setattr(objects[0], 'title', title)
         view_kwargs['slug'] = slug
+        objects[0].slug = slug
+        objects[0].active = active
 
         with transaction.atomic():
             self.Model.objects.filter(**model_kwargs).delete()
@@ -111,10 +118,11 @@ class Yeast(Brewer):
 
     def referment(self, meta, sugars, active):
         self.print('File does not have an yeast but page is editable.')
+        self.print('type: ' + self.name)
 
         self.post_process(sugars)
 
-        self.exit('mock')
+        self.exit('Referment not implemented.')
 
 
 class YAMLYeast(Yeast):
@@ -122,22 +130,11 @@ class YAMLYeast(Yeast):
         try:
             parsed_data = yaml.load(data, Loader=yaml.Loader)
         except YAMLError as error:
-            self.exit('Content is not valid YAML: {}'.format(error))
+            self.exit('Content is not valid YAML: {}.'.format(error))
         self.print('Content is valid YAML.')
-        return parsed_data
-
-    def parse_dict(self, data):
-        parsed_data = self.parse(data)
         if not isinstance(parsed_data, dict):
             self.exit('Content is not a dictionary.')
         self.print('Content is a dictionary.')
-        return parsed_data
-
-    def parse_list(self, data):
-        parsed_data = self.parse(data)
-        if not isinstance(parsed_data, list):
-            self.exit('Content is not a list.')
-        self.print('Content is a list.')
         return parsed_data
 
     def check(self, value, type):
@@ -150,24 +147,33 @@ class YAMLYeast(Yeast):
                 self.exit('The value cannot be blank.')
         return value
 
-    def get(self, data, key, type):
+    def get(self, data, key, type, Model):
         self.print('Trying to get value of {}.'.format(key))
         value = data.get(key)
         if value is None:
             self.print('Value not found, but not required.')
         else:
             value = self.check(value, type)
+            self.validate(Model, key, value)
         return value
 
-    def get_or_exit(self, data, key, type):
+    def get_or_exit(self, data, key, type, Model):
         self.print('Getting value of {}.'.format(key))
         try:
             value = data[key]
         except KeyError:
             self.exit('Value not found.')
-        return self.check(value, type)
+        value = self.check(value, type)
+        self.validate(Model, key, value)
+        return value
 
-    def iterate(self, value, type):
+    def iterate(self, data, key, type):
+        self.print('Trying to iterate over {}.'.format(key))
+        try:
+            value = data[key]
+        except KeyError:
+            return
+        value = self.check(value, list)
         for i, element in enumerate(value):
-            self.print('Processing element at {}.'.format(i))
+            self.print('Processing index {}.'.format(i))
             yield self.check(element, type)
