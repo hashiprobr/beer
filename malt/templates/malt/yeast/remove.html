@@ -1,0 +1,14 @@
+{% extends 'malt/yeast/base.html' %}
+
+{% block subbody %}
+    <h2>
+        Remove?
+    </h2>
+    <p>
+        Please be aware that this operation is irreversible.
+    </p>
+    <form method="post">
+        {% csrf_token %}
+        <input type="submit" value="Confirm">
+    </form>
+{% endblock %}

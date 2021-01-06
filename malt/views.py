@@ -485,6 +485,15 @@ class YeastMoveView(FormView):
         return redirect(reverse(name, kwargs=form.meta))
 
 
+class YeastRemoveView(TemplateView):
+    template_name = 'malt/yeast/remove.html'
+
+    def post(self, request, *args, **kwargs):
+        object = self.get_object()
+        object.delete()
+        return redirect(reverse('index'))
+
+
 class YeastPublishView(TemplateView):
     template_name = 'malt/yeast/publish.html'
 
@@ -552,6 +561,10 @@ class CalendarView(PublicMixin, CalendarMixin, TemplateView):
 
 
 class CalendarMoveView(PrivateMixin, CalendarMixin, YeastMoveView):
+    pass
+
+
+class CalendarRemoveView(PrivateMixin, CalendarMixin, YeastRemoveView):
     pass
 
 

@@ -24,6 +24,8 @@ urlpatterns = [
     path('draft/calendar/<str:user>/<slug:slug>/', views.CalendarView.as_view(), name='calendar_draft'),
     path('move/calendar/<str:user>/<slug:slug>/', views.CalendarMoveView.as_view(), name='calendar_move'),
     path('move/draft/calendar/<str:user>/<slug:slug>/', views.CalendarMoveView.as_view(), name='calendar_move_draft'),
+    path('remove/calendar/<str:user>/<slug:slug>/', views.CalendarRemoveView.as_view(), name='calendar_remove'),
+    path('remove/draft/calendar/<str:user>/<slug:slug>/', views.CalendarRemoveView.as_view(), name='calendar_remove_draft'),
     path('publish/draft/calendar/<str:user>/<slug:slug>/', views.CalendarPublishView.as_view(), name='calendar_publish_draft'),
     path('', views.IndexView.as_view(), name='index'),
 ]
