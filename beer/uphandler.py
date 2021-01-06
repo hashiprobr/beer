@@ -21,10 +21,6 @@ class ChannelMemoryFileUploadHandler(MemoryFileUploadHandler):
         self.total = content_length
         self.partial = 0
         self.progress = 0
-        if self.activated:
-            self.max_size = settings.FILE_UPLOAD_MAX_MEMORY_SIZE
-        else:
-            self.max_size = settings.FILE_UPLOAD_MAX_TEMPORARY_SIZE
 
     def send_consumer(self, method, *args):
         if self.channel_name is not None:
@@ -37,7 +33,7 @@ class ChannelMemoryFileUploadHandler(MemoryFileUploadHandler):
 
     def receive_data_chunk(self, raw_data, start):
         self.partial = min(self.partial + self.chunk_size, self.total)
-        if settings.CONTAINED and self.partial > self.max_size:
+        if settings.CONTAINED and self.partial > settings.FILE_UPLOAD_MAX_TEMPORARY_SIZE:
             self.request.skip = True
             raise SkipFile()
         progress = int(100 * (self.partial / self.total) + 0.5)
