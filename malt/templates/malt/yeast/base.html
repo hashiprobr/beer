@@ -8,20 +8,22 @@
 {% endblock %}
 
 {% block header %}
-    <header{% if not object.active %} class="draft"{% endif %}>
-        <p>
-            {% if object.active %}
-                Published
-            {% else %}
-                Uploaded
+    {% if owned %}
+        <header{% if not object.active %} class="draft"{% endif %}>
+            <p>
+                {% if object.active %}
+                    Published
+                {% else %}
+                    Uploaded
+                {% endif %}
+                in {{ object.timestamp }}.
+            </p>
+            <p><a href="{{ move_url }}">move</a></p>
+            {% if not object.active %}
+                <p><a href="{{ publish_url }}">publish</a></p>
             {% endif %}
-            in {{ object.timestamp }}.
-        </p>
-        <p><a href="{{ edit_url }}">edit</a></p>
-        {% if not object.active %}
-            <p><a href="{{ publish_url }}">publish</a></p>
-        {% endif %}
-    </header>
+        </header>
+    {% endif %}
 {% endblock %}
 
 {% block subtitle %}{{ title }}{% endblock %}

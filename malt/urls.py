@@ -20,10 +20,10 @@ urlpatterns = [
     path('edit/file/assets/<path:path>', views.AssetEditFileView.as_view(), name='asset_edit_file'),
     path('remove/assets/<path:path>/', views.AssetRemoveView.as_view(), name='asset_remove'),
     path('remove/file/assets/<path:path>', views.AssetRemoveFileView.as_view(), name='asset_remove_file'),
-    path('', views.IndexView.as_view(), name='index'),
     path('calendar/<str:user>/<slug:slug>/', views.CalendarView.as_view(), name='calendar'),
     path('draft/calendar/<str:user>/<slug:slug>/', views.CalendarView.as_view(), name='calendar_draft'),
-    path('edit/calendar/<str:user>/<slug:slug>/', views.CalendarEditView.as_view(), name='calendar_edit'),
-    path('edit/draft/calendar/<str:user>/<slug:slug>/', views.CalendarEditView.as_view(), name='calendar_edit_draft'),
+    path('move/calendar/<str:user>/<slug:slug>/', views.CalendarMoveView.as_view(), name='calendar_move'),
+    path('move/draft/calendar/<str:user>/<slug:slug>/', views.CalendarMoveView.as_view(), name='calendar_move_draft'),
     path('publish/draft/calendar/<str:user>/<slug:slug>/', views.CalendarPublishView.as_view(), name='calendar_publish_draft'),
+    path('', views.IndexView.as_view(), name='index'),
 ]

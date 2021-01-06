@@ -17,7 +17,7 @@ from beer import public_storage
 from beer.utils import collapse
 
 from .models import PowerUser, FolderAsset, FileAsset
-from .forms import UserForm, AssetForm
+from .forms import UserForm, AssetForm, YeastForm
 from .caches import power_cache, member_cache
 from .brewing import BrewError
 from .brewery import Brewery
@@ -41,9 +41,13 @@ class UserIsPowerMixin(UserPassesTestMixin):
         return power_cache.get(self.request.user)
 
 
-class UserIsMemberMixin(UserPassesTestMixin):
+class UserIsOwnerMixin(UserPassesTestMixin):
     def test_func(self):
-        return True
+        return self.is_owned()
+
+
+class UserIsMemberMixin(UserIsOwnerMixin):
+    pass
 
 
 class AssetMixin:
@@ -86,7 +90,7 @@ class FormView(MaltMixin, generic.FormView):
     pass
 
 
-class UserViewMixin:
+class UserViewMixin(LoginRequiredMixin, UserIsSuperMixin):
     def get_suffix(self):
         if self.request.GET:
             return '?' + self.request.GET.urlencode()
@@ -102,7 +106,7 @@ class UserViewMixin:
         return reverse('user_manage') + self.get_suffix()
 
 
-class UserManageView(LoginRequiredMixin, UserIsSuperMixin, UserViewMixin, FormView):
+class UserManageView(UserViewMixin, FormView):
     form_class = UserForm
     template_name = 'malt/user/manage.html'
 
@@ -149,19 +153,19 @@ class FormUserViewMixin(SingleUserViewMixin):
     fields = ['username', 'email', 'first_name', 'last_name']
 
 
-class UserAddView(LoginRequiredMixin, UserIsSuperMixin, FormUserViewMixin, generic.edit.CreateView):
+class UserAddView(FormUserViewMixin, generic.edit.CreateView):
     template_name = 'malt/user/add.html'
 
 
-class UserEditView(LoginRequiredMixin, UserIsSuperMixin, FormUserViewMixin, generic.edit.UpdateView):
+class UserEditView(FormUserViewMixin, generic.edit.UpdateView):
     template_name = 'malt/user/edit.html'
 
 
-class UserRemoveView(LoginRequiredMixin, UserIsSuperMixin, SingleUserViewMixin, generic.edit.DeleteView):
+class UserRemoveView(SingleUserViewMixin, generic.edit.DeleteView):
     template_name = 'malt/user/remove.html'
 
 
-class UserChangeView(LoginRequiredMixin, UserIsSuperMixin, SingleUserViewMixin, SingleObjectTemplateResponseMixin, BaseDetailView):
+class UserChangeView(SingleUserViewMixin, SingleObjectTemplateResponseMixin, BaseDetailView):
     def post(self, request, *args, **kwargs):
         user = self.get_object()
         power_cache.set(user, self.value)
@@ -185,7 +189,11 @@ class UserDemoteView(UserChangeView):
         PowerUser.objects.filter(user=user).delete()
 
 
-class UploadManageView(LoginRequiredMixin, UserIsPowerMixin, AssetMixin, generic.View):
+class UploadMixin(LoginRequiredMixin, UserIsPowerMixin):
+    pass
+
+
+class UploadManageView(UploadMixin, AssetMixin, generic.View):
     def post(self, request, *args, **kwargs):
         body = request.POST.dict()
 
@@ -231,7 +239,7 @@ class UploadManageView(LoginRequiredMixin, UserIsPowerMixin, AssetMixin, generic
         return HttpResponseNotFound()
 
 
-class UploadCodeView(LoginRequiredMixin, UserIsPowerMixin, MaltMixin, TemplateResponseMixin, ContextMixin, generic.View):
+class UploadCodeView(UploadMixin, MaltMixin, TemplateResponseMixin, ContextMixin, generic.View):
     template_name = 'malt/error.html'
 
     def post(self, request, *args, **kwargs):
@@ -253,7 +261,7 @@ class UploadCodeView(LoginRequiredMixin, UserIsPowerMixin, MaltMixin, TemplateRe
         return redirect(url)
 
 
-class UploadAssetView(LoginRequiredMixin, UserIsPowerMixin, generic.View):
+class UploadAssetView(UploadMixin, generic.View):
     def post(self, request, *args, **kwargs):
         if settings.CONTAINED:
             return HttpResponseNotFound()
@@ -283,7 +291,7 @@ class UploadAssetView(LoginRequiredMixin, UserIsPowerMixin, generic.View):
         return redirect('{}?{}'.format(url, urlencode({'key': key}, safe='/')))
 
 
-class UploadAssetConfirmView(LoginRequiredMixin, UserIsPowerMixin, AssetPathMixin, generic.View):
+class UploadAssetConfirmView(UploadMixin, AssetPathMixin, generic.View):
     def get(self, request, *args, **kwargs):
         try:
             key = collapse(request.GET['key'])
@@ -301,7 +309,7 @@ class UploadAssetConfirmView(LoginRequiredMixin, UserIsPowerMixin, AssetPathMixi
         return redirect(self.get_url(asset.names()))
 
 
-class AssetViewMixin(AssetMixin, AssetPathMixin):
+class AssetViewMixin(LoginRequiredMixin, UserIsPowerMixin, AssetMixin, AssetPathMixin):
     objects = None
 
     def get_objects(self):
@@ -315,10 +323,10 @@ class AssetFormView(FormView):
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
-        names, asset = self.get_objects()
+        _, asset = self.get_objects()
         kwargs['Asset'] = self.Asset
         kwargs['user'] = self.request.user
-        self.update(kwargs, names, asset)
+        self.update(kwargs, asset)
         return kwargs
 
     def form_valid(self, form):
@@ -328,12 +336,11 @@ class AssetFormView(FormView):
         return redirect(self.get_url(names))
 
 
-class AssetManageView(LoginRequiredMixin, UserIsPowerMixin, AssetViewMixin, AssetFormView):
+class AssetManageView(AssetViewMixin, AssetFormView):
     template_name = 'malt/asset/manage.html'
 
-    def update(self, kwargs, names, asset):
+    def update(self, kwargs, asset):
         kwargs['parent'] = asset
-        kwargs['child'] = None
 
     def process(self, names, asset, name):
         FolderAsset.objects.create(user=self.request.user, parent=asset, name=name)
@@ -370,13 +377,12 @@ class SpecificAssetViewMixin(AssetViewMixin):
         return context
 
 
-class AssetEditView(LoginRequiredMixin, UserIsPowerMixin, SpecificAssetViewMixin, AssetFormView):
+class AssetEditView(SpecificAssetViewMixin, AssetFormView):
     template_name = 'malt/asset/edit.html'
 
-    def update(self, kwargs, names, asset):
+    def update(self, kwargs, asset):
         kwargs['parent'] = asset.parent
-        kwargs['child'] = asset
-        kwargs['initial']['name'] = names[-1]
+        kwargs['initial']['name'] = asset.name
 
     def process(self, names, asset, name):
         asset.name = name
@@ -388,7 +394,7 @@ class AssetEditFileView(AssetEditView):
     Asset = FileAsset
 
 
-class AssetRemoveView(LoginRequiredMixin, UserIsPowerMixin, SpecificAssetViewMixin, TemplateView):
+class AssetRemoveView(SpecificAssetViewMixin, TemplateView):
     template_name = 'malt/asset/remove.html'
 
     def post(self, request, *args, **kwargs):
@@ -401,51 +407,68 @@ class AssetRemoveFileView(AssetRemoveView):
     Asset = FileAsset
 
 
-class IndexView(LoginRequiredMixin, TemplateView):
-    template_name = 'malt/index.html'
+class PrivateMixin(LoginRequiredMixin, UserIsOwnerMixin):
+    pass
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['version'] = '{}.{}'.format(settings.VERSION, settings.PATCH_VERSION)
-        return context
+
+class ProtectedMixin(LoginRequiredMixin, UserIsMemberMixin):
+    pass
+
+
+class PublicMixin(LoginRequiredMixin):
+    pass
 
 
 class YeastMixin:
-    def get_kwargs(self):
-        kwargs = self.kwargs.copy()
-        slug = kwargs.pop('slug')
-        self.Yeast.update_kwargs(kwargs)
-        kwargs['slug'] = slug
-        return kwargs
+    def is_owned(self):
+        return self.kwargs['user'] == self.request.user.get_username()
+
+    def is_active(self):
+        return not self.request.resolver_match.view_name.endswith('_draft')
+
+    def get_all_read_kwargs(self, active):
+        return self.Yeast.get_all_read_kwargs(self.kwargs, active)
 
     def get_object(self):
-        kwargs = self.get_kwargs()
-        active = not self.request.resolver_match.view_name.endswith('_draft')
-        return get_object_or_404(self.Yeast.Model, **kwargs, active=active)
+        active = self.is_active()
+        kwargs = self.get_all_read_kwargs(active)
+        return get_object_or_404(self.Yeast.Model, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         object = self.get_object()
-        self.Yeast.update_context_data(context, object)
+        context['owned'] = self.is_owned()
         context['object'] = object
         if object.active:
-            context['edit_url'] = reverse(self.Yeast.name + '_edit', kwargs=self.kwargs)
+            context['move_url'] = reverse(self.Yeast.name + '_move', kwargs=self.kwargs)
         else:
-            context['edit_url'] = reverse(self.Yeast.name + '_edit_draft', kwargs=self.kwargs)
+            context['move_url'] = reverse(self.Yeast.name + '_move_draft', kwargs=self.kwargs)
             context['publish_url'] = reverse(self.Yeast.name + '_publish_draft', kwargs=self.kwargs)
+        context.update(self.Yeast.get_context_data(object))
         return context
 
 
-class YAMLYeastMixin(YeastMixin):
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        object = context['object']
-        context['title'] = object.title
-        return context
+class YeastMoveView(FormView):
+    form_class = YeastForm
+    template_name = 'malt/yeast/move.html'
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['Yeast'] = self.Yeast
+        kwargs['user'] = self.request.user
+        kwargs['active'] = self.is_active()
+        kwargs['initial'].update(self.kwargs)
+        return kwargs
 
-class YeastEditView(FormView):
-    template_name = 'malt/yeast/edit.html'
+    def form_valid(self, form):
+        active = self.is_active()
+        read_kwargs = self.get_all_read_kwargs(active)
+        self.Yeast.Model.objects.filter(**read_kwargs).update(**form.kwargs)
+        if active:
+            name = self.Yeast.name
+        else:
+            name = self.Yeast.name + '_draft'
+        return redirect(reverse(name, kwargs=form.meta))
 
 
 class YeastPublishView(TemplateView):
@@ -455,9 +478,9 @@ class YeastPublishView(TemplateView):
         with transaction.atomic():
             object_draft = self.get_object()
 
-            kwargs = self.get_kwargs()
+            kwargs = self.get_all_read_kwargs(True)
             try:
-                object = self.Yeast.Model.objects.get(**kwargs, active=True)
+                object = self.Yeast.Model.objects.get(**kwargs)
             except self.Yeast.Model.DoesNotExist:
                 object = self.get_object()
                 object.pk = None
@@ -465,8 +488,8 @@ class YeastPublishView(TemplateView):
                 object.save()
 
                 kwargs = {self.Yeast.name: object}
-                for query in self.Yeast.get_queries(object_draft):
-                    query.update(**kwargs)
+                for filter in self.Yeast.get_child_filters(object_draft):
+                    filter.update(**kwargs)
 
                 object_draft.delete()
             else:
@@ -486,14 +509,14 @@ class YeastPublishView(TemplateView):
                 object.save()
 
                 children_draft = []
-                for query in self.Yeast.get_queries(object_draft):
-                    children_draft.extend(child for child in query)
-                    query.delete()
+                for filter in self.Yeast.get_child_filters(object_draft):
+                    children_draft.extend(child for child in filter)
+                    filter.delete()
 
                 children = []
-                for query in self.Yeast.get_queries(object):
-                    children.extend(child for child in query)
-                    query.delete()
+                for filter in self.Yeast.get_child_filters(object):
+                    children.extend(child for child in filter)
+                    filter.delete()
 
                 for child in children_draft:
                     setattr(child, self.Yeast.name, object)
@@ -506,17 +529,26 @@ class YeastPublishView(TemplateView):
         return redirect(reverse(self.Yeast.name, kwargs=self.kwargs))
 
 
-class CalendarMixin(YAMLYeastMixin):
+class CalendarMixin(YeastMixin):
     Yeast = CalendarYeast
 
 
-class CalendarView(LoginRequiredMixin, CalendarMixin, TemplateView):
+class CalendarView(PublicMixin, CalendarMixin, TemplateView):
     template_name = 'malt/yeast/calendar.html'
 
 
-class CalendarEditView(LoginRequiredMixin, CalendarMixin, YeastEditView):
+class CalendarMoveView(PrivateMixin, CalendarMixin, YeastMoveView):
     pass
 
 
-class CalendarPublishView(LoginRequiredMixin, CalendarMixin, YeastPublishView):
+class CalendarPublishView(PrivateMixin, CalendarMixin, YeastPublishView):
     pass
+
+
+class IndexView(PublicMixin, TemplateView):
+    template_name = 'malt/index.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['version'] = '{}.{}'.format(settings.VERSION, settings.PATCH_VERSION)
+        return context

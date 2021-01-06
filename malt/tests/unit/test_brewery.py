@@ -12,6 +12,14 @@ from ...enzymes import EnzymeError, Enzyme
 from ...brewery import Grower, Primer, Brewery
 
 
+class MockUser:
+    def __init__(self, username):
+        self.username = username
+
+    def get_username(self):
+        return self.username
+
+
 class MockEnzyme(Enzyme):
     extension = 'mock'
 
@@ -76,6 +84,9 @@ class PassMockPrimer(Brewer):
 
 
 class BrewingTests:
+    username = 'u'
+    other_username ='ou'
+
     MockYeasts = {
         'fail': FailMockYeast,
         'pass': PassMockYeast,
@@ -97,14 +108,15 @@ class GrowerTests(BrewingTests, UnitTestCase):
         return content
 
     def grow(self, name):
-        grower = Grower(None, [])
+        user = MockUser(self.username)
+        grower = Grower(user, [])
         content = self.open(name)
         return grower.grow(content, self.MockYeasts)
 
     def assertGrows(self, name, expected):
         yeast, meta, actual = self.grow(name)
         self.assertIsInstance(yeast, self.MockYeasts['pass'])
-        self.assertEqual({}, meta)
+        self.assertEqual({'user': self.username}, meta)
         self.assertEqual(expected, actual)
 
     def assertDoesNotGrow(self, name):
@@ -143,7 +155,8 @@ class GrowerTests(BrewingTests, UnitTestCase):
 
 class PrimerTests(BrewingTests, UnitTestCase):
     def prime(self, meta):
-        primer = Primer(None, [])
+        user = MockUser(self.username)
+        primer = Primer(user, [])
         primer.prime(meta, None, self.MockYeasts)
 
     def assertPrimes(self, meta):
@@ -157,19 +170,46 @@ class PrimerTests(BrewingTests, UnitTestCase):
             self.prime(meta)
 
     def testPrimes(self):
-        self.assertPrimes({'view_name': 'pass-pass'})
+        self.assertPrimes({
+            'user': self.username,
+            'view_name': 'pass-pass',
+        })
+
+    def testDoesNotPrimeWithoutUser(self):
+        self.assertDoesNotPrime({
+            'mock': self.username,
+            'view_name': 'pass-pass',
+        })
+
+    def testDoesNotPrimeWithWrongUser(self):
+        self.assertDoesNotPrime({
+            'user': self.other_username,
+            'view_name': 'pass-pass',
+        })
 
     def testDoesNotPrimeWithoutType(self):
-        self.assertDoesNotPrime({'mock': 'pass-pass'})
+        self.assertDoesNotPrime({
+            'user': self.username,
+            'mock': 'pass-pass',
+        })
 
     def testDoesNotPrimeWithWrongType(self):
-        self.assertDoesNotPrime({'view_name': 'mock'})
+        self.assertDoesNotPrime({
+            'user': self.username,
+            'view_name': 'mock',
+        })
 
     def testDoesNotPrimeIfCleanRaisesYeastError(self):
-        self.assertDoesNotPrime({'view_name': 'fail'})
+        self.assertDoesNotPrime({
+            'user': self.username,
+            'view_name': 'fail',
+        })
 
     def testDoesNotPrimeIfRefermentRaisesBrewError(self):
-        self.assertDoesNotPrime({'view_name': 'pass-fail'})
+        self.assertDoesNotPrime({
+            'user': self.username,
+            'view_name': 'pass-fail',
+        })
 
 
 class BreweryTests(BrewingTests, UnitTestCase):

@@ -31,23 +31,25 @@ class Brewer:
 
 
 class Yeast(Brewer):
-    keys = []
+    @classmethod
+    def get_models(cls):
+        Models = cls.Models.copy()
+        Models['slug'] = cls.Model
+        return Models
 
     @classmethod
-    def get_keys(cls):
-        return ['slug'] + cls.keys
+    def get_all_read_kwargs(cls, meta, active):
+        kwargs = cls.get_read_kwargs(meta)
+        kwargs['slug'] = meta['slug']
+        kwargs['active'] = active
+        return kwargs
 
     @classmethod
-    def get_queries(cls, object):
-        return []
-
-    @classmethod
-    def update_kwargs(cls, kwargs):
-        pass
-
-    @classmethod
-    def update_context_data(self, context, object):
-        pass
+    def get_all_write_kwargs(cls, user, meta, active):
+        kwargs = cls.get_write_kwargs(user, meta)
+        kwargs['slug'] = meta['slug']
+        kwargs['active'] = active
+        return kwargs
 
     def collapse(self, value):
         value = collapse(value)
@@ -57,7 +59,7 @@ class Yeast(Brewer):
 
     def clean(self, meta):
         clean_meta = {}
-        for key in self.get_keys():
+        for key in self.get_models():
             try:
                 value = meta[key]
             except KeyError:
@@ -78,46 +80,39 @@ class Yeast(Brewer):
             except ValidationError as error:
                 self.exit(error.messages[0])
 
-    def pop(self, meta, key, Model):
-        value = meta.pop(key)
-        self.validate(Model, 'slug', value)
-        return value
-
-    def pre_process(self, kwargs, defaults):
-        return [self.Model(**kwargs, **defaults)]
-
-    def process(self, meta, data):
-        self.exit('Processing not implemented.')
-
-    def post_process(self, sugars):
-        pass
-
     def ferment(self, meta, data, sugars):
-        self.print('File has an yeast!')
+        self.print('File has an yeast.')
         self.print('type: ' + self.name)
 
-        slug = self.pop(meta, 'slug', self.Model)
+        for key, Model in self.get_models().items():
+            self.validate(Model, 'slug', meta[key])
 
-        active = False
+        read_kwargs = self.get_all_read_kwargs(meta, False)
 
-        model_kwargs, view_kwargs, objects = self.process(meta, data)
-        model_kwargs['slug'] = slug
-        model_kwargs['active'] = active
-        view_kwargs['slug'] = slug
-        objects[0].slug = slug
-        objects[0].active = active
+        object = self.Model()
+
+        objects = self.process(object, data)
 
         with transaction.atomic():
-            self.Model.objects.filter(**model_kwargs).delete()
+            try:
+                write_kwargs = self.get_all_write_kwargs(self.user, meta, False)
+            except YeastError as error:
+                self.exit(error)
+
+            for name, value in write_kwargs.items():
+                setattr(object, name, value)
+
+            self.Model.objects.filter(**read_kwargs).delete()
+
             for object in objects:
                 object.save()
 
         self.post_process(sugars)
 
-        return reverse(self.name + '_draft', kwargs=view_kwargs)
+        return reverse(self.name + '_draft', kwargs=meta)
 
     def referment(self, meta, sugars, active):
-        self.print('File does not have an yeast but page is editable.')
+        self.print('Page is editable.')
         self.print('type: ' + self.name)
 
         self.post_process(sugars)

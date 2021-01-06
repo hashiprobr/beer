@@ -74,6 +74,8 @@ class Grower(Brewer):
                     return None
                 self.print('Preamble describes a valid {}.'.format(type))
 
+                clean_meta['user'] = self.user.get_username()
+
                 return yeast, clean_meta, '\n'.join(lines[(i + 1):])
 
         self.print('Separator not found.')
@@ -82,6 +84,16 @@ class Grower(Brewer):
 
 class Primer(Brewer):
     def prime(self, meta, sugars, Yeasts):
+        self.print('File does not have an yeast.')
+
+        try:
+            username = meta['user']
+        except KeyError:
+            self.exit('User not found.')
+
+        if username != self.user.get_username():
+            self.exit('User not valid.')
+
         try:
             view_name = meta.pop('view_name')
         except KeyError:
@@ -97,7 +109,7 @@ class Primer(Brewer):
         try:
             Yeast = Yeasts[type]
         except KeyError:
-            self.exit('File does not have an yeast and page is not editable.')
+            self.exit('Page is not editable.')
 
         yeast = Yeast(self.user, self.history)
 
@@ -105,6 +117,8 @@ class Primer(Brewer):
             clean_meta = yeast.clean(meta)
         except YeastError as error:
             self.exit('Page not valid: {}.'.format(error))
+
+        clean_meta['user'] = username
 
         return yeast.referment(clean_meta, sugars, active)
 
@@ -154,7 +168,7 @@ class Brewery(Brewer):
                     inputs[path] = input
 
             if len(inputs) > 1:
-                self.exit('Multiple yeasts found: ' + ', '.join(inputs))
+                self.exit('Multiple yeasts found: {}.'.format(', '.join(inputs)))
 
             if inputs:
                 yeast, clean_meta, data = next(iter(inputs.values()))

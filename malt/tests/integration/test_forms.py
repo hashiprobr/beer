@@ -579,10 +579,9 @@ class AssetFormTests:
             'user': user,
             'parent': parent,
         }
+        kwargs['initial'] = {}
         if edit:
-            kwargs['child'] = child
-        else:
-            kwargs['child'] = None
+            kwargs['initial']['name'] = self.child_name
         form = AssetForm(data, **kwargs)
         return form.is_valid()
 

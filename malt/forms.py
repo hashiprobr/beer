@@ -2,6 +2,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 
 from .models import Asset
+from .brewing import YeastError
 
 
 class UserForm(forms.Form):
@@ -83,14 +84,44 @@ class AssetForm(forms.ModelForm):
         self.Asset = kwargs.pop('Asset')
         self.user = kwargs.pop('user')
         self.parent = kwargs.pop('parent')
-        self.child = kwargs.pop('child')
+        self.old_name = kwargs['initial'].get('name')
         super().__init__(*args, **kwargs)
 
     def clean(self):
         data = super().clean()
         if 'name' in data:
             name = data['name']
-            if self.child is None or self.child.name != name:
+            if name != self.old_name:
                 if self.Asset.objects.filter(user=self.user, parent=self.parent, name=name).exists():
-                    raise ValidationError({'name': 'An asset with that name already exists.'})
+                    raise ValidationError('An asset with that path already exists.')
+        return data
+
+
+class YeastForm(forms.Form):
+    def __init__(self, *args, **kwargs):
+        self.Yeast = kwargs.pop('Yeast')
+        self.user = kwargs.pop('user')
+        self.active = kwargs.pop('active')
+        self.old_meta = kwargs['initial']
+        super().__init__(*args, **kwargs)
+        for key, Model in self.Yeast.get_models().items():
+            self.fields[key] = forms.SlugField(validators=Model.slug.field.validators)
+
+    def get_fields(self):
+        for key in self.fields:
+            yield self[key]
+
+    def clean(self):
+        data = super().clean()
+        if len(data) == len(self.old_meta) - 1:
+            self.meta = data.copy()
+            self.meta['user'] = self.old_meta['user']
+            if self.meta != self.old_meta:
+                kwargs = self.Yeast.get_all_read_kwargs(self.meta, self.active)
+                if self.Yeast.Model.objects.filter(**kwargs).exists():
+                    raise ValidationError('An yeast with that path already exists.')
+            try:
+                self.kwargs = self.Yeast.get_all_write_kwargs(self.user, self.meta, self.active)
+            except YeastError as error:
+                raise ValidationError(error)
         return data
