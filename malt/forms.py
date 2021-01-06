@@ -10,67 +10,70 @@ class UserForm(forms.Form):
     domain = forms.CharField(label='Domain', required=False)
     promote = forms.BooleanField(label='Promote all users in the list.', required=False)
 
+    def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop('request')
+        super().__init__(*args, **kwargs)
+
     def raiseValidationErrorFile(self, i, message):
         raise ValidationError({'file': 'Line {}: {}.'.format(i, message)})
 
     def clean(self):
         data = super().clean()
 
-        try:
-            file = data['file']
-        except KeyError:
+        if self.request.skip:
             for errorlist in self.errors.values():
                 errorlist.clear()
-            raise ValidationError({'file': 'This field is required and the file cannot have more than 25MB.'})
+            raise ValidationError({'file': 'The file cannot have more than 25MB.'})
 
-        content = file.read()
-        try:
-            text = content.decode()
-        except UnicodeDecodeError:
-            raise ValidationError({'file': 'The file cannot be binary.'})
+        if 'file' in data:
+            content = data['file'].read()
+            try:
+                text = content.decode()
+            except UnicodeDecodeError:
+                raise ValidationError({'file': 'The file cannot be binary.'})
 
-        self.users = {}
+            self.users = {}
 
-        for i, line in enumerate(text.split('\n'), 1):
-            words = line.strip().split()
-            if words:
-                username = words[0]
+            for i, line in enumerate(text.split('\n'), 1):
+                words = line.strip().split()
+                if words:
+                    username = words[0]
 
-                if username in self.users:
-                    self.raiseValidationErrorFile(i, 'username already seen in line {}'.format(self.users[username]['line']))
+                    if username in self.users:
+                        self.raiseValidationErrorFile(i, 'username already seen in line {}'.format(self.users[username]['line']))
 
-                defaults = {
-                    'line': i,
-                }
+                    defaults = {
+                        'line': i,
+                    }
 
-                if data['domain']:
-                    if len(words) > 1:
-                        if '@' in words[1]:
-                            self.raiseValidationErrorFile(i, 'the second word looks like an email, but should be a first name because you specified a domain')
+                    if data['domain']:
+                        if len(words) > 1:
+                            if '@' in words[1]:
+                                self.raiseValidationErrorFile(i, 'the second word looks like an email, but should be a first name because you specified a domain')
+                        else:
+                            words.append('')
+
+                        defaults['email'] = '{}@{}'.format(username, data['domain'])
+                        defaults['first_name'] = words[1]
+                        defaults['last_name'] = ' '.join(words[2:])
                     else:
-                        words.append('')
+                        if len(words) > 1:
+                            if '@' not in words[1]:
+                                self.raiseValidationErrorFile(i, 'the second word does not look like an email, but should be one because you did not specify a domain')
+                        else:
+                            self.raiseValidationErrorFile(i, 'must have at least an username and an email')
 
-                    defaults['email'] = '{}@{}'.format(username, data['domain'])
-                    defaults['first_name'] = words[1]
-                    defaults['last_name'] = ' '.join(words[2:])
-                else:
-                    if len(words) > 1:
-                        if '@' not in words[1]:
-                            self.raiseValidationErrorFile(i, 'the second word does not look like an email, but should be one because you did not specify a domain')
-                    else:
-                        self.raiseValidationErrorFile(i, 'must have at least an username and an email')
+                        defaults['email'] = words[1]
+                        defaults['first_name'] = words[2] if len(words) > 2 else ''
+                        defaults['last_name'] = ' '.join(words[3:])
 
-                    defaults['email'] = words[1]
-                    defaults['first_name'] = words[2] if len(words) > 2 else ''
-                    defaults['last_name'] = ' '.join(words[3:])
+                    self.users[username] = defaults
 
-                self.users[username] = defaults
+            if not self.users:
+                raise ValidationError({'file': 'The file cannot be empty.'})
 
-        if not self.users:
-            raise ValidationError({'file': 'The file cannot be empty.'})
-
-        for defaults in self.users.values():
-            del defaults['line']
+            for defaults in self.users.values():
+                del defaults['line']
 
         return data
 

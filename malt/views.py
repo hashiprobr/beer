@@ -110,6 +110,11 @@ class UserManageView(UserViewMixin, FormView):
     form_class = UserForm
     template_name = 'malt/user/manage.html'
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
+
     def form_valid(self, form):
         promote = form.cleaned_data['promote']
         for username, defaults in form.users.items():
@@ -245,6 +250,10 @@ class UploadCodeView(UploadMixin, MaltMixin, TemplateResponseMixin, ContextMixin
     def post(self, request, *args, **kwargs):
         brewery = Brewery(request.user, [])
 
+        files = request.FILES
+        if request.skip:
+            files = None
+
         meta = request.POST.dict()
         try:
             del meta[CSRF_KEY]
@@ -252,7 +261,7 @@ class UploadCodeView(UploadMixin, MaltMixin, TemplateResponseMixin, ContextMixin
             pass
 
         try:
-            url = brewery.brew(request.FILES, meta)
+            url = brewery.brew(files, meta)
         except BrewError as error:
             context = self.get_context_data(**kwargs)
             context['error'] = error
@@ -278,11 +287,16 @@ class UploadAssetView(UploadMixin, generic.View):
         if not url.startswith('http://'):
             return HttpResponseBadRequest()
 
-        if len(request.FILES) != 1:
+        files = request.FILES
+
+        if request.skip:
+            return HttpResponseBadRequest()
+
+        if len(files) != 1:
             return HttpResponseBadRequest()
 
         try:
-            file = request.FILES['file']
+            file = files['file']
         except KeyError:
             return HttpResponseBadRequest()
 

@@ -154,11 +154,11 @@ USE_L10N = True
 USE_TZ = True
 
 
-FILE_UPLOAD_MAX_TEMP_SIZE = 26214400
+FILE_UPLOAD_MAX_TEMPORARY_SIZE = 26214400
 
 FILE_UPLOAD_HANDLERS = [
     BASE_NAME + '.uphandler.ChannelMemoryFileUploadHandler',
-    BASE_NAME + '.uphandler.ChannelTemporaryFileUploadHandler',
+    'django.core.files.uploadhandler.TemporaryFileUploadHandler',
 ]
 
 

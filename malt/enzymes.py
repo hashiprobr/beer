@@ -24,7 +24,7 @@ class Enzyme:
             infos = [info for info in self.infos(archive) if self.is_file(info)]
 
             size = sum(self.size(info) for info in infos)
-            if size > settings.FILE_UPLOAD_MAX_TEMP_SIZE:
+            if size > settings.FILE_UPLOAD_MAX_TEMPORARY_SIZE:
                 raise EnzymeError('cannot have more than 25MB uncompressed')
 
             return [(self.date(info), self.path(info), self.read(archive, info)) for info in infos]

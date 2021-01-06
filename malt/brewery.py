@@ -128,8 +128,11 @@ class Brewery(Brewer):
         grower = Grower(self.user, self.history)
         primer = Primer(self.user, self.history)
 
+        if files is None:
+            self.exit('A file cannot have more than 25MB.')
+
         if len(files) != 1:
-            self.exit('One file is expected and this file cannot have more than 25MB.')
+            self.exit('Exactly one file is expected.')
 
         try:
             file = files['file']

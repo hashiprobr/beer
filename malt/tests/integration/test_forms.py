@@ -13,6 +13,10 @@ from ...forms import UserForm, AssetForm
 User = get_user_model()
 
 
+class MockRequest:
+    pass
+
+
 class UserFormTests(IntegrationTestCase):
     domain = 'd.com'
     empty_domain = ''
@@ -38,7 +42,9 @@ class UserFormTests(IntegrationTestCase):
             data['domain'] = domain
         if promote is not None:
             data['promote'] = promote
-        return UserForm(data, files)
+        request = MockRequest()
+        request.skip = False
+        return UserForm(data, files, request=request)
 
     def assertValid(self, name, domain, promote, users):
         form = self.build(name, domain, promote)
