@@ -462,7 +462,17 @@ class YeastMixin:
         return context
 
 
-class YeastMoveView(FormView):
+class OwnedYeastMixin:
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if self.is_active():
+            context['url'] = reverse(self.Yeast.name, kwargs=self.kwargs)
+        else:
+            context['url'] = reverse(self.Yeast.name + '_draft', kwargs=self.kwargs)
+        return context
+
+
+class YeastMoveView(OwnedYeastMixin, FormView):
     form_class = YeastForm
     template_name = 'malt/yeast/move.html'
 
@@ -485,7 +495,7 @@ class YeastMoveView(FormView):
         return redirect(reverse(name, kwargs=form.meta))
 
 
-class YeastRemoveView(TemplateView):
+class YeastRemoveView(OwnedYeastMixin, TemplateView):
     template_name = 'malt/yeast/remove.html'
 
     def post(self, request, *args, **kwargs):
@@ -494,7 +504,7 @@ class YeastRemoveView(TemplateView):
         return redirect(reverse('index'))
 
 
-class YeastPublishView(TemplateView):
+class YeastPublishView(OwnedYeastMixin, TemplateView):
     template_name = 'malt/yeast/publish.html'
 
     def post(self, request, *args, **kwargs):
@@ -556,7 +566,7 @@ class CalendarMixin(YeastMixin):
     Yeast = CalendarYeast
 
 
-class CalendarView(PublicMixin, CalendarMixin, TemplateView):
+class CalendarView(PrivateMixin, CalendarMixin, TemplateView):
     template_name = 'malt/yeast/calendar.html'
 
 
