@@ -455,15 +455,11 @@ class YeastMixin:
         kwargs = self.get_all_read_kwargs(active)
         return get_object_or_404(self.Yeast.Model, **kwargs)
 
-    def update(self, context, object):
-        pass
-
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         object = self.get_object()
         context['owned'] = self.is_owned()
         context['object'] = object
-        self.update(context, object)
         if object.active:
             context['move_url'] = reverse(self.Yeast.name + '_move', kwargs=self.kwargs)
         else:
@@ -474,12 +470,14 @@ class YeastMixin:
 
 
 class ChangeYeastMixin:
-    def update(self, context, object):
-        if object.active:
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if self.is_active():
             name = self.Yeast.name
         else:
             name = self.Yeast.name + '_draft'
         context['url'] = reverse(name, kwargs=self.kwargs)
+        return context
 
 
 class YeastMoveView(ChangeYeastMixin, FormView):
