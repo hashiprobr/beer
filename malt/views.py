@@ -469,7 +469,7 @@ class YeastMixin:
         return context
 
 
-class ChangeYeastMixin:
+class WriteYeastMixin:
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         if self.is_active():
@@ -480,7 +480,7 @@ class ChangeYeastMixin:
         return context
 
 
-class YeastMoveView(ChangeYeastMixin, FormView):
+class YeastMoveView(WriteYeastMixin, FormView):
     form_class = YeastForm
     template_name = 'malt/yeast/move.html'
 
@@ -502,7 +502,7 @@ class YeastMoveView(ChangeYeastMixin, FormView):
         return redirect(reverse(name, kwargs=form.meta))
 
 
-class YeastRemoveView(ChangeYeastMixin, TemplateView):
+class YeastRemoveView(WriteYeastMixin, TemplateView):
     template_name = 'malt/yeast/remove.html'
 
     def post(self, request, *args, **kwargs):
@@ -511,7 +511,7 @@ class YeastRemoveView(ChangeYeastMixin, TemplateView):
         return redirect(reverse('index'))
 
 
-class YeastPublishView(ChangeYeastMixin, TemplateView):
+class YeastPublishView(WriteYeastMixin, TemplateView):
     template_name = 'malt/yeast/publish.html'
 
     def post(self, request, *args, **kwargs):
