@@ -434,11 +434,18 @@ class PublicMixin(LoginRequiredMixin):
 
 
 class YeastMixin:
+    owned = None
+    active = None
+
     def is_owned(self):
-        return self.kwargs['user'] == self.request.user.get_username()
+        if self.owned is None:
+            self.owned = self.kwargs['user'] == self.request.user.get_username()
+        return self.owned
 
     def is_active(self):
-        return not self.request.resolver_match.view_name.endswith('_draft')
+        if self.active is None:
+            self.active = not self.request.resolver_match.view_name.endswith('_draft')
+        return self.active
 
     def get_all_read_kwargs(self, active):
         return self.Yeast.get_all_read_kwargs(self.kwargs, active)
@@ -448,11 +455,15 @@ class YeastMixin:
         kwargs = self.get_all_read_kwargs(active)
         return get_object_or_404(self.Yeast.Model, **kwargs)
 
+    def update(self, context, object):
+        pass
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         object = self.get_object()
         context['owned'] = self.is_owned()
         context['object'] = object
+        self.update(context, object)
         if object.active:
             context['move_url'] = reverse(self.Yeast.name + '_move', kwargs=self.kwargs)
         else:
@@ -462,17 +473,16 @@ class YeastMixin:
         return context
 
 
-class OwnedYeastMixin:
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        if self.is_active():
-            context['url'] = reverse(self.Yeast.name, kwargs=self.kwargs)
+class ChangeYeastMixin:
+    def update(self, context, object):
+        if object.active:
+            name = self.Yeast.name
         else:
-            context['url'] = reverse(self.Yeast.name + '_draft', kwargs=self.kwargs)
-        return context
+            name = self.Yeast.name + '_draft'
+        context['url'] = reverse(name, kwargs=self.kwargs)
 
 
-class YeastMoveView(OwnedYeastMixin, FormView):
+class YeastMoveView(ChangeYeastMixin, FormView):
     form_class = YeastForm
     template_name = 'malt/yeast/move.html'
 
@@ -485,17 +495,16 @@ class YeastMoveView(OwnedYeastMixin, FormView):
         return kwargs
 
     def form_valid(self, form):
-        active = self.is_active()
-        read_kwargs = self.get_all_read_kwargs(active)
+        read_kwargs = self.get_all_read_kwargs(form.active)
         self.Yeast.Model.objects.filter(**read_kwargs).update(**form.kwargs)
-        if active:
+        if form.active:
             name = self.Yeast.name
         else:
             name = self.Yeast.name + '_draft'
         return redirect(reverse(name, kwargs=form.meta))
 
 
-class YeastRemoveView(OwnedYeastMixin, TemplateView):
+class YeastRemoveView(ChangeYeastMixin, TemplateView):
     template_name = 'malt/yeast/remove.html'
 
     def post(self, request, *args, **kwargs):
@@ -504,7 +513,7 @@ class YeastRemoveView(OwnedYeastMixin, TemplateView):
         return redirect(reverse('index'))
 
 
-class YeastPublishView(OwnedYeastMixin, TemplateView):
+class YeastPublishView(ChangeYeastMixin, TemplateView):
     template_name = 'malt/yeast/publish.html'
 
     def post(self, request, *args, **kwargs):
