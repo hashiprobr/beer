@@ -101,6 +101,7 @@ class YeastModel(models.Model):
     slug = models.SlugField(max_length=22)
     active = models.BooleanField()
     timestamp = models.DateTimeField(auto_now=True)
+    title = models.CharField(max_length=44)
 
 
 class Calendar(YeastModel):
@@ -111,7 +112,6 @@ class Calendar(YeastModel):
         ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    title = models.CharField(max_length=44)
     begin_date = models.DateField()
     end_date = models.DateField()
 
@@ -123,7 +123,6 @@ class Course(YeastModel):
         ]
 
     calendar = models.ForeignKey(Calendar, on_delete=models.CASCADE)
-    title = models.CharField(max_length=44)
 
 
 class Schedule(models.Model):

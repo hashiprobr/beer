@@ -29,7 +29,6 @@ class CalendarYeast(YAMLYeast):
     @classmethod
     def get_context_data(cls, object):
         return {
-            'title': object.title,
             'cancelations': cls.get_cancelations(object),
         }
 
