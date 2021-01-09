@@ -2,19 +2,19 @@
 
 {% block subbody %}
     <h2>
-        Edit {{ name }}
+        Move {{ name }}
     </h2>
     <form method="post">
         {% csrf_token %}
 
         {{ form.non_field_errors }}
 
-        <label for="{{ form.name.id_for_label }}">
-            <span>{{ form.name.label }}</span>
-            {{ form.name }}
+        <label for="{{ form.path.id_for_label }}">
+            <span>{{ form.path.label }}</span>
+            {{ form.path }}
         </label>
 
-        {{ form.name.errors }}
+        {{ form.path.errors }}
 
         <input type="submit" value="Save">
     </form>

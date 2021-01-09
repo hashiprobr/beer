@@ -1,7 +1,7 @@
 from django import forms
 from django.core.exceptions import ValidationError
 
-from .models import Asset
+from .models import FolderAsset
 from .brewing import YeastError
 
 
@@ -78,25 +78,60 @@ class UserForm(forms.Form):
         return data
 
 
-class AssetForm(forms.ModelForm):
-    class Meta:
-        model = Asset
-        fields = ['name']
-
+class AssetForm(forms.Form):
     def __init__(self, *args, **kwargs):
         self.Asset = kwargs.pop('Asset')
         self.user = kwargs.pop('user')
-        self.parent = kwargs.pop('parent')
-        self.old_name = kwargs['initial'].get('name')
         super().__init__(*args, **kwargs)
+
+    def validate_unique(self):
+        if self.Asset.objects.filter(user=self.user, parent=self.parent, name=self.name).exists():
+            raise ValidationError('An asset with that path already exists.')
+
+
+class AssetAddForm(AssetForm):
+    def __init__(self, *args, **kwargs):
+        self.parent = kwargs.pop('parent')
+        super().__init__(*args, **kwargs)
+        self.fields['name'] = forms.CharField(validators=self.Asset.name.field.validators)
 
     def clean(self):
         data = super().clean()
         if 'name' in data:
-            name = data['name']
-            if name != self.old_name:
-                if self.Asset.objects.filter(user=self.user, parent=self.parent, name=name).exists():
-                    raise ValidationError('An asset with that path already exists.')
+            self.name = data['name']
+            self.validate_unique()
+        return data
+
+
+class AssetMoveForm(AssetForm):
+    def __init__(self, *args, **kwargs):
+        self.asset = kwargs.pop('asset')
+        super().__init__(*args, **kwargs)
+        self.fields['path'] = forms.CharField()
+
+    def clean(self):
+        data = super().clean()
+        if 'path' in data:
+            path = data['path']
+            if path.startswith('/') or path.endswith('/'):
+                raise ValidationError({'path': 'This value cannot start or end with slashes.'})
+            names = path.split('/')
+            self.parent = None
+            for name in names[:-1]:
+                try:
+                    self.parent = FolderAsset.objects.get(user=self.user, parent=self.parent, name=name)
+                except FolderAsset.DoesNotExist:
+                    raise ValidationError('The parent does not exist.')
+                if self.parent == self.asset:
+                    raise ValidationError('The asset cannot be moved inside itself.')
+            self.name = names[-1]
+            for validator in self.Asset.name.field.validators:
+                try:
+                    validator(self.name)
+                except ValidationError as error:
+                    raise ValidationError(error.messages[0])
+            if self.parent != self.asset.parent or self.name != self.asset.name:
+                self.validate_unique()
         return data
 
 

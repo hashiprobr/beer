@@ -21,7 +21,7 @@
                     <tr>
                         {% with path=prefix|append:folder.name %}
                             <td><a href="{% url 'asset_manage_folder' path=path %}">{{ folder.name }}</a></td>
-                            <td><a href="{% url 'asset_edit' path=path %}">edit</a></td>
+                            <td><a href="{% url 'asset_move' path=path %}">move</a></td>
                             <td><a href="{% url 'asset_remove' path=path %}">remove</a></td>
                         {% endwith %}
                     </tr>
@@ -62,7 +62,7 @@
                         {% with path=prefix|append:file.name %}
                             <td><a href="{{ file.url }}">{{ file.name }}</a></td>
                             <td>{% if file.active %}✓{% endif %}</td>
-                            <td><a href="{% url 'asset_edit_file' path=path %}">edit</a></td>
+                            <td><a href="{% url 'asset_move_file' path=path %}">move</a></td>
                             <td><a href="{% url 'asset_remove_file' path=path %}">remove</a></td>
                         {% endwith %}
                     </tr>

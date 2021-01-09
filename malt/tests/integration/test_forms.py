@@ -8,7 +8,7 @@ from django.core.files import File
 from beer.tests import IntegrationTestCase
 
 from ...models import FolderAsset, FileAsset
-from ...forms import UserForm, AssetForm
+from ...forms import UserForm, AssetAddForm, AssetMoveForm
 
 User = get_user_model()
 
@@ -561,8 +561,12 @@ class UserFormTests(IntegrationTestCase):
 
 
 class AssetFormTests:
+    grand_parent_name = 'gpn'
+    parent_name = 'pn'
+    other_parent_name = 'opn'
+    child_parent_name = 'cpn'
+    asset_name = 'an'
     name = 'n'
-    child_name = 'cn'
     other_name = 'on'
     empty_name = ''
     white_name = ' \t\n'
@@ -571,84 +575,129 @@ class AssetFormTests:
     def setUp(self):
         self.upper_name = (self.Asset.name.field.max_length + 1) * 'n'
 
-    def isValid(self, name, edit):
-        user = User.objects.create_user('u')
-        grand_parent = FolderAsset.objects.create(user=user, parent=None, name='gpn')
-        parent = FolderAsset.objects.create(user=user, parent=grand_parent, name='pn')
-        child = self.Asset.objects.create(user=user, parent=parent, name=self.child_name)
-        self.Asset.objects.create(user=user, parent=parent, name=self.other_name)
+        self.user = User.objects.create_user('u')
+        grand_parent = FolderAsset.objects.create(user=self.user, parent=None, name=self.grand_parent_name)
+        self.parent = FolderAsset.objects.create(user=self.user, parent=grand_parent, name=self.parent_name)
+        FolderAsset.objects.create(user=self.user, parent=grand_parent, name=self.other_parent_name)
+        FolderAsset.objects.create(user=self.user, parent=self.parent, name=self.child_parent_name)
+        self.asset = self.Asset.objects.create(user=self.user, parent=self.parent, name=self.asset_name)
+        self.Asset.objects.create(user=self.user, parent=self.parent, name=self.other_name)
+
+
+class AssetAddFormTests(AssetFormTests):
+    def isValid(self, name):
         data = {}
         if name is not None:
             data['name'] = name
         kwargs = {
             'Asset': self.Asset,
-            'user': user,
-            'parent': parent,
+            'user': self.user,
+            'parent': self.parent,
         }
-        kwargs['initial'] = {}
-        if edit:
-            kwargs['initial']['name'] = self.child_name
-        form = AssetForm(data, **kwargs)
+        form = AssetAddForm(data, **kwargs)
         return form.is_valid()
 
-    def assertValid(self, name, edit):
-        self.assertTrue(self.isValid(name, edit))
+    def assertValid(self, name):
+        self.assertTrue(self.isValid(name))
 
-    def assertNotValid(self, name, edit):
-        self.assertFalse(self.isValid(name, edit))
+    def assertNotValid(self, name):
+        self.assertFalse(self.isValid(name))
 
-    def testValidWithFalseEdit(self):
-        self.assertValid(self.name, False)
+    def testValid(self):
+        self.assertValid(self.name)
 
-    def testValidWithTrueEdit(self):
-        self.assertValid(self.name, True)
+    def testNotValidWithoutName(self):
+        self.assertNotValid(None)
 
-    def testNotValidWithoutNameAndFalseEdit(self):
-        self.assertNotValid(None, False)
+    def testNotValidWithSameName(self):
+        self.assertNotValid(self.other_name)
 
-    def testNotValidWithoutNameAndTrueEdit(self):
-        self.assertNotValid(None, True)
+    def testNotValidWithEmptyName(self):
+        self.assertNotValid(self.empty_name)
 
-    def testNotValidWithOwnNameAndFalseEdit(self):
-        self.assertNotValid(self.child_name, False)
+    def testNotValidWithWhiteName(self):
+        self.assertNotValid(self.white_name)
 
-    def testValidWithOwnNameAndTrueEdit(self):
-        self.assertValid(self.child_name, True)
+    def testNotValidWithSlashName(self):
+        self.assertNotValid(self.slash_name)
 
-    def testNotValidWithSameNameAndFalseEdit(self):
-        self.assertNotValid(self.other_name, False)
-
-    def testNotValidWithSameNameAndTrueEdit(self):
-        self.assertNotValid(self.other_name, True)
-
-    def testNotValidWithEmptyNameAndFalseEdit(self):
-        self.assertNotValid(self.empty_name, False)
-
-    def testNotValidWithEmptyNameAndTrueEdit(self):
-        self.assertNotValid(self.empty_name, True)
-
-    def testNotValidWithWhiteNameAndFalseEdit(self):
-        self.assertNotValid(self.white_name, False)
-
-    def testNotValidWithWhiteNameAndTrueEdit(self):
-        self.assertNotValid(self.white_name, True)
-
-    def testNotValidWithSlashNameAndFalseEdit(self):
-        self.assertNotValid(self.slash_name, False)
-
-    def testNotValidWithSlashNameAndTrueEdit(self):
-        self.assertNotValid(self.slash_name, True)
-
-    def testNotValidWithUpperNameAndFalseEdit(self):
-        self.assertNotValid(self.upper_name, False)
-
-    def testNotValidWithUpperNameAndTrueEdit(self):
-        self.assertNotValid(self.upper_name, True)
+    def testNotValidWithUpperName(self):
+        self.assertNotValid(self.upper_name)
 
 
-class FolderAssetFormTests(AssetFormTests, IntegrationTestCase):
+class AssetAddFolderFormTests(AssetAddFormTests, IntegrationTestCase):
     Asset = FolderAsset
 
 
-class FileAssetFormTests(AssetFormTests, IntegrationTestCase):
+class AssetAddFileFormTests(AssetAddFormTests, IntegrationTestCase):
+    Asset = FileAsset
+
+
+class AssetMoveFormTests(AssetFormTests):
+    def isValid(self, names):
+        data = {}
+        if names is not None:
+            data['path'] = '/'.join(names)
+        kwargs = {
+            'Asset': self.Asset,
+            'user': self.user,
+            'asset': self.asset,
+        }
+        form = AssetMoveForm(data, **kwargs)
+        return form.is_valid()
+
+    def assertValid(self, names):
+        self.assertTrue(self.isValid(names))
+
+    def assertNotValid(self, names):
+        self.assertFalse(self.isValid(names))
+
+    def testValid(self):
+        self.assertValid([self.grand_parent_name, self.parent_name, self.name])
+
+    def testNotValidWithoutPath(self):
+        self.assertNotValid(None)
+
+    def testNotValidWithSamePath(self):
+        self.assertNotValid([self.grand_parent_name, self.parent_name, self.other_name])
+
+    def testValidWithOwnPath(self):
+        self.assertValid([self.grand_parent_name, self.parent_name, self.asset_name])
+
+    def testNotValidWithEmptyPath(self):
+        self.assertNotValid([self.empty_name])
+
+    def testNotValidWithWhitePath(self):
+        self.assertNotValid([self.white_name])
+
+    def testNotValidWithLeftSlashPath(self):
+        self.assertNotValid(['', self.grand_parent_name, self.parent_name, self.name])
+
+    def testNotValidWithRightSlashPath(self):
+        self.assertNotValid([self.grand_parent_name, self.parent_name, self.name, ''])
+
+    def testNotValidWithWrongPath(self):
+        self.assertNotValid([self.parent_name, self.grand_parent_name, self.name, self.asset_name])
+
+    def testNotValidWithBombPath(self):
+        self.assertNotValid([self.grand_parent_name, self.parent_name, self.asset_name, self.name])
+
+    def testValidWithGrandParent(self):
+        self.assertValid([self.grand_parent_name, self.asset_name])
+
+    def testValidWithOtherParent(self):
+        self.assertValid([self.grand_parent_name, self.other_parent_name, self.asset_name])
+
+    def testValidWithChildParent(self):
+        self.assertValid([self.grand_parent_name, self.parent_name, self.child_parent_name, self.asset_name])
+
+    def testNotValidWithUpperName(self):
+        self.assertNotValid([self.grand_parent_name, self.parent_name, self.upper_name])
+
+
+class AssetMoveFolderFormTests(AssetMoveFormTests, IntegrationTestCase):
+    Asset = FolderAsset
+
+
+class AssetMoveFileFormTests(AssetMoveFormTests, IntegrationTestCase):
     Asset = FileAsset

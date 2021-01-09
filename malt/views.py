@@ -17,7 +17,7 @@ from beer import public_storage
 from beer.utils import collapse
 
 from .models import PowerUser, FolderAsset, FileAsset
-from .forms import UserForm, AssetForm, YeastForm
+from .forms import UserForm, AssetAddForm, AssetMoveForm, YeastForm
 from .caches import power_cache, member_cache
 from .brewing import BrewError
 from .brewery import Brewery
@@ -333,8 +333,6 @@ class AssetViewMixin(LoginRequiredMixin, UserIsPowerMixin, AssetMixin, AssetPath
 
 
 class AssetFormView(FormView):
-    form_class = AssetForm
-
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         _, asset = self.get_objects()
@@ -345,19 +343,19 @@ class AssetFormView(FormView):
 
     def form_valid(self, form):
         names, asset = self.get_objects()
-        name = form.cleaned_data['name']
-        names = self.process(names, asset, name)
+        names = self.process(form, names, asset)
         return redirect(self.get_url(names))
 
 
 class AssetManageView(AssetViewMixin, AssetFormView):
+    form_class = AssetAddForm
     template_name = 'malt/asset/manage.html'
 
     def update(self, kwargs, asset):
         kwargs['parent'] = asset
 
-    def process(self, names, asset, name):
-        FolderAsset.objects.create(user=self.request.user, parent=asset, name=name)
+    def process(self, form, names, asset):
+        FolderAsset.objects.create(user=form.user, parent=asset, name=form.name)
         return names
 
     def get_context_data(self, **kwargs):
@@ -391,20 +389,22 @@ class SpecificAssetViewMixin(AssetViewMixin):
         return context
 
 
-class AssetEditView(SpecificAssetViewMixin, AssetFormView):
-    template_name = 'malt/asset/edit.html'
+class AssetMoveView(SpecificAssetViewMixin, AssetFormView):
+    form_class = AssetMoveForm
+    template_name = 'malt/asset/move.html'
 
     def update(self, kwargs, asset):
-        kwargs['parent'] = asset.parent
-        kwargs['initial']['name'] = asset.name
+        kwargs['asset'] = asset
+        kwargs['initial']['path'] = self.kwargs['path']
 
-    def process(self, names, asset, name):
-        asset.name = name
+    def process(self, form, names, asset):
+        asset.parent = form.parent
+        asset.name = form.name
         asset.save()
         return names[:-1]
 
 
-class AssetEditFileView(AssetEditView):
+class AssetMoveFileView(AssetMoveView):
     Asset = FileAsset
 
 
