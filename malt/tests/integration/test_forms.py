@@ -561,7 +561,6 @@ class UserFormTests(IntegrationTestCase):
 
 
 class AssetFormTests:
-    grand_parent_name = 'gpn'
     parent_name = 'pn'
     other_parent_name = 'opn'
     child_parent_name = 'cpn'
@@ -576,9 +575,8 @@ class AssetFormTests:
         self.upper_name = (self.Asset.name.field.max_length + 1) * 'n'
 
         self.user = User.objects.create_user('u')
-        grand_parent = FolderAsset.objects.create(user=self.user, parent=None, name=self.grand_parent_name)
-        self.parent = FolderAsset.objects.create(user=self.user, parent=grand_parent, name=self.parent_name)
-        FolderAsset.objects.create(user=self.user, parent=grand_parent, name=self.other_parent_name)
+        self.parent = FolderAsset.objects.create(user=self.user, parent=None, name=self.parent_name)
+        FolderAsset.objects.create(user=self.user, parent=None, name=self.other_parent_name)
         FolderAsset.objects.create(user=self.user, parent=self.parent, name=self.child_parent_name)
         self.asset = self.Asset.objects.create(user=self.user, parent=self.parent, name=self.asset_name)
         self.Asset.objects.create(user=self.user, parent=self.parent, name=self.other_name)
@@ -653,16 +651,16 @@ class AssetMoveFormTests(AssetFormTests):
         self.assertFalse(self.isValid(names))
 
     def testValid(self):
-        self.assertValid([self.grand_parent_name, self.parent_name, self.name])
+        self.assertValid([self.parent_name, self.name])
 
     def testNotValidWithoutPath(self):
         self.assertNotValid(None)
 
     def testNotValidWithSamePath(self):
-        self.assertNotValid([self.grand_parent_name, self.parent_name, self.other_name])
+        self.assertNotValid([self.parent_name, self.other_name])
 
     def testValidWithOwnPath(self):
-        self.assertValid([self.grand_parent_name, self.parent_name, self.asset_name])
+        self.assertValid([self.parent_name, self.asset_name])
 
     def testNotValidWithEmptyPath(self):
         self.assertNotValid([self.empty_name])
@@ -671,28 +669,28 @@ class AssetMoveFormTests(AssetFormTests):
         self.assertNotValid([self.white_name])
 
     def testNotValidWithLeftSlashPath(self):
-        self.assertNotValid(['', self.grand_parent_name, self.parent_name, self.name])
+        self.assertNotValid(['', self.parent_name, self.name])
 
     def testNotValidWithRightSlashPath(self):
-        self.assertNotValid([self.grand_parent_name, self.parent_name, self.name, ''])
+        self.assertNotValid([self.parent_name, self.name, ''])
 
     def testNotValidWithWrongPath(self):
-        self.assertNotValid([self.parent_name, self.grand_parent_name, self.name, self.asset_name])
+        self.assertNotValid([self.parent_name, self.name, self.asset_name])
 
     def testNotValidWithBombPath(self):
-        self.assertNotValid([self.grand_parent_name, self.parent_name, self.asset_name, self.name])
+        self.assertNotValid([self.parent_name, self.asset_name, self.name])
 
     def testValidWithGrandParent(self):
-        self.assertValid([self.grand_parent_name, self.asset_name])
+        self.assertValid([self.asset_name])
 
     def testValidWithOtherParent(self):
-        self.assertValid([self.grand_parent_name, self.other_parent_name, self.asset_name])
+        self.assertValid([self.other_parent_name, self.asset_name])
 
     def testValidWithChildParent(self):
-        self.assertValid([self.grand_parent_name, self.parent_name, self.child_parent_name, self.asset_name])
+        self.assertValid([self.parent_name, self.child_parent_name, self.asset_name])
 
     def testNotValidWithUpperName(self):
-        self.assertNotValid([self.grand_parent_name, self.parent_name, self.upper_name])
+        self.assertNotValid([self.parent_name, self.upper_name])
 
 
 class AssetMoveFolderFormTests(AssetMoveFormTests, IntegrationTestCase):

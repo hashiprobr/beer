@@ -1259,9 +1259,10 @@ class AssetViewTests:
     power_password = 'pp'
 
     grand_parent_name = '1cb3bba7d6539fd8'
-    parent_name = '35fde5760c42b7bc'
-    name = '528070b65f32f4f7'
-    other_name = 'bba8253c7b9a27d2'
+    other_grand_parent_name = '35fde5760c42b7bc'
+    parent_name = '528070b65f32f4f7'
+    name = 'bba8253c7b9a27d2'
+    other_name = 'eceeae86d5766723'
 
     def setUp(self):
         User.objects.create_user(self.username, password=self.password)
@@ -1284,13 +1285,11 @@ class AssetViewTests:
     def kwargs(self):
         return None
 
-    def exists(self, Asset, name):
-        return Asset.objects.filter(user=self.user, parent=self.object(), name=name)
+    def exists(self, Asset, parent, name):
+        return Asset.objects.filter(user=self.user, parent=parent, name=name)
 
     def data(self):
-        return {
-            'name': self.other_name,
-        }
+        return None
 
     def post(self):
         return super().post(kwargs=self.kwargs(), data=self.data())
@@ -1339,7 +1338,7 @@ class AssetFolderViewTests:
     def object(self):
         return self.grand_parent
 
-    def path(self):
+    def names(self):
         return [self.grand_parent_name]
 
 
@@ -1347,12 +1346,17 @@ class AssetSubViewTests:
     def object(self):
         return self.parent
 
-    def path(self):
+    def names(self):
         return [self.grand_parent_name, self.parent_name]
 
 
 class AssetManageViewTests(AssetViewTests, ViewTestCase):
     view_name = 'asset_manage'
+
+    def data(self):
+        return {
+            'name': self.name,
+        }
 
     def assertGets(self, num_folders, num_files):
         for i in range(num_folders):
@@ -1426,11 +1430,11 @@ class AssetManageViewTests(AssetViewTests, ViewTestCase):
         self.assertGets(3, 3)
 
     def testDoesNotExist(self):
-        self.assertFalse(self.exists(FolderAsset, self.other_name))
+        self.assertFalse(self.exists(FolderAsset, self.object(), self.name))
 
     def testPosts(self):
         self.assertPosts()
-        self.assertTrue(self.exists(FolderAsset, self.other_name))
+        self.assertTrue(self.exists(FolderAsset, self.object(), self.name))
 
 
 class AssetFolderManageViewTests(AssetFolderViewTests, AssetManageViewTests):
@@ -1441,7 +1445,7 @@ class AssetFolderManageViewTests(AssetFolderViewTests, AssetManageViewTests):
         self.grand_parent = FolderAsset.objects.create(user=self.user, parent=None, name=self.grand_parent_name)
 
     def kwargs(self):
-        return {'path': '/'.join(self.path())}
+        return {'path': '/'.join(self.names())}
 
 
 class AssetSubFolderManageViewTests(AssetSubViewTests, AssetFolderManageViewTests):
@@ -1456,14 +1460,15 @@ class SpecificAssetViewTests(AssetViewTests):
     def setUp(self):
         super().setUp()
         self.grand_parent = FolderAsset.objects.create(user=self.user, parent=None, name=self.grand_parent_name)
+        self.other_grand_parent = FolderAsset.objects.create(user=self.user, parent=None, name=self.other_grand_parent_name)
         self.parent = FolderAsset.objects.create(user=self.user, parent=self.grand_parent, name=self.parent_name)
         self.Asset.objects.create(user=self.user, parent=self.object(), name=self.name)
 
-    def path(self):
+    def names(self):
         return []
 
     def kwargs(self):
-        return {'path': '/'.join([*self.path(), self.name])}
+        return {'path': '/'.join([*self.names(), self.name])}
 
     def testGets(self):
         self.powerLogin()
@@ -1476,49 +1481,83 @@ class AssetFileViewTests:
     Asset = FileAsset
 
 
-class AssetEditViewTests(SpecificAssetViewTests, ViewTestCase):
-    view_name = 'asset_edit'
+class AssetMoveViewTests(SpecificAssetViewTests):
+    view_name = 'asset_move'
+
+    def data(self):
+        return {
+            'path': '/'.join(self.target_names()),
+        }
 
     def testDoesNotExist(self):
-        self.assertFalse(self.exists(self.Asset, self.other_name))
+        self.assertFalse(self.exists(self.Asset, *self.target_objects()))
 
     def testPosts(self):
         self.assertPosts()
-        self.assertTrue(self.exists(self.Asset, self.other_name))
+        self.assertTrue(self.exists(self.Asset, *self.target_objects()))
 
 
-class AssetFolderEditViewTests(AssetFolderViewTests, AssetEditViewTests):
+class AssetMoveFileTests(AssetMoveViewTests):
+    view_name = 'asset_move_file'
+
+
+class AssetMoveNameViewTests(AssetFolderViewTests, AssetMoveViewTests, ViewTestCase):
+    def target_objects(self):
+        return self.grand_parent, self.other_name
+
+    def target_names(self):
+        return [self.grand_parent_name, self.other_name]
+
+
+class AssetMoveNameFileViewTests(AssetFileViewTests, AssetMoveFileTests, AssetMoveNameViewTests):
     pass
 
 
-class AssetSubFolderEditViewTests(AssetSubViewTests, AssetFolderEditViewTests):
+class AssetMoveUpViewTests(AssetFolderViewTests, AssetMoveViewTests, ViewTestCase):
+    def target_objects(self):
+        return None, self.name
+
+    def target_names(self):
+        return [self.name]
+
+
+class AssetMoveUpFileViewTests(AssetFileViewTests, AssetMoveFileTests, AssetMoveUpViewTests):
     pass
 
 
-class AssetEditFileViewTests(AssetFileViewTests, AssetEditViewTests):
-    view_name = 'asset_edit_file'
+class AssetMoveSideViewTests(AssetFolderViewTests, AssetMoveViewTests, ViewTestCase):
+    def target_objects(self):
+        return self.other_grand_parent, self.name
+
+    def target_names(self):
+        return [self.other_grand_parent_name, self.name]
 
 
-class AssetFolderEditFileViewTests(AssetFolderViewTests, AssetEditFileViewTests):
+class AssetMoveSideFileViewTests(AssetFileViewTests, AssetMoveFileTests, AssetMoveSideViewTests):
     pass
 
 
-class AssetSubFolderEditFileViewTests(AssetSubViewTests, AssetFolderEditFileViewTests):
+class AssetMoveDownViewTests(AssetFolderViewTests, AssetMoveViewTests, ViewTestCase):
+    def target_objects(self):
+        return self.parent, self.name
+
+    def target_names(self):
+        return [self.grand_parent_name, self.parent_name, self.name]
+
+
+class AssetMoveDownFileViewTests(AssetFileViewTests, AssetMoveFileTests, AssetMoveDownViewTests):
     pass
 
 
 class AssetRemoveViewTests(SpecificAssetViewTests, ViewTestCase):
     view_name = 'asset_remove'
 
-    def data(self):
-        return None
-
     def testExists(self):
-        self.assertTrue(self.exists(self.Asset, self.name))
+        self.assertTrue(self.exists(self.Asset, self.object(), self.name))
 
     def testPosts(self):
         self.assertPosts()
-        self.assertFalse(self.exists(self.Asset, self.name))
+        self.assertFalse(self.exists(self.Asset, self.object(), self.name))
 
 
 class AssetFolderRemoveViewTests(AssetFolderViewTests, AssetRemoveViewTests):
