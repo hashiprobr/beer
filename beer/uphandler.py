@@ -1,5 +1,5 @@
 from django.conf import settings
-from django.core.files.uploadhandler import MemoryFileUploadHandler, SkipFile
+from django.core.files.uploadhandler import SkipFile, MemoryFileUploadHandler
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 

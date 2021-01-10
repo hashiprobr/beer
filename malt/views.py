@@ -11,7 +11,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views import generic
 from django.views.generic.base import ContextMixin, TemplateResponseMixin
-from django.views.generic.detail import SingleObjectTemplateResponseMixin, BaseDetailView
+from django.views.generic.detail import BaseDetailView, SingleObjectTemplateResponseMixin
 
 from beer import public_storage
 from beer.utils import collapse
