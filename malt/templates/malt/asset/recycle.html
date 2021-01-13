@@ -1,0 +1,52 @@
+{% extends 'malt/asset/base.html' %}
+
+{% block subtitle %}Recycle{% endblock %}
+
+{% block subbody %}
+    <h2>
+        Folders
+    </h2>
+    {% if folders %}
+        <table class="asset">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th></th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for folder in folders %}
+                    <tr>
+                        <td>{{ folder.name }}</td>
+                        <td><a class="submit" href="{% url 'asset_restore' pk=folder.pk %}"><form class="hidden" action="{% url 'asset_restore' pk=folder.pk %}" method="post">{% csrf_token %}</form>restore</a></td>
+                        <td><a href="{% url 'asset_remove' pk=folder.pk %}">remove</a></td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+    <h2>
+        Files
+    </h2>
+    {% if files %}
+        <table class="asset">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th></th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for file in files %}
+                    <tr>
+                        <td>{{ file.name }}</td>
+                        <td><a class="submit" href="{% url 'asset_restore_file' pk=file.pk %}"><form class="hidden" action="{% url 'asset_restore_file' pk=file.pk %}" method="post">{% csrf_token %}</form>restore</a></td>
+                        <td><a href="{% url 'asset_remove_file' pk=file.pk %}">remove</a></td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+{% endblock %}

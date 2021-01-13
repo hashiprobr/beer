@@ -2,13 +2,19 @@
 
 {% block subbody %}
     <h2>
-        Remove {{ path }}?
+        {% if file %}
+            Overwrite
+        {% else %}
+            Merge
+        {% endif %}
+        {{ path }}?
     </h2>
     <p>
         Please be aware that this operation is irreversible.
     </p>
     <form method="post">
         {% csrf_token %}
+        <input type="hidden" name="overwrite" value="">
         <input type="submit" value="Confirm">
     </form>
 {% endblock %}

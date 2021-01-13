@@ -82,10 +82,11 @@ class AssetForm(forms.Form):
     def __init__(self, *args, **kwargs):
         self.Asset = kwargs.pop('Asset')
         self.user = kwargs.pop('user')
+        self.names = kwargs.pop('names')
         super().__init__(*args, **kwargs)
 
     def validate_unique(self):
-        if self.Asset.objects.filter(user=self.user, parent=self.parent, name=self.name).exists():
+        if self.Asset.objects.filter(user=self.user, parent=self.parent, name=self.name, trashed=False).exists():
             raise ValidationError('An asset with that path already exists.')
 
 
@@ -119,7 +120,7 @@ class AssetMoveForm(AssetForm):
             self.parent = None
             for name in names[:-1]:
                 try:
-                    self.parent = FolderAsset.objects.get(user=self.user, parent=self.parent, name=name)
+                    self.parent = FolderAsset.objects.get(user=self.user, parent=self.parent, name=name, trashed=False)
                 except FolderAsset.DoesNotExist:
                     raise ValidationError('The parent does not exist.')
                 if self.parent == self.asset:

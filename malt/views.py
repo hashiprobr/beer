@@ -11,7 +11,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.views import generic
 from django.views.generic.base import ContextMixin, TemplateResponseMixin
-from django.views.generic.detail import BaseDetailView, SingleObjectTemplateResponseMixin
+from django.views.generic.detail import SingleObjectMixin, BaseDetailView
 
 from beer import public_storage
 from beer.utils import collapse
@@ -58,8 +58,8 @@ class AssetMixin:
             names = path.split('/')
             parent = None
             for name in names[:-1]:
-                parent = get_object_or_404(FolderAsset, user=self.request.user, parent=parent, name=name)
-            asset = get_object_or_404(self.Asset, user=self.request.user, parent=parent, name=names[-1])
+                parent = get_object_or_404(FolderAsset, user=self.request.user, parent=parent, name=name, trashed=False)
+            asset = get_object_or_404(self.Asset, user=self.request.user, parent=parent, name=names[-1], trashed=False)
         else:
             names = []
             asset = None
@@ -170,16 +170,16 @@ class UserRemoveView(SingleUserViewMixin, generic.edit.DeleteView):
     template_name = 'malt/user/remove.html'
 
 
-class UserChangeView(SingleUserViewMixin, SingleObjectTemplateResponseMixin, BaseDetailView):
+class UserChangeView(SingleUserViewMixin, TemplateResponseMixin, BaseDetailView):
     def post(self, request, *args, **kwargs):
         user = self.get_object()
-        power_cache.set(user, self.value)
+        power_cache.set(user, self.promote)
         self.change(user)
         return redirect(self.get_success_url())
 
 
 class UserPromoteView(UserChangeView):
-    value = True
+    promote = True
     template_name = 'malt/user/promote.html'
 
     def change(self, user):
@@ -187,7 +187,7 @@ class UserPromoteView(UserChangeView):
 
 
 class UserDemoteView(UserChangeView):
-    value = False
+    promote = False
     template_name = 'malt/user/demote.html'
 
     def change(self, user):
@@ -228,7 +228,10 @@ class UploadManageView(UploadMixin, AssetMixin, generic.View):
 
             _, parent = self.get_objects(path)
 
-            asset, _ = FileAsset.objects.get_or_create(user=request.user, parent=parent, name=name)
+            try:
+                asset = FileAsset.objects.get(user=request.user, parent=parent, name=name, trashed=False)
+            except FileAsset.DoesNotExist:
+                asset = FileAsset.objects.create(user=request.user, parent=parent, name=name)
 
             key = asset.key()
             redirect_url = '{}://{}{}'.format(request.scheme, request.get_host(), reverse('upload_asset_confirm'))
@@ -323,7 +326,11 @@ class UploadAssetConfirmView(UploadMixin, AssetPathMixin, generic.View):
         return redirect(self.get_url(asset.names()))
 
 
-class AssetViewMixin(LoginRequiredMixin, UserIsPowerMixin, AssetMixin, AssetPathMixin):
+class PowerMixin(LoginRequiredMixin, UserIsPowerMixin):
+    pass
+
+
+class AssetViewMixin(PowerMixin, AssetMixin, AssetPathMixin):
     objects = None
 
     def get_objects(self):
@@ -332,52 +339,74 @@ class AssetViewMixin(LoginRequiredMixin, UserIsPowerMixin, AssetMixin, AssetPath
         return self.objects
 
 
-class AssetFormView(FormView):
+class AssetFormView(AssetViewMixin, FormView):
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
-        _, asset = self.get_objects()
+        names, asset = self.get_objects()
         kwargs['Asset'] = self.Asset
         kwargs['user'] = self.request.user
+        kwargs['names'] = names
         self.update(kwargs, asset)
         return kwargs
 
     def form_valid(self, form):
-        names, asset = self.get_objects()
-        names = self.process(form, names, asset)
+        names = self.process(form)
         return redirect(self.get_url(names))
 
 
-class AssetManageView(AssetViewMixin, AssetFormView):
+class AssetFilterMixin:
+    def get_filter(self, Asset, **kwargs):
+        return Asset.objects.filter(**kwargs).order_by('name')
+
+
+class AssetManageView(AssetFilterMixin, AssetFormView):
     form_class = AssetAddForm
     template_name = 'malt/asset/manage.html'
 
     def update(self, kwargs, asset):
         kwargs['parent'] = asset
 
-    def process(self, form, names, asset):
-        FolderAsset.objects.create(user=form.user, parent=asset, name=form.name)
-        return names
+    def process(self, form):
+        FolderAsset.objects.create(user=form.user, parent=form.parent, name=form.name)
+        return form.names
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         names, asset = self.get_objects()
-        context['prefix'] = self.kwargs['path']
         if names:
             context['name'] = names.pop()
             context['parent_url'] = self.get_url(names)
         else:
             context['name'] = 'assets'
             context['parent_url'] = None
-        context['folders'] = FolderAsset.objects.filter(user=self.request.user, parent=asset)
-        context['files'] = FileAsset.objects.filter(user=self.request.user, parent=asset)
+        context['prefix'] = self.kwargs['path']
+        context['folders'] = self.get_filter(FolderAsset, user=self.request.user, parent=asset, trashed=False)
+        context['files'] = self.get_filter(FileAsset, user=self.request.user, parent=asset, trashed=False)
         context['focus'] = True
         return context
 
 
-class SpecificAssetViewMixin(AssetViewMixin):
+class AssetFileMixin:
+    Asset = FileAsset
+
+
+class AssetMoveView(AssetFormView):
+    form_class = AssetMoveForm
+    template_name = 'malt/asset/move.html'
+
+    def update(self, kwargs, asset):
+        kwargs['asset'] = asset
+        kwargs['initial']['path'] = self.kwargs['path']
+
+    def process(self, form):
+        form.asset.parent = form.parent
+        form.asset.name = form.name
+        form.asset.save()
+        return form.names[:-1]
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        names, _ = self.get_objects()
+        names = self.kwargs['path'].split('/')
         context['name'] = names.pop()
         context['parent_url'] = self.get_url(names)
         if names:
@@ -389,36 +418,117 @@ class SpecificAssetViewMixin(AssetViewMixin):
         return context
 
 
-class AssetMoveView(SpecificAssetViewMixin, AssetFormView):
-    form_class = AssetMoveForm
-    template_name = 'malt/asset/move.html'
-
-    def update(self, kwargs, asset):
-        kwargs['asset'] = asset
-        kwargs['initial']['path'] = self.kwargs['path']
-
-    def process(self, form, names, asset):
-        asset.parent = form.parent
-        asset.name = form.name
-        asset.save()
-        return names[:-1]
+class AssetMoveFileView(AssetFileMixin, AssetMoveView):
+    pass
 
 
-class AssetMoveFileView(AssetMoveView):
-    Asset = FileAsset
-
-
-class AssetRemoveView(SpecificAssetViewMixin, TemplateView):
-    template_name = 'malt/asset/remove.html'
-
+class AssetTrashView(AssetViewMixin, generic.View):
     def post(self, request, *args, **kwargs):
         names, asset = self.get_objects()
-        asset.delete()
+        asset.trashed = True
+        asset.save()
         return redirect(self.get_url(names[:-1]))
 
 
-class AssetRemoveFileView(AssetRemoveView):
-    Asset = FileAsset
+class AssetTrashFileView(AssetFileMixin, AssetTrashView):
+    pass
+
+
+class AssetRecycleView(AssetFilterMixin, PowerMixin, TemplateView):
+    template_name = 'malt/asset/recycle.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['folders'] = self.get_filter(FolderAsset, user=self.request.user, trashed=True)
+        context['files'] = self.get_filter(FileAsset, user=self.request.user, trashed=True)
+        return context
+
+
+class AssetChangeMixin(PowerMixin, MaltMixin):
+    model = FolderAsset
+
+    def get_success_url(self):
+        return reverse('asset_recycle')
+
+
+class AssetChangeFileMixin:
+    model = FileAsset
+
+
+class AssetRestoreView(AssetChangeMixin, TemplateResponseMixin, SingleObjectMixin, generic.View):
+    template_name = 'malt/asset/restore.html'
+
+    def overwrite(self, user, source, target, is_file):
+        if is_file:
+            target.uid = source.uid
+            target.active = source.active
+            target.save()
+        else:
+            self.merge(user, source, target, False)
+            self.merge(user, source, target, True)
+        source.delete()
+
+    def merge(self, user, source, target, is_file):
+        if is_file:
+            Asset = FileAsset
+        else:
+            Asset = FolderAsset
+        for source_child in Asset.objects.filter(user=user, parent=source):
+            if source_child.trashed:
+                source_child.parent = target
+                source_child.save()
+            else:
+                try:
+                    target_child = Asset.objects.get(user=user, parent=target, name=source_child.name, trashed=False)
+                except Asset.DoesNotExist:
+                    source_child.parent = target
+                    source_child.save()
+                else:
+                    self.overwrite(user, source_child, target_child, is_file)
+
+    @transaction.atomic
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        names = self.object.names()
+        parent = None
+        for name in names:
+            try:
+                parent = FolderAsset.objects.get(user=request.user, parent=parent, name=name, trashed=False)
+            except FolderAsset.DoesNotExist:
+                parent = FolderAsset.objects.create(user=request.user, parent=parent, name=name)
+        try:
+            object = self.model.objects.get(user=request.user, parent=parent, name=self.object.name, trashed=False)
+        except self.model.DoesNotExist:
+            self.object.parent = parent
+            self.object.trashed = False
+            self.object.save()
+            return redirect(self.get_success_url())
+        is_file = isinstance(self.object, FileAsset)
+        if 'overwrite' in request.POST:
+            self.overwrite(request.user, self.object, object, is_file)
+            return redirect(self.get_success_url())
+        context = self.get_context_data(**kwargs)
+        context['is_file'] = is_file
+        context['path'] = '/'.join([*names, self.object.name])
+        return self.render_to_response(context)
+
+
+class AssetRestoreFileView(AssetChangeFileMixin, AssetRestoreView):
+    pass
+
+
+class AssetRemoveView(AssetChangeMixin, generic.edit.DeleteView):
+    template_name = 'malt/asset/remove.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        object = self.get_object()
+        context['path'] = '/'.join([*object.names(), object.name])
+        return context
+
+
+class AssetRemoveFileView(AssetChangeFileMixin, AssetRemoveView):
+    pass
 
 
 class PrivateMixin(LoginRequiredMixin, UserIsOwnerMixin):
@@ -514,57 +624,57 @@ class YeastRemoveView(WriteYeastMixin, TemplateView):
 class YeastPublishView(WriteYeastMixin, TemplateView):
     template_name = 'malt/yeast/publish.html'
 
+    @transaction.atomic
     def post(self, request, *args, **kwargs):
-        with transaction.atomic():
-            object_draft = self.get_object()
+        object_draft = self.get_object()
 
-            kwargs = self.get_all_read_kwargs(True)
-            try:
-                object = self.Yeast.Model.objects.get(**kwargs)
-            except self.Yeast.Model.DoesNotExist:
-                object = self.get_object()
-                object.pk = None
-                object.active = True
-                object.save()
+        kwargs = self.get_all_read_kwargs(True)
+        try:
+            object = self.Yeast.Model.objects.get(**kwargs)
+        except self.Yeast.Model.DoesNotExist:
+            object = self.get_object()
+            object.pk = None
+            object.active = True
+            object.save()
 
-                kwargs = {self.Yeast.name: object}
-                for filter in self.Yeast.get_child_filters(object_draft):
-                    filter.update(**kwargs)
+            kwargs = {self.Yeast.name: object}
+            for filter in self.Yeast.get_child_filters(object_draft):
+                filter.update(**kwargs)
 
-                object_draft.delete()
-            else:
-                names = set(field.name for field in self.Yeast.Model._meta.fields)
+            object_draft.delete()
+        else:
+            names = set(field.name for field in self.Yeast.Model._meta.fields)
 
-                exclude = {'id', 'timestamp'}
-                for constraint in self.Yeast.Model._meta.constraints:
-                    if isinstance(constraint, models.UniqueConstraint):
-                        exclude.update(constraint.fields)
+            exclude = {'id', 'timestamp'}
+            for constraint in self.Yeast.Model._meta.constraints:
+                if isinstance(constraint, models.UniqueConstraint):
+                    exclude.update(constraint.fields)
 
-                for name in names - exclude:
-                    temp = getattr(object, name)
-                    setattr(object, name, getattr(object_draft, name))
-                    setattr(object_draft, name, temp)
+            for name in names - exclude:
+                temp = getattr(object, name)
+                setattr(object, name, getattr(object_draft, name))
+                setattr(object_draft, name, temp)
 
-                object_draft.save()
-                object.save()
+            object_draft.save()
+            object.save()
 
-                children_draft = []
-                for filter in self.Yeast.get_child_filters(object_draft):
-                    children_draft.extend(child for child in filter)
-                    filter.delete()
+            children_draft = []
+            for filter in self.Yeast.get_child_filters(object_draft):
+                children_draft.extend(child for child in filter)
+                filter.delete()
 
-                children = []
-                for filter in self.Yeast.get_child_filters(object):
-                    children.extend(child for child in filter)
-                    filter.delete()
+            children = []
+            for filter in self.Yeast.get_child_filters(object):
+                children.extend(child for child in filter)
+                filter.delete()
 
-                for child in children_draft:
-                    setattr(child, self.Yeast.name, object)
-                    child.save()
+            for child in children_draft:
+                setattr(child, self.Yeast.name, object)
+                child.save()
 
-                for child in children:
-                    setattr(child, self.Yeast.name, object_draft)
-                    child.save()
+            for child in children:
+                setattr(child, self.Yeast.name, object_draft)
+                child.save()
 
         return redirect(reverse(self.Yeast.name, kwargs=self.kwargs))
 

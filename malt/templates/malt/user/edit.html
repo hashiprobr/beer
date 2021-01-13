@@ -2,7 +2,7 @@
 
 {% block subbody %}
     <h2>
-        Edit {{ user.get_username }}
+        Edit {{ object.get_username }}
     </h2>
     <form method="post">
         {% csrf_token %}

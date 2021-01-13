@@ -36,29 +36,52 @@ class Asset(models.Model):
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     name = models.CharField(max_length=22, validators=[validate_slash])
+    trashed = models.BooleanField(default=False)
+
+    def append(self, value):
+        if self.parent is not None:
+            self.parent.append(value)
+            value.append(self.parent.name)
 
     def names(self):
-        if self.parent is None:
-            return []
-        else:
-            return [*self.parent.names(), self.parent.name]
+        value = []
+        self.append(value)
+        return value
+
+
+class FolderAssetManager(models.Manager):
+    def clean(self, kwargs):
+        if 'trashed' in kwargs:
+            raise IntegrityError('trashed not allowed in folder asset creation')
+
+    def create(self, **kwargs):
+        self.clean(kwargs)
+        return super().create(**kwargs)
+
+    def get_or_create(self, **kwargs):
+        self.clean(kwargs)
+        return super().get_or_create(**kwargs)
 
 
 class FolderAsset(Asset):
     class Meta:
         constraints = [
-            models.UniqueConstraint(name='folderasset_unique', fields=['user', 'parent', 'name']),
+            models.UniqueConstraint(name='folderasset_unique_with_parent', condition=Q(trashed=False), fields=['user', 'parent', 'name', 'trashed']),
+            models.UniqueConstraint(name='folderasset_unique_without_parent', condition=Q(parent=None, trashed=False), fields=['user', 'name', 'trashed']),
         ]
 
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True)
+    objects = FolderAssetManager()
 
 
 class FileAssetManager(models.Manager):
     def pop(self, kwargs):
+        if 'trashed' in kwargs:
+            raise IntegrityError('trashed not allowed in file asset creation')
         if 'uid' in kwargs:
-            raise IntegrityError('uid not allowed in kwargs')
+            raise IntegrityError('uid not allowed in file asset creation')
         if 'active' in kwargs:
-            raise IntegrityError('active not allowed in kwargs')
+            raise IntegrityError('active not allowed in file asset creation')
         user = kwargs.pop('user', None)
         while True:
             uid = uuid()
@@ -79,7 +102,8 @@ class FileAssetManager(models.Manager):
 class FileAsset(Asset):
     class Meta:
         constraints = [
-            models.UniqueConstraint(name='fileasset_unique', fields=['user', 'parent', 'name']),
+            models.UniqueConstraint(name='fileasset_unique_with_parent', condition=Q(trashed=False), fields=['user', 'parent', 'name', 'trashed']),
+            models.UniqueConstraint(name='fileasset_unique_without_parent', condition=Q(parent=None, trashed=False), fields=['user', 'name', 'trashed']),
         ]
 
     parent = models.ForeignKey(FolderAsset, on_delete=models.CASCADE, null=True)

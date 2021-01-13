@@ -563,10 +563,12 @@ class UserFormTests(IntegrationTestCase):
 class AssetFormTests:
     parent_name = 'pn'
     other_parent_name = 'opn'
+    trash_parent_name = 'tpn'
     child_parent_name = 'cpn'
     asset_name = 'an'
     name = 'n'
     other_name = 'on'
+    trash_name = 'tn'
     empty_name = ''
     white_name = ' \t\n'
     slash_name = 'n/n'
@@ -577,9 +579,15 @@ class AssetFormTests:
         self.user = User.objects.create_user('u')
         self.parent = FolderAsset.objects.create(user=self.user, parent=None, name=self.parent_name)
         FolderAsset.objects.create(user=self.user, parent=None, name=self.other_parent_name)
+        trash_parent = FolderAsset.objects.create(user=self.user, parent=None, name=self.trash_parent_name)
+        trash_parent.trashed = True
+        trash_parent.save()
         FolderAsset.objects.create(user=self.user, parent=self.parent, name=self.child_parent_name)
         self.asset = self.Asset.objects.create(user=self.user, parent=self.parent, name=self.asset_name)
         self.Asset.objects.create(user=self.user, parent=self.parent, name=self.other_name)
+        trash_asset = self.Asset.objects.create(user=self.user, parent=self.parent, name=self.trash_name)
+        trash_asset.trashed = True
+        trash_asset.save()
 
 
 class AssetAddFormTests(AssetFormTests):
@@ -590,6 +598,7 @@ class AssetAddFormTests(AssetFormTests):
         kwargs = {
             'Asset': self.Asset,
             'user': self.user,
+            'names': None,
             'parent': self.parent,
         }
         form = AssetAddForm(data, **kwargs)
@@ -607,8 +616,11 @@ class AssetAddFormTests(AssetFormTests):
     def testNotValidWithoutName(self):
         self.assertNotValid(None)
 
-    def testNotValidWithSameName(self):
+    def testNotValidWithSameNameAndFalseTrashed(self):
         self.assertNotValid(self.other_name)
+
+    def testValidWithSameNameAndTrueTrashed(self):
+        self.assertValid(self.trash_name)
 
     def testNotValidWithEmptyName(self):
         self.assertNotValid(self.empty_name)
@@ -639,6 +651,7 @@ class AssetMoveFormTests(AssetFormTests):
         kwargs = {
             'Asset': self.Asset,
             'user': self.user,
+            'names': None,
             'asset': self.asset,
         }
         form = AssetMoveForm(data, **kwargs)
@@ -656,11 +669,14 @@ class AssetMoveFormTests(AssetFormTests):
     def testNotValidWithoutPath(self):
         self.assertNotValid(None)
 
-    def testNotValidWithSamePath(self):
-        self.assertNotValid([self.parent_name, self.other_name])
-
     def testValidWithOwnPath(self):
         self.assertValid([self.parent_name, self.asset_name])
+
+    def testNotValidWithSamePathAndFalseTrashed(self):
+        self.assertNotValid([self.parent_name, self.other_name])
+
+    def testValidWithSamePathAndTrueTrashed(self):
+        self.assertValid([self.parent_name, self.trash_name])
 
     def testNotValidWithEmptyPath(self):
         self.assertNotValid([self.empty_name])
@@ -673,6 +689,9 @@ class AssetMoveFormTests(AssetFormTests):
 
     def testNotValidWithRightSlashPath(self):
         self.assertNotValid([self.parent_name, self.name, ''])
+
+    def testNotValidWithTrashedPath(self):
+        self.assertNotValid([self.trash_parent_name, self.asset_name])
 
     def testNotValidWithWrongPath(self):
         self.assertNotValid([self.parent_name, self.name, self.asset_name])

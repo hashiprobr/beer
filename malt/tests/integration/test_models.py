@@ -33,7 +33,7 @@ class PowerUserTests(IntegrationTestCase):
     def retrieve(self, user):
         return PowerUser.objects.get(user=user)
 
-    def create_retrieve(self, user):
+    def createOrRetrieve(self, user):
         return PowerUser.objects.get_or_create(user=user)
 
     def update(self, power_user, user):
@@ -62,13 +62,13 @@ class PowerUserTests(IntegrationTestCase):
             self.create(user)
 
     def assertCreatesToRetrieve(self, user):
-        _, created = self.create_retrieve(user)
+        _, created = self.createOrRetrieve(user)
         self.assertExists(user)
         self.assertTrue(created)
 
     def assertDoesNotCreateToRetrieve(self, user):
         self.create(user)
-        _, created = self.create_retrieve(user)
+        _, created = self.createOrRetrieve(user)
         self.assertFalse(created)
 
     def assertUpdates(self, power_user, user):
@@ -142,60 +142,76 @@ class FolderAssetTests(IntegrationTestCase):
         self.parent = FolderAsset.objects.create(user=self.user, parent=self.grand_parent, name='pn')
         self.other_parent = FolderAsset.objects.create(user=self.user, parent=self.grand_parent, name='opn')
 
-    def exists(self, user, parent, name):
-        return FolderAsset.objects.filter(user=user, parent=parent, name=name).exists()
+    def exists(self, user, parent, name, trashed):
+        return FolderAsset.objects.filter(user=user, parent=parent, name=name, trashed=trashed).exists()
 
-    def create(self, user, parent, name):
-        return FolderAsset.objects.create(user=user, parent=parent, name=name)
+    def create(self, user, parent, name, **kwargs):
+        return FolderAsset.objects.create(user=user, parent=parent, name=name, **kwargs)
 
-    def retrieve(self, user, parent, name):
-        return FolderAsset.objects.get(user=user, parent=parent, name=name)
+    def createAndUpdate(self, user, parent, name):
+        folder_asset = FolderAsset.objects.create(user=user, parent=parent, name=name)
+        folder_asset.trashed = True
+        folder_asset.save()
+        return folder_asset
 
-    def create_retrieve(self, user, parent, name):
-        return FolderAsset.objects.get_or_create(user=user, parent=parent, name=name)
+    def retrieve(self, user, parent, name, trashed):
+        return FolderAsset.objects.get(user=user, parent=parent, name=name, trashed=trashed)
+
+    def retrieveAll(self, user, parent, name, trashed):
+        return FolderAsset.objects.filter(user=user, parent=parent, name=name, trashed=trashed)
+
+    def createOrRetrieve(self, user, parent, name, **kwargs):
+        return FolderAsset.objects.get_or_create(user=user, parent=parent, name=name, **kwargs)
 
     def update(self, folder_asset, user, parent, name):
         folder_asset.user = user
         folder_asset.parent = parent
         folder_asset.name = name
+        folder_asset.trashed = True
         folder_asset.save()
 
     def delete(self, user, parent, name):
-        FolderAsset.objects.filter(user=user, parent=parent, name=name).delete()
+        FolderAsset.objects.filter(user=user, parent=parent, name=name, trashed=True).delete()
 
-    def assertExists(self, user, parent, name):
-        self.assertTrue(self.exists(user, parent, name))
-        folder_asset = self.retrieve(user, parent, name)
-        self.assertEqual(user, folder_asset.user)
-        self.assertEqual(parent, folder_asset.parent)
-        self.assertEqual(name, folder_asset.name)
+    def assertExists(self, user, parent, name, trashed):
+        self.assertTrue(self.exists(user, parent, name, trashed))
+        folder_assets = self.retrieveAll(user, parent, name, trashed)
+        for folder_asset in folder_assets:
+            self.assertEqual(user, folder_asset.user)
+            self.assertEqual(parent, folder_asset.parent)
+            self.assertEqual(name, folder_asset.name)
+            self.assertEqual(trashed, folder_asset.trashed)
 
-    def assertDoesNotExist(self, user, parent, name):
-        self.assertFalse(self.exists(user, parent, name))
+    def assertDoesNotExist(self, user, parent, name, trashed):
+        self.assertFalse(self.exists(user, parent, name, trashed))
         with self.assertRaises(FolderAsset.DoesNotExist):
-            self.retrieve(user, parent, name)
+            self.retrieve(user, parent, name, trashed)
 
     def assertCreates(self, user, parent, name):
         self.create(user, parent, name)
-        self.assertExists(user, parent, name)
+        self.assertExists(user, parent, name, False)
 
-    def assertDoesNotCreate(self, user, parent, name):
+    def assertDoesNotCreate(self, user, parent, name, **kwargs):
         with self.assertRaises(DatabaseError):
-            self.create(user, parent, name)
+            self.create(user, parent, name, **kwargs)
 
     def assertCreatesToRetrieve(self, user, parent, name):
-        _, created = self.create_retrieve(user, parent, name)
-        self.assertExists(user, parent, name)
+        _, created = self.createOrRetrieve(user, parent, name)
+        self.assertExists(user, parent, name, False)
         self.assertTrue(created)
 
     def assertDoesNotCreateToRetrieve(self, user, parent, name):
         self.create(user, parent, name)
-        _, created = self.create_retrieve(user, parent, name)
+        _, created = self.createOrRetrieve(user, parent, name)
         self.assertFalse(created)
+
+    def assertDoesNotCreateOrRetrieve(self, user, parent, name, **kwargs):
+        with self.assertRaises(DatabaseError):
+            self.createOrRetrieve(user, parent, name, **kwargs)
 
     def assertUpdates(self, folder_asset, user, parent, name):
         self.update(folder_asset, user, parent, name)
-        self.assertExists(user, parent, name)
+        self.assertExists(user, parent, name, True)
 
     def assertDoesNotUpdate(self, folder_asset, user, parent, name):
         with self.assertRaises(DatabaseError):
@@ -203,10 +219,10 @@ class FolderAssetTests(IntegrationTestCase):
 
     def assertDeletes(self, user, parent, name):
         self.delete(user, parent, name)
-        self.assertDoesNotExist(user, parent, name)
+        self.assertDoesNotExist(user, parent, name, True)
 
     def testDoesNotExist(self):
-        self.assertDoesNotExist(self.user, self.parent, self.name)
+        self.assertDoesNotExist(self.user, self.parent, self.name, False)
 
     def testCreates(self):
         self.assertCreates(self.user, self.parent, self.name)
@@ -242,11 +258,27 @@ class FolderAssetTests(IntegrationTestCase):
         self.create(self.user, self.parent, self.name)
         self.assertDoesNotCreate(self.user, self.parent, self.name)
 
+    def testDoesNotCreateWithSameKeyAndNoneParent(self):
+        self.create(self.user, None, self.name)
+        self.assertDoesNotCreate(self.user, None, self.name)
+
+    def testDoesNotCreateWithFalseTrashed(self):
+        self.assertDoesNotCreate(self.user, self.parent, self.name, trashed=False)
+
+    def testDoesNotCreateWithTrueTrashed(self):
+        self.assertDoesNotCreate(self.user, self.parent, self.name, trashed=True)
+
     def testCreatesToRetrieve(self):
         self.assertCreatesToRetrieve(self.user, self.parent, self.name)
 
     def testDoesNotCreateToRetrieve(self):
         self.assertDoesNotCreateToRetrieve(self.user, self.parent, self.name)
+
+    def testDoesNotCreateOrRetrieveWithFalseTrashed(self):
+        self.assertDoesNotCreateOrRetrieve(self.user, self.parent, self.name, trashed=False)
+
+    def testDoesNotCreateOrRetrieveWithTrueTrashed(self):
+        self.assertDoesNotCreateOrRetrieve(self.user, self.parent, self.name, trashed=True)
 
     def testUpdates(self):
         folder_asset = self.create(self.user, self.parent, self.name)
@@ -287,35 +319,45 @@ class FolderAssetTests(IntegrationTestCase):
         folder_asset = self.create(self.user, self.parent, self.name)
         self.assertDoesNotUpdate(folder_asset, self.other_user, self.other_parent, self.upper_name)
 
-    def testDoesNotUpdateWithSameKey(self):
-        self.create(self.other_user, self.other_parent, self.other_name)
+    def testUpdatesWithSameTrashed(self):
+        folder_asset = self.createAndUpdate(self.user, self.parent, self.name)
         folder_asset = self.create(self.user, self.parent, self.name)
-        self.assertDoesNotUpdate(folder_asset, self.other_user, self.other_parent, self.other_name)
+        self.assertUpdates(folder_asset, self.other_user, self.other_parent, self.other_name)
+
+    def testUpdatesWithSameKey(self):
+        folder_asset = self.createAndUpdate(self.other_user, self.other_parent, self.other_name)
+        folder_asset = self.create(self.user, self.parent, self.name)
+        self.assertUpdates(folder_asset, self.other_user, self.other_parent, self.other_name)
+
+    def testUpdatesWithSameKeyAndNoneParent(self):
+        folder_asset = self.createAndUpdate(self.other_user, None, self.other_name)
+        folder_asset = self.create(self.user, self.parent, self.name)
+        self.assertUpdates(folder_asset, self.other_user, None, self.other_name)
 
     def testDeletes(self):
-        self.create(self.user, self.parent, self.name)
+        self.createAndUpdate(self.user, self.parent, self.name)
         self.assertDeletes(self.user, self.parent, self.name)
 
     def testDeletesWhenDoesNotExist(self):
         self.assertDeletes(self.user, self.parent, self.name)
 
     def testDeletesWithNoneParent(self):
-        self.create(self.user, None, self.name)
+        self.createAndUpdate(self.user, None, self.name)
         self.assertDeletes(self.user, None, self.name)
 
     def testDeletesWithGrandParent(self):
-        self.create(self.user, self.grand_parent, self.name)
+        self.createAndUpdate(self.user, self.grand_parent, self.name)
         self.assertDeletes(self.user, self.grand_parent, self.name)
 
     def testCascadeUser(self):
         self.create(self.user, self.parent, self.name)
         self.user.delete()
-        self.assertDoesNotExist(self.user, self.parent, self.name)
+        self.assertDoesNotExist(self.user, self.parent, self.name, False)
 
     def testCascadeParent(self):
         self.create(self.user, self.parent, self.name)
         self.parent.delete()
-        self.assertDoesNotExist(self.user, self.parent, self.name)
+        self.assertDoesNotExist(self.user, self.parent, self.name, False)
 
 
 class FileAssetTests(IntegrationTestCase):
@@ -334,71 +376,85 @@ class FileAssetTests(IntegrationTestCase):
         self.parent = FolderAsset.objects.create(user=self.user, parent=self.grand_parent, name='pn')
         self.other_parent = FolderAsset.objects.create(user=self.user, parent=self.grand_parent, name='opn')
 
-    def exists(self, user, parent, name):
-        return FileAsset.objects.filter(user=user, parent=parent, name=name).exists()
+    def exists(self, user, parent, name, trashed):
+        return FileAsset.objects.filter(user=user, parent=parent, name=name, trashed=trashed).exists()
 
     def create(self, user, parent, name, **kwargs):
         return FileAsset.objects.create(user=user, parent=parent, name=name, **kwargs)
 
-    def retrieve(self, user, parent, name):
-        return FileAsset.objects.get(user=user, parent=parent, name=name)
+    def createAndUpdate(self, user, parent, name):
+        file_asset = FileAsset.objects.create(user=user, parent=parent, name=name)
+        file_asset.trashed = True
+        file_asset.uid = ''
+        file_asset.active = True
+        file_asset.save()
+        return file_asset
 
-    def create_retrieve(self, user, parent, name, **kwargs):
+    def retrieve(self, user, parent, name, trashed):
+        return FileAsset.objects.get(user=user, parent=parent, name=name, trashed=trashed)
+
+    def retrieveAll(self, user, parent, name, trashed):
+        return FileAsset.objects.filter(user=user, parent=parent, name=name, trashed=trashed)
+
+    def createOrRetrieve(self, user, parent, name, **kwargs):
         return FileAsset.objects.get_or_create(user=user, parent=parent, name=name, **kwargs)
 
     def update(self, file_asset, user, parent, name):
         file_asset.user = user
         file_asset.parent = parent
         file_asset.name = name
+        file_asset.trashed = True
         file_asset.uid = ''
         file_asset.active = True
         file_asset.save()
 
     def delete(self, user, parent, name):
-        FileAsset.objects.filter(user=user, parent=parent, name=name).delete()
+        FileAsset.objects.filter(user=user, parent=parent, name=name, trashed=True).delete()
 
-    def assertExists(self, user, parent, name):
-        self.assertTrue(self.exists(user, parent, name))
-        file_asset = self.retrieve(user, parent, name)
-        self.assertEqual(user, file_asset.user)
-        self.assertEqual(parent, file_asset.parent)
-        self.assertEqual(name, file_asset.name)
-        return file_asset
+    def assertExists(self, user, parent, name, trashed):
+        self.assertTrue(self.exists(user, parent, name, trashed))
+        file_assets = self.retrieveAll(user, parent, name, trashed)
+        for file_asset in file_assets:
+            self.assertEqual(user, file_asset.user)
+            self.assertEqual(parent, file_asset.parent)
+            self.assertEqual(name, file_asset.name)
+            self.assertEqual(trashed, file_asset.trashed)
+        return file_assets
 
-    def assertDoesNotExist(self, user, parent, name):
-        self.assertFalse(self.exists(user, parent, name))
+    def assertDoesNotExist(self, user, parent, name, trashed):
+        self.assertFalse(self.exists(user, parent, name, trashed))
         with self.assertRaises(FileAsset.DoesNotExist):
-            self.retrieve(user, parent, name)
+            self.retrieve(user, parent, name, trashed)
 
     def assertCreates(self, user, parent, name):
         self.create(user, parent, name)
-        file_asset = self.assertExists(user, parent, name)
-        self.assertTrue(file_asset.uid)
-        self.assertFalse(file_asset.active)
+        for file_asset in self.assertExists(user, parent, name, False):
+            self.assertTrue(file_asset.uid)
+            self.assertFalse(file_asset.active)
 
     def assertDoesNotCreate(self, user, parent, name, **kwargs):
         with self.assertRaises(DatabaseError):
             self.create(user, parent, name, **kwargs)
 
     def assertCreatesToRetrieve(self, user, parent, name):
-        _, created = self.create_retrieve(user, parent, name)
-        self.assertExists(user, parent, name)
+        _, created = self.createOrRetrieve(user, parent, name)
+        self.assertExists(user, parent, name, False)
         self.assertTrue(created)
 
     def assertDoesNotCreateToRetrieve(self, user, parent, name):
         self.create(user, parent, name)
-        _, created = self.create_retrieve(user, parent, name)
+        _, created = self.createOrRetrieve(user, parent, name)
         self.assertFalse(created)
 
     def assertDoesNotCreateOrRetrieve(self, user, parent, name, **kwargs):
         with self.assertRaises(DatabaseError):
-            self.create_retrieve(user, parent, name, **kwargs)
+            self.createOrRetrieve(user, parent, name, **kwargs)
 
     def assertUpdates(self, file_asset, user, parent, name):
         self.update(file_asset, user, parent, name)
-        file_asset = self.assertExists(user, parent, name)
-        self.assertFalse(file_asset.uid)
-        self.assertTrue(file_asset.active)
+        for file_asset in self.assertExists(user, parent, name, True):
+            self.assertFalse(file_asset.uid)
+            self.assertTrue(file_asset.active)
 
     def assertDoesNotUpdate(self, file_asset, user, parent, name):
         with self.assertRaises(DatabaseError):
@@ -406,10 +462,10 @@ class FileAssetTests(IntegrationTestCase):
 
     def assertDeletes(self, user, parent, name):
         self.delete(user, parent, name)
-        self.assertDoesNotExist(user, parent, name)
+        self.assertDoesNotExist(user, parent, name, True)
 
     def testDoesNotExist(self):
-        self.assertDoesNotExist(self.user, self.parent, self.name)
+        self.assertDoesNotExist(self.user, self.parent, self.name, False)
 
     def testCreates(self):
         self.assertCreates(self.user, self.parent, self.name)
@@ -445,6 +501,16 @@ class FileAssetTests(IntegrationTestCase):
         self.create(self.user, self.parent, self.name)
         self.assertDoesNotCreate(self.user, self.parent, self.name)
 
+    def testDoesNotCreateWithSameKeyAndNoneParent(self):
+        self.create(self.user, None, self.name)
+        self.assertDoesNotCreate(self.user, None, self.name)
+
+    def testDoesNotCreateWithFalseTrashed(self):
+        self.assertDoesNotCreate(self.user, self.parent, self.name, trashed=False)
+
+    def testDoesNotCreateWithTrueTrashed(self):
+        self.assertDoesNotCreate(self.user, self.parent, self.name, trashed=True)
+
     def testDoesNotCreateWithUID(self):
         self.assertDoesNotCreate(self.user, self.parent, self.name, uid=self.uid)
 
@@ -459,6 +525,12 @@ class FileAssetTests(IntegrationTestCase):
 
     def testDoesNotCreateToRetrieve(self):
         self.assertDoesNotCreateToRetrieve(self.user, self.parent, self.name)
+
+    def testDoesNotCreateOrRetrieveWithFalseTrashed(self):
+        self.assertDoesNotCreateOrRetrieve(self.user, self.parent, self.name, trashed=False)
+
+    def testDoesNotCreateOrRetrieveWithTrueTrashed(self):
+        self.assertDoesNotCreateOrRetrieve(self.user, self.parent, self.name, trashed=True)
 
     def testDoesNotCreateOrRetrieveWithUID(self):
         self.assertDoesNotCreateOrRetrieve(self.user, self.parent, self.name, uid=self.uid)
@@ -508,35 +580,45 @@ class FileAssetTests(IntegrationTestCase):
         file_asset = self.create(self.user, self.parent, self.name)
         self.assertDoesNotUpdate(file_asset, self.other_user, self.other_parent, self.upper_name)
 
-    def testDoesNotUpdateWithSameKey(self):
-        self.create(self.other_user, self.other_parent, self.other_name)
+    def testUpdatesWithSameTrashed(self):
+        file_asset = self.createAndUpdate(self.user, self.parent, self.name)
         file_asset = self.create(self.user, self.parent, self.name)
-        self.assertDoesNotUpdate(file_asset, self.other_user, self.other_parent, self.other_name)
+        self.assertUpdates(file_asset, self.other_user, self.other_parent, self.other_name)
+
+    def testUpdatesWithSameKey(self):
+        file_asset = self.createAndUpdate(self.other_user, self.other_parent, self.other_name)
+        file_asset = self.create(self.user, self.parent, self.name)
+        self.assertUpdates(file_asset, self.other_user, self.other_parent, self.other_name)
+
+    def testUpdatesWithSameKeyAndNoneParent(self):
+        file_asset = self.createAndUpdate(self.other_user, None, self.other_name)
+        file_asset = self.create(self.user, self.parent, self.name)
+        self.assertUpdates(file_asset, self.other_user, None, self.other_name)
 
     def testDeletes(self):
-        self.create(self.user, self.parent, self.name)
+        self.createAndUpdate(self.user, self.parent, self.name)
         self.assertDeletes(self.user, self.parent, self.name)
 
     def testDeletesWhenDoesNotExist(self):
         self.assertDeletes(self.user, self.parent, self.name)
 
     def testDeletesWithNoneParent(self):
-        self.create(self.user, None, self.name)
+        self.createAndUpdate(self.user, None, self.name)
         self.assertDeletes(self.user, None, self.name)
 
     def testDeletesWithGrandParent(self):
-        self.create(self.user, self.grand_parent, self.name)
+        self.createAndUpdate(self.user, self.grand_parent, self.name)
         self.assertDeletes(self.user, self.grand_parent, self.name)
 
     def testCascadeUser(self):
         self.create(self.user, self.parent, self.name)
         self.user.delete()
-        self.assertDoesNotExist(self.user, self.parent, self.name)
+        self.assertDoesNotExist(self.user, self.parent, self.name, False)
 
     def testCascadeParent(self):
         self.create(self.user, self.parent, self.name)
         self.parent.delete()
-        self.assertDoesNotExist(self.user, self.parent, self.name)
+        self.assertDoesNotExist(self.user, self.parent, self.name, False)
 
 
 class BaseCalendarTests:
@@ -569,7 +651,7 @@ class BaseCalendarTests:
     def retrieve(self, user, slug, title, begin_date, end_date):
         return Calendar.objects.get(user=user, slug=slug, active=self.active, title=title, begin_date=begin_date, end_date=end_date)
 
-    def create_retrieve(self, user, slug, title, begin_date, end_date):
+    def createOrRetrieve(self, user, slug, title, begin_date, end_date):
         return Calendar.objects.get_or_create(user=user, slug=slug, active=self.active, title=title, begin_date=begin_date, end_date=end_date)
 
     def update(self, calendar, user, slug, title, begin_date, end_date):
@@ -608,13 +690,13 @@ class BaseCalendarTests:
             self.create(user, slug, title, begin_date, end_date)
 
     def assertCreatesToRetrieve(self, user, slug, title, begin_date, end_date):
-        _, created = self.create_retrieve(user, slug, title, begin_date, end_date)
+        _, created = self.createOrRetrieve(user, slug, title, begin_date, end_date)
         self.assertExists(user, slug, title, begin_date, end_date)
         self.assertTrue(created)
 
     def assertDoesNotCreateToRetrieve(self, user, slug, title, begin_date, end_date):
         self.create(user, slug, title, begin_date, end_date)
-        _, created = self.create_retrieve(user, slug, title, begin_date, end_date)
+        _, created = self.createOrRetrieve(user, slug, title, begin_date, end_date)
         self.assertFalse(created)
 
     def assertUpdates(self, calendar, user, slug, title, begin_date, end_date):
@@ -778,7 +860,7 @@ class BaseCourseTests:
     def retrieve(self, calendar, slug, title):
         return Course.objects.get(calendar=calendar, slug=slug, active=self.active, title=title)
 
-    def create_retrieve(self, calendar, slug, title):
+    def createOrRetrieve(self, calendar, slug, title):
         return Course.objects.get_or_create(calendar=calendar, slug=slug, active=self.active, title=title)
 
     def update(self, course, calendar, slug, title):
@@ -813,13 +895,13 @@ class BaseCourseTests:
             self.create(calendar, slug, title)
 
     def assertCreatesToRetrieve(self, calendar, slug, title):
-        _, created = self.create_retrieve(calendar, slug, title)
+        _, created = self.createOrRetrieve(calendar, slug, title)
         self.assertExists(calendar, slug, title)
         self.assertTrue(created)
 
     def assertDoesNotCreateToRetrieve(self, calendar, slug, title):
         self.create(calendar, slug, title)
-        _, created = self.create_retrieve(calendar, slug, title)
+        _, created = self.createOrRetrieve(calendar, slug, title)
         self.assertFalse(created)
 
     def assertUpdates(self, course, calendar, slug, title):
@@ -956,7 +1038,7 @@ class ScheduleTests(IntegrationTestCase):
     def retrieve(self, course, title):
         return Schedule.objects.get(course=course, title=title)
 
-    def create_retrieve(self, course, title):
+    def createOrRetrieve(self, course, title):
         return Schedule.objects.get_or_create(course=course, title=title)
 
     def update(self, schedule, course, title):
@@ -987,13 +1069,13 @@ class ScheduleTests(IntegrationTestCase):
             self.create(course, title)
 
     def assertCreatesToRetrieve(self, course, title):
-        _, created = self.create_retrieve(course, title)
+        _, created = self.createOrRetrieve(course, title)
         self.assertExists(course, title)
         self.assertTrue(created)
 
     def assertDoesNotCreateToRetrieve(self, course, title):
         self.create(course, title)
-        _, created = self.create_retrieve(course, title)
+        _, created = self.createOrRetrieve(course, title)
         self.assertFalse(created)
 
     def assertUpdates(self, schedule, course, title):
@@ -1091,7 +1173,7 @@ class SingleEventTests(IntegrationTestCase):
     def retrieve(self, schedule, date, begin_time, end_time, place):
         return SingleEvent.objects.get(schedule=schedule, date=date, begin_time=begin_time, end_time=end_time, place=place)
 
-    def create_retrieve(self, schedule, date, begin_time, end_time, place):
+    def createOrRetrieve(self, schedule, date, begin_time, end_time, place):
         return SingleEvent.objects.get_or_create(schedule=schedule, date=date, begin_time=begin_time, end_time=end_time, place=place)
 
     def update(self, single_event, schedule, date, begin_time, end_time, place):
@@ -1128,13 +1210,13 @@ class SingleEventTests(IntegrationTestCase):
             self.create(schedule, date, begin_time, end_time, place)
 
     def assertCreatesToRetrieve(self, schedule, date, begin_time, end_time, place):
-        _, created = self.create_retrieve(schedule, date, begin_time, end_time, place)
+        _, created = self.createOrRetrieve(schedule, date, begin_time, end_time, place)
         self.assertExists(schedule, date, begin_time, end_time, place)
         self.assertTrue(created)
 
     def assertDoesNotCreateToRetrieve(self, schedule, date, begin_time, end_time, place):
         self.create(schedule, date, begin_time, end_time, place)
-        _, created = self.create_retrieve(schedule, date, begin_time, end_time, place)
+        _, created = self.createOrRetrieve(schedule, date, begin_time, end_time, place)
         self.assertFalse(created)
 
     def assertUpdates(self, single_event, schedule, date, begin_time, end_time, place):
@@ -1275,7 +1357,7 @@ class WeeklyEventTests(IntegrationTestCase):
     def retrieve(self, schedule, weekday, begin_time, end_time, place):
         return WeeklyEvent.objects.get(schedule=schedule, weekday=weekday, begin_time=begin_time, end_time=end_time, place=place)
 
-    def create_retrieve(self, schedule, weekday, begin_time, end_time, place):
+    def createOrRetrieve(self, schedule, weekday, begin_time, end_time, place):
         return WeeklyEvent.objects.get_or_create(schedule=schedule, weekday=weekday, begin_time=begin_time, end_time=end_time, place=place)
 
     def update(self, weekly_event, schedule, weekday, begin_time, end_time, place):
@@ -1312,13 +1394,13 @@ class WeeklyEventTests(IntegrationTestCase):
             self.create(schedule, weekday, begin_time, end_time, place)
 
     def assertCreatesToRetrieve(self, schedule, weekday, begin_time, end_time, place):
-        _, created = self.create_retrieve(schedule, weekday, begin_time, end_time, place)
+        _, created = self.createOrRetrieve(schedule, weekday, begin_time, end_time, place)
         self.assertExists(schedule, weekday, begin_time, end_time, place)
         self.assertTrue(created)
 
     def assertDoesNotCreateToRetrieve(self, schedule, weekday, begin_time, end_time, place):
         self.create(schedule, weekday, begin_time, end_time, place)
-        _, created = self.create_retrieve(schedule, weekday, begin_time, end_time, place)
+        _, created = self.createOrRetrieve(schedule, weekday, begin_time, end_time, place)
         self.assertFalse(created)
 
     def assertUpdates(self, single_event, schedule, weekday, begin_time, end_time, place):
@@ -1453,7 +1535,7 @@ class CalendarCancelationTests(IntegrationTestCase):
     def retrieve(self, calendar, date, title):
         return CalendarCancelation.objects.get(calendar=calendar, date=date, title=title)
 
-    def create_retrieve(self, calendar, date, title):
+    def createOrRetrieve(self, calendar, date, title):
         return CalendarCancelation.objects.get_or_create(calendar=calendar, date=date, title=title)
 
     def update(self, cancelation, calendar, date, title):
@@ -1486,13 +1568,13 @@ class CalendarCancelationTests(IntegrationTestCase):
             self.create(calendar, date, title)
 
     def assertCreatesToRetrieve(self, calendar, date, title):
-        _, created = self.create_retrieve(calendar, date, title)
+        _, created = self.createOrRetrieve(calendar, date, title)
         self.assertExists(calendar, date, title)
         self.assertTrue(created)
 
     def assertDoesNotCreateToRetrieve(self, calendar, date, title):
         self.create(calendar, date, title)
-        _, created = self.create_retrieve(calendar, date, title)
+        _, created = self.createOrRetrieve(calendar, date, title)
         self.assertFalse(created)
 
     def assertUpdates(self, cancelation, calendar, date, title):
@@ -1618,7 +1700,7 @@ class ScheduleCancelationTests(IntegrationTestCase):
     def retrieve(self, schedule, date, title):
         return ScheduleCancelation.objects.get(schedule=schedule, date=date, title=title)
 
-    def create_retrieve(self, schedule, date, title):
+    def createOrRetrieve(self, schedule, date, title):
         return ScheduleCancelation.objects.get_or_create(schedule=schedule, date=date, title=title)
 
     def update(self, cancelation, schedule, date, title):
@@ -1651,13 +1733,13 @@ class ScheduleCancelationTests(IntegrationTestCase):
             self.create(schedule, date, title)
 
     def assertCreatesToRetrieve(self, schedule, date, title):
-        _, created = self.create_retrieve(schedule, date, title)
+        _, created = self.createOrRetrieve(schedule, date, title)
         self.assertExists(schedule, date, title)
         self.assertTrue(created)
 
     def assertDoesNotCreateToRetrieve(self, schedule, date, title):
         self.create(schedule, date, title)
-        _, created = self.create_retrieve(schedule, date, title)
+        _, created = self.createOrRetrieve(schedule, date, title)
         self.assertFalse(created)
 
     def assertUpdates(self, cancelation, schedule, date, title):

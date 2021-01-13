@@ -45,8 +45,8 @@ class UserViewTests:
 
     def setUp(self):
         self.user = User.objects.create_user(self.username, password=self.password, email=self.email, first_name=self.first_name, last_name=self.last_name)
-        self.power_user = User.objects.create_user(self.power_username, password=self.power_password)
-        PowerUser.objects.create(user=self.power_user)
+        power_user = User.objects.create_user(self.power_username, password=self.power_password)
+        PowerUser.objects.create(user=power_user)
         User.objects.create_superuser(self.super_username, password=self.super_password)
 
     def login(self):
@@ -684,17 +684,14 @@ class UserAddViewTests(SingleUserViewTests, ViewTestCase):
 
 
 class SpecificUserViewTests(SingleUserViewTests):
-    def object(self):
-        return self.user
-
     def kwargs(self):
-        return {'pk': self.object().pk}
+        return {'pk': self.user.pk}
 
     def testGets(self):
         self.superLogin()
         html = self.get_html(kwargs=self.kwargs())
         h2 = html.select_one('h2')
-        self.assertIn(self.object().get_username(), self.string(h2))
+        self.assertIn(self.user.get_username(), self.string(h2))
 
 
 class UserEditViewTests(SpecificUserViewTests, ViewTestCase):
@@ -753,20 +750,21 @@ class UserPromoteViewTests(SpecificUserViewTests, ViewTestCase):
 class UserDemoteViewTests(SpecificUserViewTests, ViewTestCase):
     view_name = 'user_demote'
 
-    def object(self):
-        return self.power_user
+    def setUp(self):
+        super().setUp()
+        PowerUser.objects.create(user=self.user)
 
     def testExists(self):
-        self.assertPower(self.power_user)
+        self.assertPower(self.user)
 
     def testPosts(self):
         self.assertPosts()
-        self.assertNotPower(self.power_user)
+        self.assertNotPower(self.user)
 
     def testPostsPosts(self):
         self.assertPosts()
         self.assertPosts()
-        self.assertNotPower(self.power_user)
+        self.assertNotPower(self.user)
 
 
 class UploadViewTests:
@@ -1250,6 +1248,9 @@ class UploadAssetConfirmViewTests(UploadViewTests, ViewTestCase):
 
 
 class AssetViewTests:
+    trashed = False
+    Asset = FolderAsset
+
     username = 'u'
     super_username = 'su'
     power_username = 'pu'
@@ -1261,6 +1262,9 @@ class AssetViewTests:
     grand_parent_name = '1cb3bba7d6539fd8'
     other_grand_parent_name = '35fde5760c42b7bc'
     parent_name = '528070b65f32f4f7'
+    other_parent_name = '6bdc514167a3db99'
+    child_name = '8a8e367c2ebfd83a'
+    grand_child_name = '9cb85ee9f59d0296'
     name = 'bba8253c7b9a27d2'
     other_name = 'eceeae86d5766723'
 
@@ -1282,17 +1286,26 @@ class AssetViewTests:
     def object(self):
         return None
 
+    def names(self):
+        return []
+
     def kwargs(self):
         return None
-
-    def exists(self, Asset, parent, name):
-        return Asset.objects.filter(user=self.user, parent=parent, name=name)
 
     def data(self):
         return None
 
     def post(self):
         return super().post(kwargs=self.kwargs(), data=self.data())
+
+    def exists(self, parent, name, trashed):
+        return self.Asset.objects.filter(user=self.user, parent=parent, name=name, trashed=trashed).exists()
+
+    def existsBase(self, trashed):
+        return self.exists(self.object(), self.name, trashed)
+
+    def assertSource(self, expected):
+        self.assertEqual(expected, self.existsBase(self.trashed))
 
     def assertBlocks(self, response):
         self.assertEqual(302, response.status_code)
@@ -1315,10 +1328,6 @@ class AssetViewTests:
         self.superLogin()
         self.assertEqual(403, self.get_status(kwargs=self.kwargs()))
 
-    def testGetAcceptsAfterPowerLogin(self):
-        self.powerLogin()
-        self.assertEqual(200, self.get_status(kwargs=self.kwargs()))
-
     def testPostBlocks(self):
         response = self.post()
         self.assertBlocks(response)
@@ -1334,53 +1343,13 @@ class AssetViewTests:
         self.assertEqual(403, response.status_code)
 
 
-class AssetFolderViewTests:
-    def object(self):
-        return self.grand_parent
-
-    def names(self):
-        return [self.grand_parent_name]
-
-
-class AssetSubViewTests:
-    def object(self):
-        return self.parent
-
-    def names(self):
-        return [self.grand_parent_name, self.parent_name]
-
-
-class AssetManageViewTests(AssetViewTests, ViewTestCase):
-    view_name = 'asset_manage'
-
-    def data(self):
-        return {
-            'name': self.name,
-        }
-
-    def assertGets(self, num_folders, num_files):
-        for i in range(num_folders):
-            FolderAsset.objects.create(user=self.user, parent=self.object(), name=str(i))
-        for i in range(num_files):
-            FileAsset.objects.create(user=self.user, parent=self.object(), name=str(i))
+class AssetGetMixin:
+    def testGetAcceptsAfterPowerLogin(self):
         self.powerLogin()
-        html = self.get_html(kwargs=self.kwargs())
-        tables = html.select('table')
-        if num_folders:
-            folder_trs = tables[0].select('tbody tr')
-            if num_files:
-                file_trs = tables[1].select('tbody tr')
-            else:
-                file_trs = []
-        else:
-            folder_trs = []
-            if num_files:
-                file_trs = tables[0].select('tbody tr')
-            else:
-                file_trs = []
-        self.assertEqual(num_folders, len(folder_trs))
-        self.assertEqual(num_files, len(file_trs))
+        self.assertEqual(200, self.get_status(kwargs=self.kwargs()))
 
+
+class BrowsingAssetViewTests(AssetGetMixin, AssetViewTests):
     def testGetsForZeroFoldersAndZeroFiles(self):
         self.assertGets(0, 0)
 
@@ -1429,152 +1398,463 @@ class AssetManageViewTests(AssetViewTests, ViewTestCase):
     def testGetsForThreeFoldersAndThreeFiles(self):
         self.assertGets(3, 3)
 
-    def testDoesNotExist(self):
-        self.assertFalse(self.exists(FolderAsset, self.object(), self.name))
 
-    def testPosts(self):
-        self.assertPosts()
-        self.assertTrue(self.exists(FolderAsset, self.object(), self.name))
-
-
-class AssetFolderManageViewTests(AssetFolderViewTests, AssetManageViewTests):
-    view_name = 'asset_manage_folder'
-
+class AssetGrandParentMixin:
     def setUp(self):
         super().setUp()
         self.grand_parent = FolderAsset.objects.create(user=self.user, parent=None, name=self.grand_parent_name)
+
+
+class AssetParentMixin(AssetGrandParentMixin):
+    def setUp(self):
+        super().setUp()
+        self.parent = FolderAsset.objects.create(user=self.user, parent=self.grand_parent, name=self.parent_name)
+
+
+class AssetFolderMixin:
+    def object(self):
+        return self.grand_parent
+
+    def names(self):
+        return [self.grand_parent_name]
+
+
+class AssetSubMixin:
+    def object(self):
+        return self.parent
+
+    def names(self):
+        return [self.grand_parent_name, self.parent_name]
+
+
+class AssetManageViewTests(BrowsingAssetViewTests, ViewTestCase):
+    view_name = 'asset_manage'
+
+    def data(self):
+        return {
+            'name': self.name,
+        }
+
+    def assertGets(self, num_folders, num_files):
+        for i in range(num_folders):
+            FolderAsset.objects.create(user=self.user, parent=self.object(), name=str(i))
+        for i in range(num_files):
+            FileAsset.objects.create(user=self.user, parent=self.object(), name=str(i))
+        self.powerLogin()
+        html = self.get_html(kwargs=self.kwargs())
+        tables = html.select('table')
+        if num_folders:
+            folder_trs = tables[0].select('tbody tr')
+            if num_files:
+                file_trs = tables[1].select('tbody tr')
+            else:
+                file_trs = []
+        else:
+            folder_trs = []
+            if num_files:
+                file_trs = tables[0].select('tbody tr')
+            else:
+                file_trs = []
+        self.assertEqual(num_folders, len(folder_trs))
+        self.assertEqual(num_files, len(file_trs))
+
+    def testDoesNotExist(self):
+        self.assertSource(False)
+
+    def testPosts(self):
+        self.assertPosts()
+        self.assertSource(True)
+
+
+class AssetFolderManageViewTests(AssetFolderMixin, AssetGrandParentMixin, AssetManageViewTests):
+    view_name = 'asset_manage_folder'
 
     def kwargs(self):
         return {'path': '/'.join(self.names())}
 
 
-class AssetSubFolderManageViewTests(AssetSubViewTests, AssetFolderManageViewTests):
+class AssetSubFolderManageViewTests(AssetSubMixin, AssetParentMixin, AssetFolderManageViewTests):
+    pass
+
+
+class SingleAssetViewTests(AssetParentMixin, AssetViewTests):
     def setUp(self):
         super().setUp()
-        self.parent = FolderAsset.objects.create(user=self.user, parent=self.grand_parent, name=self.parent_name)
-
-
-class SpecificAssetViewTests(AssetViewTests):
-    Asset = FolderAsset
-
-    def setUp(self):
-        super().setUp()
-        self.grand_parent = FolderAsset.objects.create(user=self.user, parent=None, name=self.grand_parent_name)
         self.other_grand_parent = FolderAsset.objects.create(user=self.user, parent=None, name=self.other_grand_parent_name)
-        self.parent = FolderAsset.objects.create(user=self.user, parent=self.grand_parent, name=self.parent_name)
-        self.Asset.objects.create(user=self.user, parent=self.object(), name=self.name)
+        self.other_parent = FolderAsset.objects.create(user=self.user, parent=self.grand_parent, name=self.other_parent_name)
+        self.child = FolderAsset.objects.create(user=self.user, parent=self.parent, name=self.child_name)
+        self.grand_child = FolderAsset.objects.create(user=self.user, parent=self.child, name=self.grand_child_name)
+        self.asset = self.Asset.objects.create(user=self.user, parent=self.object(), name=self.name)
 
-    def names(self):
-        return []
+    def path(self):
+        return '/'.join([*self.names(), self.name])
 
+
+class PathAssetViewTests(SingleAssetViewTests):
     def kwargs(self):
-        return {'path': '/'.join([*self.names(), self.name])}
+        return {'path': self.path()}
+
+
+class SpecificAssetMixin(AssetGetMixin):
+    def substring(self):
+        return self.name
 
     def testGets(self):
         self.powerLogin()
         html = self.get_html(kwargs=self.kwargs())
         h2 = html.select_one('h2')
-        self.assertIn(self.name, self.string(h2))
+        self.assertIn(self.substring(), self.string(h2))
 
 
-class AssetFileViewTests:
+class AssertUpdateMixin:
+    def testKeeps(self):
+        self.assertSource(True)
+        self.assertTarget(False)
+
+    def testPosts(self):
+        self.assertPosts()
+        self.assertSource(False)
+        self.assertTarget(True)
+
+
+class AssetFileMixin:
     Asset = FileAsset
 
 
-class AssetMoveViewTests(SpecificAssetViewTests):
+class AssetMoveViewTests(AssertUpdateMixin, SpecificAssetMixin, PathAssetViewTests):
     view_name = 'asset_move'
 
     def data(self):
         return {
-            'path': '/'.join(self.target_names()),
+            'path': '/'.join([*self.targetNames(), self.targetName()]),
         }
 
-    def testDoesNotExist(self):
-        self.assertFalse(self.exists(self.Asset, *self.target_objects()))
+    def assertTarget(self, expected):
+        self.assertEqual(expected, self.exists(self.targetObject(), self.targetName(), self.trashed))
 
-    def testPosts(self):
-        self.assertPosts()
-        self.assertTrue(self.exists(self.Asset, *self.target_objects()))
+    def targetName(self):
+        return self.name
+
+    def targetObject(self):
+        return None
+
+    def targetNames(self):
+        return []
 
 
-class AssetMoveFileTests(AssetMoveViewTests):
+class AssetMoveFileMixin(AssetFileMixin):
     view_name = 'asset_move_file'
 
 
-class AssetMoveNameViewTests(AssetFolderViewTests, AssetMoveViewTests, ViewTestCase):
-    def target_objects(self):
-        return self.grand_parent, self.other_name
-
-    def target_names(self):
-        return [self.grand_parent_name, self.other_name]
+class AssetMoveNameViewTests(AssetMoveViewTests, ViewTestCase):
+    def targetName(self):
+        return self.other_name
 
 
-class AssetMoveNameFileViewTests(AssetFileViewTests, AssetMoveFileTests, AssetMoveNameViewTests):
+class AssetMoveNameFileViewTests(AssetMoveFileMixin, AssetMoveNameViewTests):
     pass
 
 
-class AssetMoveUpViewTests(AssetFolderViewTests, AssetMoveViewTests, ViewTestCase):
-    def target_objects(self):
-        return None, self.name
+class AssetMoveDownOneViewTests(AssetMoveViewTests, ViewTestCase):
+    def targetObject(self):
+        return self.grand_parent
 
-    def target_names(self):
-        return [self.name]
+    def targetNames(self):
+        return [self.grand_parent_name]
 
 
-class AssetMoveUpFileViewTests(AssetFileViewTests, AssetMoveFileTests, AssetMoveUpViewTests):
+class AssetMoveDownOneFileViewTests(AssetMoveFileMixin, AssetMoveDownOneViewTests):
     pass
 
 
-class AssetMoveSideViewTests(AssetFolderViewTests, AssetMoveViewTests, ViewTestCase):
-    def target_objects(self):
-        return self.other_grand_parent, self.name
+class AssetMoveDownTwoViewTests(AssetMoveViewTests, ViewTestCase):
+    def targetObject(self):
+        return self.parent
 
-    def target_names(self):
-        return [self.other_grand_parent_name, self.name]
+    def targetNames(self):
+        return [self.grand_parent_name, self.parent_name]
 
 
-class AssetMoveSideFileViewTests(AssetFileViewTests, AssetMoveFileTests, AssetMoveSideViewTests):
+class AssetMoveDownTwoFileViewTests(AssetMoveFileMixin, AssetMoveDownTwoViewTests):
     pass
 
 
-class AssetMoveDownViewTests(AssetFolderViewTests, AssetMoveViewTests, ViewTestCase):
-    def target_objects(self):
-        return self.parent, self.name
-
-    def target_names(self):
-        return [self.grand_parent_name, self.parent_name, self.name]
-
-
-class AssetMoveDownFileViewTests(AssetFileViewTests, AssetMoveFileTests, AssetMoveDownViewTests):
+class AssetFolderMoveViewTests(AssetFolderMixin, AssetMoveViewTests):
     pass
 
 
-class AssetRemoveViewTests(SpecificAssetViewTests, ViewTestCase):
+class AssetFolderMoveNameViewTests(AssetFolderMoveViewTests, ViewTestCase):
+    def targetName(self):
+        return self.other_name
+
+    def targetObject(self):
+        return self.grand_parent
+
+    def targetNames(self):
+        return [self.grand_parent_name]
+
+
+class AssetFolderMoveNameFileViewTests(AssetMoveFileMixin, AssetFolderMoveNameViewTests):
+    pass
+
+
+class AssetFolderMoveUpViewTests(AssetFolderMoveViewTests, ViewTestCase):
+    pass
+
+
+class AssetFolderMoveUpFileViewTests(AssetMoveFileMixin, AssetFolderMoveUpViewTests):
+    pass
+
+
+class AssetFolderMoveSideViewTests(AssetFolderMoveViewTests, ViewTestCase):
+    def targetObject(self):
+        return self.other_grand_parent
+
+    def targetNames(self):
+        return [self.other_grand_parent_name]
+
+
+class AssetFolderMoveSideFileViewTests(AssetMoveFileMixin, AssetFolderMoveSideViewTests):
+    pass
+
+
+class AssetFolderMoveDownOneViewTests(AssetFolderMoveViewTests, ViewTestCase):
+    def targetObject(self):
+        return self.parent
+
+    def targetNames(self):
+        return [self.grand_parent_name, self.parent_name]
+
+
+class AssetFolderMoveDownOneFileViewTests(AssetMoveFileMixin, AssetFolderMoveDownOneViewTests):
+    pass
+
+
+class AssetFolderMoveDownTwoViewTests(AssetFolderMoveViewTests, ViewTestCase):
+    def targetObject(self):
+        return self.child
+
+    def targetNames(self):
+        return [self.grand_parent_name, self.parent_name, self.child_name]
+
+
+class AssetFolderMoveDownTwoFileViewTests(AssetMoveFileMixin, AssetFolderMoveDownTwoViewTests):
+    pass
+
+
+class AssetSubFolderMoveViewTests(AssetSubMixin, AssetFolderMoveViewTests):
+    pass
+
+
+class AssetSubFolderMoveNameViewTests(AssetSubFolderMoveViewTests, ViewTestCase):
+    def targetName(self):
+        return self.other_name
+
+    def targetObject(self):
+        return self.parent
+
+    def targetNames(self):
+        return [self.grand_parent_name, self.parent_name]
+
+
+class AssetSubFolderMoveNameFileViewTests(AssetMoveFileMixin, AssetSubFolderMoveNameViewTests):
+    pass
+
+
+class AssetSubFolderMoveUpOneViewTests(AssetSubFolderMoveViewTests, ViewTestCase):
+    def targetObject(self):
+        return self.grand_parent
+
+    def targetNames(self):
+        return [self.grand_parent_name]
+
+
+class AssetSubFolderMoveUpOneFileViewTests(AssetMoveFileMixin, AssetSubFolderMoveUpOneViewTests):
+    pass
+
+
+class AssetSubFolderMoveUpTwoViewTests(AssetSubFolderMoveViewTests, ViewTestCase):
+    pass
+
+
+class AssetSubFolderMoveUpTwoFileViewTests(AssetMoveFileMixin, AssetSubFolderMoveUpTwoViewTests):
+    pass
+
+
+class AssetSubFolderMoveSideViewTests(AssetSubFolderMoveViewTests, ViewTestCase):
+    def targetObject(self):
+        return self.other_parent
+
+    def targetNames(self):
+        return [self.grand_parent_name, self.other_parent_name]
+
+
+class AssetSubFolderMoveSideFileViewTests(AssetMoveFileMixin, AssetSubFolderMoveSideViewTests):
+    pass
+
+
+class AssetSubFolderMoveDownOneViewTests(AssetSubFolderMoveViewTests, ViewTestCase):
+    def targetObject(self):
+        return self.child
+
+    def targetNames(self):
+        return [self.grand_parent_name, self.parent_name, self.child_name]
+
+
+class AssetSubFolderMoveDownOneFileViewTests(AssetMoveFileMixin, AssetSubFolderMoveDownOneViewTests):
+    pass
+
+
+class AssetSubFolderMoveDownTwoViewTests(AssetSubFolderMoveViewTests, ViewTestCase):
+    def targetObject(self):
+        return self.grand_child
+
+    def targetNames(self):
+        return [self.grand_parent_name, self.parent_name, self.child_name, self.grand_child_name]
+
+
+class AssetSubFolderMoveDownTwoFileViewTests(AssetMoveFileMixin, AssetSubFolderMoveDownTwoViewTests):
+    pass
+
+
+class AssetRecycleMixin(AssertUpdateMixin):
+    def testGetDisallowsAfterPowerLogin(self):
+        self.powerLogin()
+        self.assertEqual(405, self.get_status(kwargs=self.kwargs()))
+
+    def assertTarget(self, expected):
+        self.assertEqual(expected, self.existsBase(not self.trashed))
+
+
+class AssetTrashViewTests(AssetRecycleMixin, PathAssetViewTests, ViewTestCase):
+    view_name = 'asset_trash'
+
+
+class AssetFolderTrashViewTests(AssetFolderMixin, AssetTrashViewTests):
+    pass
+
+
+class AssetSubFolderTrashViewTests(AssetSubMixin, AssetFolderTrashViewTests):
+    pass
+
+
+class AssetTrashFileViewTests(AssetFileMixin, AssetTrashViewTests):
+    view_name = 'asset_trash_file'
+
+
+class AssetFolderTrashFileViewTests(AssetFolderMixin, AssetTrashFileViewTests):
+    pass
+
+
+class AssetSubFolderTrashFileViewTests(AssetSubMixin, AssetFolderTrashFileViewTests):
+    pass
+
+
+class AssetRecycleViewTests(AssetParentMixin, BrowsingAssetViewTests, ViewTestCase):
+    view_name = 'asset_recycle'
+
+    def assertGets(self, num_folders, num_files):
+        for i in range(num_folders):
+            name = str(i)
+            FolderAsset.objects.create(user=self.user, parent=None, name=name)
+            FolderAsset.objects.create(user=self.user, parent=self.grand_parent, name=name)
+            FolderAsset.objects.create(user=self.user, parent=self.parent, name=name)
+            FolderAsset.objects.filter(user=self.user, name=name).update(trashed=True)
+        for i in range(num_files):
+            name = str(i)
+            FileAsset.objects.create(user=self.user, parent=None, name=name)
+            FileAsset.objects.create(user=self.user, parent=self.grand_parent, name=name)
+            FileAsset.objects.create(user=self.user, parent=self.parent, name=name)
+            FileAsset.objects.filter(user=self.user, name=name).update(trashed=True)
+        self.powerLogin()
+        html = self.get_html(kwargs=self.kwargs())
+        tables = html.select('table')
+        if num_folders:
+            folder_trs = tables[0].select('tbody tr')
+            if num_files:
+                file_trs = tables[1].select('tbody tr')
+            else:
+                file_trs = []
+        else:
+            folder_trs = []
+            if num_files:
+                file_trs = tables[0].select('tbody tr')
+            else:
+                file_trs = []
+        self.assertEqual(3 * num_folders, len(folder_trs))
+        self.assertEqual(3 * num_files, len(file_trs))
+
+    def testPostDisallowsAfterPowerLogin(self):
+        self.powerLogin()
+        response = self.post()
+        self.assertEqual(405, response.status_code)
+
+
+class PKAssetViewTests(SingleAssetViewTests):
+    trashed = True
+
+    def setUp(self):
+        super().setUp()
+        self.asset.trashed = True
+        self.asset.save()
+
+    def kwargs(self):
+        return {'pk': self.asset.pk}
+
+
+class AssetRestoreViewTests(AssetRecycleMixin, PKAssetViewTests, ViewTestCase):
+    view_name = 'asset_restore'
+
+
+class AssetFolderRestoreViewTests(AssetFolderMixin, AssetRestoreViewTests):
+    pass
+
+
+class AssetSubFolderRestoreViewTests(AssetSubMixin, AssetFolderRestoreViewTests):
+    pass
+
+
+class AssetRestoreFileViewTests(AssetFileMixin, AssetRestoreViewTests):
+    view_name = 'asset_restore_file'
+
+
+class AssetFolderRestoreFileViewTests(AssetFolderMixin, AssetRestoreFileViewTests):
+    pass
+
+
+class AssetSubFolderRestoreFileViewTests(AssetSubMixin, AssetFolderRestoreFileViewTests):
+    pass
+
+
+class AssetRemoveViewTests(SpecificAssetMixin, PKAssetViewTests, ViewTestCase):
     view_name = 'asset_remove'
 
+    def substring(self):
+        return self.path()
+
     def testExists(self):
-        self.assertTrue(self.exists(self.Asset, self.object(), self.name))
+        self.assertSource(True)
 
     def testPosts(self):
         self.assertPosts()
-        self.assertFalse(self.exists(self.Asset, self.object(), self.name))
+        self.assertSource(False)
 
 
-class AssetFolderRemoveViewTests(AssetFolderViewTests, AssetRemoveViewTests):
+class AssetFolderRemoveViewTests(AssetFolderMixin, AssetRemoveViewTests):
     pass
 
 
-class AssetSubFolderRemoveViewTests(AssetSubViewTests, AssetFolderRemoveViewTests):
+class AssetSubFolderRemoveViewTests(AssetSubMixin, AssetFolderRemoveViewTests):
     pass
 
 
-class AssetRemoveFileViewTests(AssetFileViewTests, AssetRemoveViewTests):
+class AssetRemoveFileViewTests(AssetFileMixin, AssetRemoveViewTests):
     view_name = 'asset_remove_file'
 
 
-class AssetFolderRemoveFileViewTests(AssetFolderViewTests, AssetRemoveFileViewTests):
+class AssetFolderRemoveFileViewTests(AssetFolderMixin, AssetRemoveFileViewTests):
     pass
 
 
-class AssetSubFolderRemoveFileViewTests(AssetSubViewTests, AssetFolderRemoveFileViewTests):
+class AssetSubFolderRemoveFileViewTests(AssetSubMixin, AssetFolderRemoveFileViewTests):
     pass
