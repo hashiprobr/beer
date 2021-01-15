@@ -1,0 +1,7 @@
+type: calendar
+slug: s
+...
+title: t
+begin_date: 1983-04-25
+end_date: 1983-05-25
+

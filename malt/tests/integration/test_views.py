@@ -1,9 +1,11 @@
 import os
 
 from io import BytesIO
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.urls import reverse
 
 from beer import public_storage
 from beer.tests import ViewTestCase
@@ -15,54 +17,283 @@ from ...views import PAGE_SIZE
 User = get_user_model()
 
 
-class UserViewTests:
+class ViewTests:
     username = '1af81dab46c4d2c8'
-    power_username = '35fde5760c42b7bc'
-    super_username = '528070b65f32f4f7'
-    other_username = 'bba8253c7b9a27d2'
-
-    usernames = [
-        'aaadddeee',
-        'aaaeeeddd',
-        'fffbbbggg',
-        'gggbbbfff',
-        'hhhiiiccc',
-        'iiihhhccc',
-    ]
+    super_username = '35fde5760c42b7bc'
+    power_username = '528070b65f32f4f7'
 
     password = 'p'
-    power_password = 'pp'
     super_password = 'sp'
+    power_password = 'pp'
 
     email = 'e@e.com'
-    other_email = 'oe@oe.com'
 
     first_name = 'f'
-    other_first_name = 'of'
 
     last_name = 'l'
-    other_last_name = 'ol'
 
-    def setUp(self):
-        self.user = User.objects.create_user(self.username, password=self.password, email=self.email, first_name=self.first_name, last_name=self.last_name)
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.dir = cls.files_dir(__file__)
+
+    def open(self, name):
+        path = os.path.join(self.dir, name + '.txt')
+        with open(path, 'rb') as file:
+            content = file.read()
+        return BytesIO(content)
+
+    def createUser(self):
+        return User.objects.create_user(self.username, password=self.password, email=self.email, first_name=self.first_name, last_name=self.last_name)
+
+    def createSuperUser(self):
+        return User.objects.create_superuser(self.super_username, password=self.super_password)
+
+    def createPowerUser(self):
         power_user = User.objects.create_user(self.power_username, password=self.power_password)
         PowerUser.objects.create(user=power_user)
-        User.objects.create_superuser(self.super_username, password=self.super_password)
+        return power_user
 
     def login(self):
         self.client.login(username=self.username, password=self.password)
 
+    def superLogin(self):
+        self.client.login(username=self.super_username, password=self.super_password)
+
     def powerLogin(self):
         self.client.login(username=self.power_username, password=self.power_password)
 
-    def superLogin(self):
-        self.client.login(username=self.super_username, password=self.super_password)
+    def getKwargs(self):
+        return None
+
+    def getQuery(self):
+        return None
+
+    def getData(self):
+        return None
+
+    def assertURL(self, actual, url, query=None):
+        prefix = url.rstrip('/')
+        if query is None:
+            expected = prefix
+        else:
+            expected = '{}?{}'.format(prefix, urlencode(query, safe='/'))
+        self.assertEqual(expected, actual)
+
+    def assertView(self, actual, view_name, kwargs=None, query=None):
+        url = reverse(view_name, kwargs=kwargs)
+        self.assertURL(actual, url, query)
+
+    def assertGetStatus(self, query, expected):
+        if query is None:
+            query = self.getQuery()
+        response = self.get(kwargs=self.getKwargs(), query=query)
+        self.assertEqual(expected, response.status_code)
+        return response
+
+    def assertPostStatus(self, data, expected):
+        if data is None:
+            data = self.getData()
+        response = self.post(kwargs=self.getKwargs(), data=data)
+        self.assertEqual(expected, response.status_code)
+        return response
+
+    def assertGetLocation(self, query):
+        response = self.assertGetStatus(query, 302)
+        return response.get('Location')
+
+    def assertPostLocation(self, data):
+        response = self.assertPostStatus(data, 302)
+        return response.get('Location')
+
+
+class LoginViewTests(ViewTests):
+    def assertBlocks(self, url):
+        next = reverse(self.view_name, kwargs=self.getKwargs())
+        self.assertView(url, 'login', query={'next': next})
+
+    def assertGetForbids(self,):
+        self.assertGetStatus(None, 403)
+
+    def assertPostForbids(self):
+        self.assertPostStatus(None, 403)
+
+    def testGetBlocks(self):
+        self.assertBlocks(self.assertGetLocation(None))
+
+    def testPostBlocks(self):
+        self.assertBlocks(self.assertPostLocation(None))
+
+
+class SuperViewTests(LoginViewTests):
+    def testGetForbidsAfterLogin(self):
+        self.login()
+        self.assertGetForbids()
+
+    def testGetForbidsAfterPowerLogin(self):
+        self.powerLogin()
+        self.assertGetForbids()
+
+    def testPostForbidsAfterLogin(self):
+        self.login()
+        self.assertPostForbids()
+
+    def testPostForbidsAfterPowerLogin(self):
+        self.powerLogin()
+        self.assertPostForbids()
+
+    def goodLogin(self):
+        self.superLogin()
+
+
+class PowerViewTests(LoginViewTests):
+    def testGetForbidsAfterLogin(self):
+        self.login()
+        self.assertGetForbids()
+
+    def testGetForbidsAfterSuperLogin(self):
+        self.superLogin()
+        self.assertGetForbids()
+
+    def testPostForbidsAfterLogin(self):
+        self.login()
+        self.assertPostForbids()
+
+    def testPostForbidsAfterSuperLogin(self):
+        self.superLogin()
+        self.assertPostForbids()
+
+    def goodLogin(self):
+        self.powerLogin()
+
+
+class GetDisallowsMixin:
+    def testGets(self):
+        self.goodLogin()
+        self.assertGetStatus(None, 405)
+
+
+class GetGoodMixin:
+    def assertGetMisses(self, query):
+        self.goodLogin()
+        self.assertGetStatus(query, 404)
+
+    def assertGetRejects(self, query):
+        self.goodLogin()
+        self.assertGetStatus(query, 400)
+
+    def assertGetAccepts(self, query=None):
+        self.goodLogin()
+        response = self.assertGetStatus(query, 200)
+        return response.content
+
+    def assertGetRedirects(self, query=None):
+        self.goodLogin()
+        return self.assertGetLocation(query)
+
+    def assertGetsJSON(self, query=None):
+        return self.build_json(self.assertGetAccepts(query))
+
+    def assertGetsHTML(self, query=None):
+        return self.build_html(self.assertGetAccepts(query))
+
+    def assertGetsURL(self, expected_url, expected_query=None, query=None):
+        self.assertURL(self.assertGetRedirects(query), expected_url, expected_query)
+
+    def assertGetsView(self, expected_view_name, expected_kwargs=None, expected_query=None, query=None):
+        self.assertView(self.assertGetRedirects(query), expected_view_name, expected_kwargs)
+
+
+class GetAcceptsMixin(GetGoodMixin):
+    def assertGets(self, query=None):
+        return self.assertGetAccepts(query)
+
+
+class GetRedirectsMixin(GetGoodMixin):
+    def assertGets(self, query=None):
+        return self.assertGetRedirects(query)
+
+
+class PostDisallowsMixin:
+    def testPosts(self):
+        self.goodLogin()
+        self.assertPostStatus(None, 405)
+
+
+class PostGoodMixin:
+    def assertPostMisses(self, data):
+        self.goodLogin()
+        self.assertPostStatus(data, 404)
+
+    def assertPostRejects(self, data):
+        self.goodLogin()
+        self.assertPostStatus(data, 400)
+
+    def assertPostAccepts(self, data=None):
+        self.goodLogin()
+        response = self.assertPostStatus(data, 200)
+        return response.content
+
+    def assertPostRedirects(self, data=None):
+        self.goodLogin()
+        return self.assertPostLocation(data)
+
+    def assertPostsJSON(self, data=None):
+        return self.build_json(self.assertPostAccepts(data))
+
+    def assertPostsHTML(self, data=None):
+        return self.build_html(self.assertPostAccepts(data))
+
+    def assertPostsURL(self, expected_url, expected_query=None, data=None):
+        self.assertURL(self.assertPostRedirects(data), expected_url, expected_query)
+
+    def assertPostsView(self, expected_view_name, expected_kwargs=None, expected_query=None, data=None):
+        self.assertView(self.assertPostRedirects(data), expected_view_name, expected_kwargs)
+
+
+class PostAcceptsMixin(PostGoodMixin):
+    def assertPosts(self, data=None):
+        return self.assertPostAccepts(data)
+
+
+class PostRedirectsMixin(PostGoodMixin):
+    def assertPosts(self, data=None):
+        return self.assertPostRedirects(data)
+
+
+class UserViewTests(GetAcceptsMixin, PostRedirectsMixin, SuperViewTests):
+    usernames = [
+        'AaaDddEee',
+        'aAAeEEdDD',
+        'FffBbbGgg',
+        'gGGbBBfFF',
+        'HhhIiiCcc',
+        'iIIhHHcCC',
+    ]
+
+    other_username = 'bba8253c7b9a27d2'
+
+    other_email = 'oe@oe.com'
+
+    other_first_name = 'of'
+
+    other_last_name = 'ol'
+
+    def setUp(self):
+        self.user = self.createUser()
+        self.createPowerUser()
+        self.createSuperUser()
 
     def power(self, user):
         return PowerUser.objects.filter(user=user).exists()
 
-    def kwargs(self):
-        return None
+    def assertPower(self, user):
+        self.assertTrue(self.power(user))
+        self.assertTrue(power_cache.get(user))
+
+    def assertNotPower(self, user):
+        self.assertFalse(self.power(user))
+        self.assertFalse(power_cache.get(user))
 
     def assertExists(self, username, email, first_name, last_name):
         try:
@@ -77,48 +308,9 @@ class UserViewTests:
     def assertDoesNotExist(self, username):
         self.assertFalse(User.objects.filter(username=username).exists())
 
-    def assertPower(self, user):
-        self.assertTrue(self.power(user))
-        self.assertTrue(power_cache.get(user))
-
-    def assertNotPower(self, user):
-        self.assertFalse(self.power(user))
-        self.assertFalse(power_cache.get(user))
-
-    def assertBlocks(self, response):
-        self.assertEqual(302, response.status_code)
-        self.assertTrue(response.get('Location').startswith('/login'))
-
-    def testGetBlocks(self):
-        response = self.get(kwargs=self.kwargs())
-        self.assertBlocks(response)
-
-    def testGetForbidsAfterLogin(self):
-        self.login()
-        self.assertEqual(403, self.get_status(kwargs=self.kwargs()))
-
-    def testGetForbidsAfterPowerLogin(self):
-        self.powerLogin()
-        self.assertEqual(403, self.get_status(kwargs=self.kwargs()))
-
-    def testGetAcceptsAfterSuperLogin(self):
-        self.superLogin()
-        self.assertEqual(200, self.get_status(kwargs=self.kwargs()))
-
 
 class UserManageViewTests(UserViewTests, ViewTestCase):
     view_name = 'user_manage'
-
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.dir = cls.files_dir(__file__)
-
-    def open(self, name):
-        path = os.path.join(self.dir, name + '.txt')
-        with open(path, 'rb') as file:
-            content = file.read()
-        return BytesIO(content)
 
     def create(self, users):
         for username, email, first_name, last_name, actual in users:
@@ -126,48 +318,46 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
             if actual:
                 PowerUser.objects.create(user=user)
 
-    def post(self, name, promote):
-        data = {
+    def build(self, name, promote):
+        return {
             'file': self.open(name),
             'domain': 'd.com',
             'promote': promote,
         }
-        return super().post(kwargs=self.kwargs(), data=data)
+
+    def getData(self):
+        return self.build('one', False)
 
     def assertGetsFilter(self, filter, expected):
         for username in self.usernames:
             User.objects.create_user(username)
-        self.superLogin()
         if filter is None:
             query = None
         else:
             query = {'filter': filter}
-        html = self.get_html(kwargs=self.kwargs(), query=query)
+        html = self.assertGetsHTML(query)
         trs = html.select('tbody tr')
-        actual = [self.string(tr.select_one('td')) for tr in trs]
+        actual = [self.read(tr.select_one('td')) for tr in trs]
         self.assertEqual(expected, actual)
 
     def assertGetsPage(self, n, page, length, left, center, right):
         for i in range(n - 3):
             User.objects.create_user(str(i))
-        self.superLogin()
         if page is None:
             query = None
         else:
             query = {'page': page}
-        html = self.get_html(kwargs=self.kwargs(), query=query)
+        html = self.assertGetsHTML(query)
         trs = html.select('tbody tr')
         caption = html.select_one('caption')
-        arrows = [self.string(a) for a in caption.select('a')]
+        arrows = [self.read(a) for a in caption.select('a')]
         self.assertEqual(length, len(trs))
         self.assertEqual(left, '🡨' in arrows)
-        self.assertIn(center, self.string(caption))
+        self.assertIn(center, self.read(caption))
         self.assertEqual(right, '🡪' in arrows)
 
     def assertPosts(self, name, promote, users):
-        self.superLogin()
-        response = self.post(name, promote)
-        self.assertEqual(302, response.status_code)
+        super().assertPosts(self.build(name, promote))
         for username, email, first_name, last_name, expected in users:
             user = self.assertExists(username, email, first_name, last_name)
             if expected:
@@ -178,27 +368,45 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
     def testGetsWithoutFilter(self):
         self.assertGetsFilter(None, [
             self.username,
-            self.power_username,
             self.super_username,
+            self.power_username,
             *self.usernames,
         ])
 
-    def testGetsWithPrefixFilter(self):
+    def testGetsWithPrefixLowerFilter(self):
         self.assertGetsFilter('aaa', [
-            'aaadddeee',
-            'aaaeeeddd',
+            'AaaDddEee',
+            'aAAeEEdDD',
         ])
 
-    def testGetsWithMiddleFilter(self):
+    def testGetsWithPrefixUpperFilter(self):
+        self.assertGetsFilter('AAA', [
+            'AaaDddEee',
+            'aAAeEEdDD',
+        ])
+
+    def testGetsWithMiddleLowerFilter(self):
         self.assertGetsFilter('bbb', [
-            'fffbbbggg',
-            'gggbbbfff',
+            'FffBbbGgg',
+            'gGGbBBfFF',
         ])
 
-    def testGetsWithSuffixFilter(self):
+    def testGetsWithMiddleUpperFilter(self):
+        self.assertGetsFilter('BBB', [
+            'FffBbbGgg',
+            'gGGbBBfFF',
+        ])
+
+    def testGetsWithSuffixLowerFilter(self):
         self.assertGetsFilter('ccc', [
-            'hhhiiiccc',
-            'iiihhhccc',
+            'HhhIiiCcc',
+            'iIIhHHcCC',
+        ])
+
+    def testGetsWithSuffixUpperFilter(self):
+        self.assertGetsFilter('CCC', [
+            'HhhIiiCcc',
+            'iIIhHHcCC',
         ])
 
     def testGetsWithBadFilter(self):
@@ -301,20 +509,6 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
     def testDoesNotExist(self):
         self.assertDoesNotExist('au')
         self.assertDoesNotExist('bu')
-
-    def testPostBlocks(self):
-        response = self.post('one', False)
-        self.assertBlocks(response)
-
-    def testPostForbidsAfterLogin(self):
-        self.login()
-        response = self.post('one', False)
-        self.assertEqual(403, response.status_code)
-
-    def testPostForbidsAfterPowerLogin(self):
-        self.powerLogin()
-        response = self.post('one', False)
-        self.assertEqual(403, response.status_code)
 
     def testPostsOneWithFalse(self):
         self.assertPosts('one', False, [
@@ -637,43 +831,21 @@ class UserManageViewTests(UserViewTests, ViewTestCase):
         ])
 
 
-class SingleUserViewTests(UserViewTests):
-    def data(self):
-        return None
-
-    def post(self):
-        return super().post(kwargs=self.kwargs(), data=self.data())
-
-    def assertPosts(self):
-        self.superLogin()
-        response = self.post()
-        self.assertEqual(302, response.status_code)
-
-    def testPostBlocks(self):
-        response = self.post()
-        self.assertBlocks(response)
-
-    def testPostForbidsAfterLogin(self):
-        self.login()
-        response = self.post()
-        self.assertEqual(403, response.status_code)
-
-    def testPostForbidsAfterPowerLogin(self):
-        self.powerLogin()
-        response = self.post()
-        self.assertEqual(403, response.status_code)
-
-
-class UserAddViewTests(SingleUserViewTests, ViewTestCase):
-    view_name = 'user_add'
-
-    def data(self):
+class UserDataMixin:
+    def getData(self):
         return {
             'username': self.other_username,
             'email': self.other_email,
             'first_name': self.other_first_name,
             'last_name': self.other_last_name,
         }
+
+
+class UserAddViewTests(UserDataMixin, UserViewTests, ViewTestCase):
+    view_name = 'user_add'
+
+    def testGets(self):
+        self.assertGets()
 
     def testDoesNotExist(self):
         self.assertDoesNotExist(self.other_username)
@@ -683,29 +855,20 @@ class UserAddViewTests(SingleUserViewTests, ViewTestCase):
         self.assertExists(self.other_username, self.other_email, self.other_first_name, self.other_last_name)
 
 
-class SpecificUserViewTests(SingleUserViewTests):
-    def kwargs(self):
+class SpecificUserViewTests(UserViewTests):
+    def getKwargs(self):
         return {'pk': self.user.pk}
 
     def testGets(self):
-        self.superLogin()
-        html = self.get_html(kwargs=self.kwargs())
+        html = self.assertGetsHTML()
         h2 = html.select_one('h2')
-        self.assertIn(self.user.get_username(), self.string(h2))
+        self.assertIn(self.user.get_username(), self.read(h2))
 
 
-class UserEditViewTests(SpecificUserViewTests, ViewTestCase):
+class UserEditViewTests(UserDataMixin, SpecificUserViewTests, ViewTestCase):
     view_name = 'user_edit'
 
-    def data(self):
-        return {
-            'username': self.other_username,
-            'email': self.other_email,
-            'first_name': self.other_first_name,
-            'last_name': self.other_last_name,
-        }
-
-    def testDoesNotExist(self):
+    def testKeeps(self):
         self.assertEqual(self.username, self.user.get_username())
         self.assertEqual(self.email, self.user.email)
         self.assertEqual(self.first_name, self.user.first_name)
@@ -741,11 +904,6 @@ class UserPromoteViewTests(SpecificUserViewTests, ViewTestCase):
         self.assertPosts()
         self.assertPower(self.user)
 
-    def testPostsPosts(self):
-        self.assertPosts()
-        self.assertPosts()
-        self.assertPower(self.user)
-
 
 class UserDemoteViewTests(SpecificUserViewTests, ViewTestCase):
     view_name = 'user_demote'
@@ -761,21 +919,8 @@ class UserDemoteViewTests(SpecificUserViewTests, ViewTestCase):
         self.assertPosts()
         self.assertNotPower(self.user)
 
-    def testPostsPosts(self):
-        self.assertPosts()
-        self.assertPosts()
-        self.assertNotPower(self.user)
 
-
-class UploadViewTests:
-    username = 'us'
-    super_username = 'sus'
-    power_username = 'pus'
-
-    password = 'p'
-    super_password = 'sp'
-    power_password = 'pp'
-
+class UploadViewTests(PowerViewTests):
     grand_parent_name = 'gpn'
     parent_name = 'pn'
     name = 'n'
@@ -792,69 +937,31 @@ class UploadViewTests:
     uid = 'ui'
 
     def setUp(self):
-        User.objects.create_user(self.username, password=self.password)
-        User.objects.create_superuser(self.super_username, password=self.super_password)
-        self.user = User.objects.create_user(self.power_username, password=self.power_password)
-        PowerUser.objects.create(user=self.user)
-
         self.upper_name = (FileAsset.name.field.max_length + 1) * 'n'
+
+        self.createUser()
+        self.createSuperUser()
+        self.user = self.createPowerUser()
 
         self.grand_parent = FolderAsset.objects.create(user=self.user, parent=None, name=self.grand_parent_name)
         self.parent = FolderAsset.objects.create(user=self.user, parent=self.grand_parent, name=self.parent_name)
 
-    def login(self):
-        self.client.login(username=self.username, password=self.password)
-
-    def superLogin(self):
-        self.client.login(username=self.super_username, password=self.super_password)
-
-    def powerLogin(self):
-        self.client.login(username=self.power_username, password=self.power_password)
-
-    def open(self):
+    def mock(self):
         return BytesIO(b'c')
 
-    def assertBlocks(self, response):
-        self.assertEqual(302, response.status_code)
-        self.assertTrue(response.get('Location').startswith('/login'))
+
+class PostUploadViewTests(GetDisallowsMixin, UploadViewTests):
+    pass
 
 
-class PostUploadViewTests(UploadViewTests):
-    def assertPostBlocks(self, data):
-        response = self.post(data=data)
-        self.assertBlocks(response)
-
-    def assertPostForbidsAfterLogin(self, data):
-        self.login()
-        self.assertEqual(403, self.post_status(data=data))
-
-    def assertPostForbidsAfterSuperLogin(self, data):
-        self.superLogin()
-        self.assertEqual(403, self.post_status(data=data))
-
-    def assertPosts(self, data, expected):
-        self.powerLogin()
-        self.assertEqual(expected, self.post_status(data=data))
-
-    def testGetBlocks(self):
-        response = self.get()
-        self.assertBlocks(response)
-
-    def testGetForbidsAfterLogin(self):
-        self.login()
-        self.assertEqual(403, self.get_status())
-
-    def testGetForbidsAfterSuperLogin(self):
-        self.superLogin()
-        self.assertEqual(403, self.get_status())
-
-    def testGetDisallowsAfterPowerLogin(self):
-        self.powerLogin()
-        self.assertEqual(405, self.get_status())
-
-
-class UploadManageViewTests(PostUploadViewTests, ViewTestCase):
+class UploadManageViewTests(PostAcceptsMixin, PostUploadViewTests, ViewTestCase):
     view_name = 'upload_manage'
+
+    def getData(self):
+        return {
+            'method': 'code',
+            'name': self.name,
+        }
 
     def exists(self, parent):
         return FileAsset.objects.filter(user=self.user, parent=parent, name=self.name).exists()
@@ -868,61 +975,40 @@ class UploadManageViewTests(PostUploadViewTests, ViewTestCase):
 
     def assertPostsAsset(self, data, parent):
         self.update(data)
-        self.assertPosts(data, 200)
+        self.assertPosts(data)
         self.assertTrue(self.exists(parent))
 
-    def assertDoesNotPostAsset(self, data, expected):
+    def assertPostMissesAsset(self, data):
         self.update(data)
-        self.assertPosts(data, expected)
+        self.assertPostMisses(data)
 
-    def testPostBlocks(self):
-        data = {
-            'method': 'code',
-            'name': self.name,
-        }
-        self.assertPostBlocks(data)
-
-    def testPostForbidsAfterLogin(self):
-        data = {
-            'method': 'code',
-            'name': self.name,
-        }
-        self.assertPostForbidsAfterLogin(data)
-
-    def testPostForbidsAfterSuperLogin(self):
-        data = {
-            'method': 'code',
-            'name': self.name,
-        }
-        self.assertPostForbidsAfterSuperLogin(data)
+    def assertPostRejectsAsset(self, data):
+        self.update(data)
+        self.assertPostRejects(data)
 
     def testPostRejectsWithoutMethod(self):
-        data = {
+        self.assertPostRejects({
             'mock': 'code',
             'name': self.name,
-        }
-        self.assertPosts(data, 400)
+        })
 
     def testPostRejectsWithoutName(self):
-        data = {
+        self.assertPostRejects({
             'method': 'code',
             'mock': self.name,
-        }
-        self.assertPosts(data, 400)
+        })
 
     def testPostMissesWithWrongMethod(self):
-        data = {
+        self.assertPostMisses({
             'method': 'mock',
             'name': self.name,
-        }
-        self.assertPosts(data, 404)
+        })
 
     def testPostsCode(self):
-        data = {
+        self.assertPosts({
             'method': 'code',
             'name': self.name,
-        }
-        self.assertPosts(data, 200)
+        })
 
     def testDoesNotExist(self):
         self.assertFalse(self.exists(None))
@@ -937,46 +1023,40 @@ class UploadManageViewTests(PostUploadViewTests, ViewTestCase):
         self.assertPostsAsset(data, self.parent)
 
     def testPostRejectsAssetWithEmptyName(self):
-        data = {
+        self.assertPostRejectsAsset({
             'name': self.empty_name,
             'path': [self.grand_parent_name, self.parent_name],
-        }
-        self.assertDoesNotPostAsset(data, 400)
+        })
 
     def testPostRejectsAssetWithWhiteName(self):
-        data = {
+        self.assertPostRejectsAsset({
             'name': self.white_name,
             'path': [self.grand_parent_name, self.parent_name],
-        }
-        self.assertDoesNotPostAsset(data, 400)
+        })
 
     def testPostRejectsAssetWithSlashName(self):
-        data = {
+        self.assertPostRejectsAsset({
             'name': self.slash_name,
             'path': [self.grand_parent_name, self.parent_name],
-        }
-        self.assertDoesNotPostAsset(data, 400)
+        })
 
     def testPostRejectsAssetWithUpperName(self):
-        data = {
+        self.assertPostRejectsAsset({
             'name': self.upper_name,
             'path': [self.grand_parent_name, self.parent_name],
-        }
-        self.assertDoesNotPostAsset(data, 400)
+        })
 
     def testPostRejectsAssetWithoutPath(self):
-        data = {
+        self.assertPostRejectsAsset({
             'name': self.name,
             'mock': [self.grand_parent_name, self.parent_name],
-        }
-        self.assertDoesNotPostAsset(data, 400)
+        })
 
     def testPostMissesAssetWithWrongPath(self):
-        data = {
+        self.assertPostMissesAsset({
             'name': self.name,
-            'path': ['mock'],
-        }
-        self.assertDoesNotPostAsset(data, 404)
+            'path': [self.parent_name, self.grand_parent_name],
+        })
 
     def testPostsAssetWithNoneParent(self):
         data = {
@@ -993,363 +1073,228 @@ class UploadManageViewTests(PostUploadViewTests, ViewTestCase):
         self.assertPostsAsset(data, self.grand_parent)
 
 
-class UploadCodeViewTests(PostUploadViewTests, ViewTestCase):
+class UploadCodeViewTests(PostUploadViewTests):
     view_name = 'upload_code'
 
-    def testPostBlocks(self):
-        self.assertPostBlocks(None)
-
-    def testPostForbidsAfterLogin(self):
-        self.assertPostForbidsAfterLogin(None)
-
-    def testPostForbidsAfterSuperLogin(self):
-        self.assertPostForbidsAfterSuperLogin(None)
-
     def testPosts(self):
-        self.assertPosts(None, 200)
+        self.assertPosts()
 
 
-class UploadAssetViewTests(PostUploadViewTests, ViewTestCase):
+class UploadCodeAcceptsViewTests(PostAcceptsMixin, UploadCodeViewTests, ViewTestCase):
+    pass
+
+
+class UploadCodeRedirectsViewTests(PostRedirectsMixin, UploadCodeViewTests, ViewTestCase):
+    def getData(self):
+        return {
+            'file': self.open('yeast'),
+            'date': 0,
+        }
+
+
+class UploadAssetViewTests(PostRedirectsMixin, PostUploadViewTests, ViewTestCase):
     view_name = 'upload_asset'
+
+    def getData(self):
+        return {
+            'key': self.key,
+            'success_action_redirect': self.redirect_url,
+            'file': self.mock(),
+        }
 
     def exists(self):
         return public_storage.exists(self.key)
 
-    def assertPostsLocal(self, data):
+    def assertMissesOrPosts(self, data):
         if settings.CONTAINED:
-            self.assertPosts(data, 404)
+            self.assertPostMisses(data)
         else:
-            self.assertPosts(data, 302)
+            self.assertPosts(data)
             self.assertTrue(self.exists())
 
-    def assertDoesNotPostLocal(self, data, expected):
+    def assertMissesOrRejects(self, data):
         if settings.CONTAINED:
-            self.assertPosts(data, 404)
+            self.assertPostMisses(data)
         else:
-            self.assertPosts(data, expected)
+            self.assertPostRejects(data)
 
     def testDoesNotExist(self):
         self.assertFalse(self.exists())
 
-    def testPostBlocks(self):
-        data = {
-            'key': self.key,
-            'success_action_redirect': self.redirect_url,
-            'file': self.open(),
-        }
-        self.assertPostBlocks(data)
-
-    def testPostForbidsAfterLogin(self):
-        data = {
-            'key': self.key,
-            'success_action_redirect': self.redirect_url,
-            'file': self.open(),
-        }
-        self.assertPostForbidsAfterLogin(data)
-
-    def testPostForbidsAfterSuperLogin(self):
-        data = {
-            'key': self.key,
-            'success_action_redirect': self.redirect_url,
-            'file': self.open(),
-        }
-        self.assertPostForbidsAfterSuperLogin(data)
-
     def testPosts(self):
-        data = {
+        self.assertMissesOrPosts({
             'key': self.key,
             'success_action_redirect': self.redirect_url,
-            'file': self.open(),
-        }
-        self.assertPostsLocal(data)
+            'file': self.mock(),
+        })
 
     def testPostRejectsWithoutKey(self):
-        data = {
+        self.assertMissesOrRejects({
             'mock': self.key,
             'success_action_redirect': self.redirect_url,
-            'file': self.open(),
-        }
-        self.assertDoesNotPostLocal(data, 400)
+            'file': self.mock(),
+        })
 
     def testPostRejectsWithEmptyKey(self):
-        data = {
+        self.assertMissesOrRejects({
             'key': self.empty_key,
             'success_action_redirect': self.redirect_url,
-            'file': self.open(),
-        }
-        self.assertDoesNotPostLocal(data, 400)
+            'file': self.mock(),
+        })
 
     def testPostRejectsWithWhiteKey(self):
-        data = {
+        self.assertMissesOrRejects({
             'key': self.white_key,
             'success_action_redirect': self.redirect_url,
-            'file': self.open(),
-        }
-        self.assertDoesNotPostLocal(data, 400)
+            'file': self.mock(),
+        })
 
     def testPostRejectsWithoutRedirectURL(self):
-        data = {
+        self.assertMissesOrRejects({
             'key': self.key,
             'mock': self.redirect_url,
-            'file': self.open(),
-        }
-        self.assertDoesNotPostLocal(data, 400)
+            'file': self.mock(),
+        })
 
     def testPostRejectsWithWrongRedirectURL(self):
-        data = {
+        self.assertMissesOrRejects({
             'key': self.key,
             'success_action_redirect': 'mock',
-            'file': self.open(),
-        }
-        self.assertDoesNotPostLocal(data, 400)
+            'file': self.mock(),
+        })
 
     def testPostRejectsWithoutFile(self):
-        data = {
+        self.assertMissesOrRejects({
             'key': self.key,
             'success_action_redirect': self.redirect_url,
-        }
-        self.assertDoesNotPostLocal(data, 400)
+        })
 
     def testPostRejectsWithTwoFiles(self):
-        data = {
+        self.assertMissesOrRejects({
             'key': self.key,
             'success_action_redirect': self.redirect_url,
-            'file': self.open(),
-            'mock': self.open(),
-        }
-        self.assertDoesNotPostLocal(data, 400)
+            'file': self.mock(),
+            'mock': self.mock(),
+        })
 
     def testPostRejectsIfInputNotFile(self):
-        data = {
+        self.assertMissesOrRejects({
             'key': self.key,
             'success_action_redirect': self.redirect_url,
-            'mock': self.open(),
-        }
-        self.assertDoesNotPostLocal(data, 400)
+            'mock': self.mock(),
+        })
 
 
-class UploadAssetConfirmViewTests(UploadViewTests, ViewTestCase):
+class UploadAssetConfirmViewTests(GetRedirectsMixin, PostDisallowsMixin, UploadViewTests, ViewTestCase):
     view_name = 'upload_asset_confirm'
-
-    def exists(self, parent):
-        return FileAsset.objects.filter(user=self.user, parent=parent, name=self.name).exists()
 
     def create(self, parent):
         file_asset = FileAsset.objects.create(user=self.user, parent=parent, name=self.name)
         file_asset.uid = self.uid
         file_asset.save()
+        key = file_asset.key()
+        file = self.mock()
+        public_storage.save(key, file)
         return file_asset
 
-    def assertGets(self, query, parent):
-        self.powerLogin()
-        self.assertEqual(302, self.get_status(query=query))
-        self.assertTrue(self.exists(parent))
-
-    def assertDoesNotGet(self, query, expected):
-        self.powerLogin()
-        self.assertEqual(expected, self.get_status(query=query))
-
-    def testDoesNotExist(self):
-        file_asset = self.create(self.parent)
-        self.assertFalse(file_asset.active)
-
-    def testGetBlocks(self):
+    def getData(self):
         self.create(self.parent)
-        query = {
+        return {
             'key': self.uid,
         }
-        response = self.get(query=query)
-        self.assertBlocks(response)
 
-    def testGetForbidsAfterLogin(self):
-        self.create(self.parent)
-        query = {
+    def assertGets(self, parent):
+        file_asset = self.create(parent)
+        super().assertGets({
             'key': self.uid,
-        }
-        self.login()
-        self.assertEqual(403, self.get_status(query=query))
-
-    def testGetForbidsAfterSuperLogin(self):
-        self.create(self.parent)
-        query = {
-            'key': self.uid,
-        }
-        self.superLogin()
-        self.assertEqual(403, self.get_status(query=query))
-
-    def testGetsWithFile(self):
-        file_asset = self.create(self.parent)
-        key = file_asset.key()
-        file = self.open()
-        public_storage.save(key, file)
-        query = {
-            'key': self.uid,
-        }
-        self.assertGets(query, self.parent)
+        })
         file_asset.refresh_from_db()
         self.assertTrue(file_asset.active)
 
+    def testKeeps(self):
+        self.assertFalse(self.create(None).active)
+        self.assertFalse(self.create(self.grand_parent).active)
+        self.assertFalse(self.create(self.parent).active)
+
     def testGets(self):
-        self.create(self.parent)
-        query = {
-            'key': self.uid,
-        }
-        self.assertGets(query, self.parent)
+        self.assertGets(self.parent)
 
     def testGetsWithNoneParent(self):
-        self.create(None)
-        query = {
-            'key': self.uid,
-        }
-        self.assertGets(query, None)
+        self.assertGets(None)
 
     def testGetsWithGrandParent(self):
-        self.create(self.grand_parent)
-        query = {
-            'key': self.uid,
-        }
-        self.assertGets(query, self.grand_parent)
+        self.assertGets(self.grand_parent)
 
     def testGetMissesWithoutFileAsset(self):
-        query = {
+        self.assertGetMisses({
             'key': self.uid,
-        }
-        self.assertDoesNotGet(query, 404)
+        })
 
     def testGetRejectsWithoutKey(self):
         self.create(self.parent)
-        query = {
+        self.assertGetRejects({
             'mock': self.uid,
-        }
-        self.assertDoesNotGet(query, 400)
+        })
 
     def testGetMissesWithWrongKey(self):
         self.create(self.parent)
-        query = {
+        self.assertGetMisses({
             'key': 'mock',
-        }
-        self.assertDoesNotGet(query, 404)
-
-    def testPostBlocks(self):
-        response = self.post()
-        self.assertBlocks(response)
-
-    def testPostForbidsAfterLogin(self):
-        self.login()
-        self.assertEqual(403, self.post_status())
-
-    def testPostForbidsAfterSuperLogin(self):
-        self.superLogin()
-        self.assertEqual(403, self.post_status())
-
-    def testPostDisallowsAfterPowerLogin(self):
-        self.powerLogin()
-        self.assertEqual(405, self.post_status())
+        })
 
 
-class AssetViewTests:
+class AssetViewTests(PowerViewTests):
     trashed = False
     Asset = FolderAsset
 
-    username = 'u'
-    super_username = 'su'
-    power_username = 'pu'
-
-    password = 'p'
-    super_password = 'sp'
-    power_password = 'pp'
-
     grand_parent_name = '1cb3bba7d6539fd8'
-    other_grand_parent_name = '35fde5760c42b7bc'
-    parent_name = '528070b65f32f4f7'
+    other_grand_parent_name = '3d2c0bba01bffa85'
+    parent_name = '58ecf11ab31c9e77'
     other_parent_name = '6bdc514167a3db99'
     child_name = '8a8e367c2ebfd83a'
     grand_child_name = '9cb85ee9f59d0296'
-    name = 'bba8253c7b9a27d2'
+    name = 'bca0ab9eb8383fda'
     other_name = 'eceeae86d5766723'
 
     def setUp(self):
-        User.objects.create_user(self.username, password=self.password)
-        User.objects.create_superuser(self.super_username, password=self.super_password)
-        self.user = User.objects.create_user(self.power_username, password=self.power_password)
-        PowerUser.objects.create(user=self.user)
+        self.createUser()
+        self.createSuperUser()
+        self.user = self.createPowerUser()
 
-    def login(self):
-        self.client.login(username=self.username, password=self.password)
-
-    def superLogin(self):
-        self.client.login(username=self.super_username, password=self.super_password)
-
-    def powerLogin(self):
-        self.client.login(username=self.power_username, password=self.power_password)
-
-    def object(self):
+    def getParent(self):
         return None
 
-    def names(self):
+    def getNames(self):
         return []
-
-    def kwargs(self):
-        return None
-
-    def data(self):
-        return None
-
-    def post(self):
-        return super().post(kwargs=self.kwargs(), data=self.data())
 
     def exists(self, parent, name, trashed):
         return self.Asset.objects.filter(user=self.user, parent=parent, name=name, trashed=trashed).exists()
 
     def existsBase(self, trashed):
-        return self.exists(self.object(), self.name, trashed)
+        return self.exists(self.getParent(), self.name, trashed)
 
     def assertSource(self, expected):
         self.assertEqual(expected, self.existsBase(self.trashed))
 
-    def assertBlocks(self, response):
-        self.assertEqual(302, response.status_code)
-        self.assertTrue(response.get('Location').startswith('/login'))
 
-    def assertPosts(self):
-        self.powerLogin()
-        response = self.post()
-        self.assertEqual(302, response.status_code)
+class BrowsingAssetViewTests(GetAcceptsMixin, AssetViewTests):
+    def select(self, num_folders, num_files):
+        html = self.assertGetsHTML()
+        tables = html.select('table')
+        if num_folders:
+            folder_trs = tables[0].select('tbody tr')
+            if num_files:
+                file_trs = tables[1].select('tbody tr')
+            else:
+                file_trs = []
+        else:
+            folder_trs = []
+            if num_files:
+                file_trs = tables[0].select('tbody tr')
+            else:
+                file_trs = []
+        return folder_trs, file_trs
 
-    def testGetBlocks(self):
-        response = self.get(kwargs=self.kwargs())
-        self.assertBlocks(response)
-
-    def testGetForbidsAfterLogin(self):
-        self.login()
-        self.assertEqual(403, self.get_status(kwargs=self.kwargs()))
-
-    def testGetForbidsAfterSuperLogin(self):
-        self.superLogin()
-        self.assertEqual(403, self.get_status(kwargs=self.kwargs()))
-
-    def testPostBlocks(self):
-        response = self.post()
-        self.assertBlocks(response)
-
-    def testPostForbidsAfterLogin(self):
-        self.login()
-        response = self.post()
-        self.assertEqual(403, response.status_code)
-
-    def testPostForbidsAfterSuperLogin(self):
-        self.superLogin()
-        response = self.post()
-        self.assertEqual(403, response.status_code)
-
-
-class AssetGetMixin:
-    def testGetAcceptsAfterPowerLogin(self):
-        self.powerLogin()
-        self.assertEqual(200, self.get_status(kwargs=self.kwargs()))
-
-
-class BrowsingAssetViewTests(AssetGetMixin, AssetViewTests):
     def testGetsForZeroFoldersAndZeroFiles(self):
         self.assertGets(0, 0)
 
@@ -1412,49 +1357,35 @@ class AssetParentMixin(AssetGrandParentMixin):
 
 
 class AssetFolderMixin:
-    def object(self):
+    def getParent(self):
         return self.grand_parent
 
-    def names(self):
+    def getNames(self):
         return [self.grand_parent_name]
 
 
 class AssetSubMixin:
-    def object(self):
+    def getParent(self):
         return self.parent
 
-    def names(self):
+    def getNames(self):
         return [self.grand_parent_name, self.parent_name]
 
 
-class AssetManageViewTests(BrowsingAssetViewTests, ViewTestCase):
+class AssetManageViewTests(PostRedirectsMixin, BrowsingAssetViewTests, ViewTestCase):
     view_name = 'asset_manage'
 
-    def data(self):
+    def getData(self):
         return {
             'name': self.name,
         }
 
     def assertGets(self, num_folders, num_files):
         for i in range(num_folders):
-            FolderAsset.objects.create(user=self.user, parent=self.object(), name=str(i))
+            FolderAsset.objects.create(user=self.user, parent=self.getParent(), name=str(i))
         for i in range(num_files):
-            FileAsset.objects.create(user=self.user, parent=self.object(), name=str(i))
-        self.powerLogin()
-        html = self.get_html(kwargs=self.kwargs())
-        tables = html.select('table')
-        if num_folders:
-            folder_trs = tables[0].select('tbody tr')
-            if num_files:
-                file_trs = tables[1].select('tbody tr')
-            else:
-                file_trs = []
-        else:
-            folder_trs = []
-            if num_files:
-                file_trs = tables[0].select('tbody tr')
-            else:
-                file_trs = []
+            FileAsset.objects.create(user=self.user, parent=self.getParent(), name=str(i))
+        folder_trs, file_trs = self.select(num_folders, num_files)
         self.assertEqual(num_folders, len(folder_trs))
         self.assertEqual(num_files, len(file_trs))
 
@@ -1469,8 +1400,8 @@ class AssetManageViewTests(BrowsingAssetViewTests, ViewTestCase):
 class AssetFolderManageViewTests(AssetFolderMixin, AssetGrandParentMixin, AssetManageViewTests):
     view_name = 'asset_manage_folder'
 
-    def kwargs(self):
-        return {'path': '/'.join(self.names())}
+    def getKwargs(self):
+        return {'path': '/'.join(self.getNames())}
 
 
 class AssetSubFolderManageViewTests(AssetSubMixin, AssetParentMixin, AssetFolderManageViewTests):
@@ -1484,29 +1415,28 @@ class SingleAssetViewTests(AssetParentMixin, AssetViewTests):
         self.other_parent = FolderAsset.objects.create(user=self.user, parent=self.grand_parent, name=self.other_parent_name)
         self.child = FolderAsset.objects.create(user=self.user, parent=self.parent, name=self.child_name)
         self.grand_child = FolderAsset.objects.create(user=self.user, parent=self.child, name=self.grand_child_name)
-        self.asset = self.Asset.objects.create(user=self.user, parent=self.object(), name=self.name)
+        self.asset = self.Asset.objects.create(user=self.user, parent=self.getParent(), name=self.name)
 
-    def path(self):
-        return '/'.join([*self.names(), self.name])
+    def getPath(self):
+        return '/'.join([*self.getNames(), self.name])
 
 
 class PathAssetViewTests(SingleAssetViewTests):
-    def kwargs(self):
-        return {'path': self.path()}
+    def getKwargs(self):
+        return {'path': self.getPath()}
 
 
-class SpecificAssetMixin(AssetGetMixin):
-    def substring(self):
+class SpecificAssetMixin(GetAcceptsMixin):
+    def getPattern(self):
         return self.name
 
     def testGets(self):
-        self.powerLogin()
-        html = self.get_html(kwargs=self.kwargs())
+        html = self.assertGetsHTML()
         h2 = html.select_one('h2')
-        self.assertIn(self.substring(), self.string(h2))
+        self.assertIn(self.getPattern(), self.read(h2))
 
 
-class AssertUpdateMixin:
+class AssetUpdateMixin(PostRedirectsMixin):
     def testKeeps(self):
         self.assertSource(True)
         self.assertTarget(False)
@@ -1521,25 +1451,25 @@ class AssetFileMixin:
     Asset = FileAsset
 
 
-class AssetMoveViewTests(AssertUpdateMixin, SpecificAssetMixin, PathAssetViewTests):
+class AssetMoveViewTests(AssetUpdateMixin, SpecificAssetMixin, PathAssetViewTests):
     view_name = 'asset_move'
 
-    def data(self):
+    def getTargetParent(self):
+        return None
+
+    def getTargetNames(self):
+        return []
+
+    def getTargetName(self):
+        return self.name
+
+    def getData(self):
         return {
-            'path': '/'.join([*self.targetNames(), self.targetName()]),
+            'path': '/'.join([*self.getTargetNames(), self.getTargetName()]),
         }
 
     def assertTarget(self, expected):
-        self.assertEqual(expected, self.exists(self.targetObject(), self.targetName(), self.trashed))
-
-    def targetName(self):
-        return self.name
-
-    def targetObject(self):
-        return None
-
-    def targetNames(self):
-        return []
+        self.assertEqual(expected, self.exists(self.getTargetParent(), self.getTargetName(), self.trashed))
 
 
 class AssetMoveFileMixin(AssetFileMixin):
@@ -1547,7 +1477,7 @@ class AssetMoveFileMixin(AssetFileMixin):
 
 
 class AssetMoveNameViewTests(AssetMoveViewTests, ViewTestCase):
-    def targetName(self):
+    def getTargetName(self):
         return self.other_name
 
 
@@ -1556,10 +1486,10 @@ class AssetMoveNameFileViewTests(AssetMoveFileMixin, AssetMoveNameViewTests):
 
 
 class AssetMoveDownOneViewTests(AssetMoveViewTests, ViewTestCase):
-    def targetObject(self):
+    def getTargetParent(self):
         return self.grand_parent
 
-    def targetNames(self):
+    def getTargetNames(self):
         return [self.grand_parent_name]
 
 
@@ -1568,10 +1498,10 @@ class AssetMoveDownOneFileViewTests(AssetMoveFileMixin, AssetMoveDownOneViewTest
 
 
 class AssetMoveDownTwoViewTests(AssetMoveViewTests, ViewTestCase):
-    def targetObject(self):
+    def getTargetParent(self):
         return self.parent
 
-    def targetNames(self):
+    def getTargetNames(self):
         return [self.grand_parent_name, self.parent_name]
 
 
@@ -1584,14 +1514,14 @@ class AssetFolderMoveViewTests(AssetFolderMixin, AssetMoveViewTests):
 
 
 class AssetFolderMoveNameViewTests(AssetFolderMoveViewTests, ViewTestCase):
-    def targetName(self):
-        return self.other_name
-
-    def targetObject(self):
+    def getTargetParent(self):
         return self.grand_parent
 
-    def targetNames(self):
+    def getTargetNames(self):
         return [self.grand_parent_name]
+
+    def getTargetName(self):
+        return self.other_name
 
 
 class AssetFolderMoveNameFileViewTests(AssetMoveFileMixin, AssetFolderMoveNameViewTests):
@@ -1607,10 +1537,10 @@ class AssetFolderMoveUpFileViewTests(AssetMoveFileMixin, AssetFolderMoveUpViewTe
 
 
 class AssetFolderMoveSideViewTests(AssetFolderMoveViewTests, ViewTestCase):
-    def targetObject(self):
+    def getTargetParent(self):
         return self.other_grand_parent
 
-    def targetNames(self):
+    def getTargetNames(self):
         return [self.other_grand_parent_name]
 
 
@@ -1619,10 +1549,10 @@ class AssetFolderMoveSideFileViewTests(AssetMoveFileMixin, AssetFolderMoveSideVi
 
 
 class AssetFolderMoveDownOneViewTests(AssetFolderMoveViewTests, ViewTestCase):
-    def targetObject(self):
+    def getTargetParent(self):
         return self.parent
 
-    def targetNames(self):
+    def getTargetNames(self):
         return [self.grand_parent_name, self.parent_name]
 
 
@@ -1631,10 +1561,10 @@ class AssetFolderMoveDownOneFileViewTests(AssetMoveFileMixin, AssetFolderMoveDow
 
 
 class AssetFolderMoveDownTwoViewTests(AssetFolderMoveViewTests, ViewTestCase):
-    def targetObject(self):
+    def getTargetParent(self):
         return self.child
 
-    def targetNames(self):
+    def getTargetNames(self):
         return [self.grand_parent_name, self.parent_name, self.child_name]
 
 
@@ -1647,14 +1577,14 @@ class AssetSubFolderMoveViewTests(AssetSubMixin, AssetFolderMoveViewTests):
 
 
 class AssetSubFolderMoveNameViewTests(AssetSubFolderMoveViewTests, ViewTestCase):
-    def targetName(self):
-        return self.other_name
-
-    def targetObject(self):
+    def getTargetParent(self):
         return self.parent
 
-    def targetNames(self):
+    def getTargetNames(self):
         return [self.grand_parent_name, self.parent_name]
+
+    def getTargetName(self):
+        return self.other_name
 
 
 class AssetSubFolderMoveNameFileViewTests(AssetMoveFileMixin, AssetSubFolderMoveNameViewTests):
@@ -1662,10 +1592,10 @@ class AssetSubFolderMoveNameFileViewTests(AssetMoveFileMixin, AssetSubFolderMove
 
 
 class AssetSubFolderMoveUpOneViewTests(AssetSubFolderMoveViewTests, ViewTestCase):
-    def targetObject(self):
+    def getTargetParent(self):
         return self.grand_parent
 
-    def targetNames(self):
+    def getTargetNames(self):
         return [self.grand_parent_name]
 
 
@@ -1682,10 +1612,10 @@ class AssetSubFolderMoveUpTwoFileViewTests(AssetMoveFileMixin, AssetSubFolderMov
 
 
 class AssetSubFolderMoveSideViewTests(AssetSubFolderMoveViewTests, ViewTestCase):
-    def targetObject(self):
+    def getTargetParent(self):
         return self.other_parent
 
-    def targetNames(self):
+    def getTargetNames(self):
         return [self.grand_parent_name, self.other_parent_name]
 
 
@@ -1694,10 +1624,10 @@ class AssetSubFolderMoveSideFileViewTests(AssetMoveFileMixin, AssetSubFolderMove
 
 
 class AssetSubFolderMoveDownOneViewTests(AssetSubFolderMoveViewTests, ViewTestCase):
-    def targetObject(self):
+    def getTargetParent(self):
         return self.child
 
-    def targetNames(self):
+    def getTargetNames(self):
         return [self.grand_parent_name, self.parent_name, self.child_name]
 
 
@@ -1706,10 +1636,10 @@ class AssetSubFolderMoveDownOneFileViewTests(AssetMoveFileMixin, AssetSubFolderM
 
 
 class AssetSubFolderMoveDownTwoViewTests(AssetSubFolderMoveViewTests, ViewTestCase):
-    def targetObject(self):
+    def getTargetParent(self):
         return self.grand_child
 
-    def targetNames(self):
+    def getTargetNames(self):
         return [self.grand_parent_name, self.parent_name, self.child_name, self.grand_child_name]
 
 
@@ -1717,11 +1647,7 @@ class AssetSubFolderMoveDownTwoFileViewTests(AssetMoveFileMixin, AssetSubFolderM
     pass
 
 
-class AssetRecycleMixin(AssertUpdateMixin):
-    def testGetDisallowsAfterPowerLogin(self):
-        self.powerLogin()
-        self.assertEqual(405, self.get_status(kwargs=self.kwargs()))
-
+class AssetRecycleMixin(GetDisallowsMixin, AssetUpdateMixin):
     def assertTarget(self, expected):
         self.assertEqual(expected, self.existsBase(not self.trashed))
 
@@ -1750,7 +1676,7 @@ class AssetSubFolderTrashFileViewTests(AssetSubMixin, AssetFolderTrashFileViewTe
     pass
 
 
-class AssetRecycleViewTests(AssetParentMixin, BrowsingAssetViewTests, ViewTestCase):
+class AssetRecycleViewTests(AssetParentMixin, PostDisallowsMixin, BrowsingAssetViewTests, ViewTestCase):
     view_name = 'asset_recycle'
 
     def assertGets(self, num_folders, num_files):
@@ -1766,28 +1692,9 @@ class AssetRecycleViewTests(AssetParentMixin, BrowsingAssetViewTests, ViewTestCa
             FileAsset.objects.create(user=self.user, parent=self.grand_parent, name=name)
             FileAsset.objects.create(user=self.user, parent=self.parent, name=name)
             FileAsset.objects.filter(user=self.user, name=name).update(trashed=True)
-        self.powerLogin()
-        html = self.get_html(kwargs=self.kwargs())
-        tables = html.select('table')
-        if num_folders:
-            folder_trs = tables[0].select('tbody tr')
-            if num_files:
-                file_trs = tables[1].select('tbody tr')
-            else:
-                file_trs = []
-        else:
-            folder_trs = []
-            if num_files:
-                file_trs = tables[0].select('tbody tr')
-            else:
-                file_trs = []
+        folder_trs, file_trs = self.select(num_folders, num_files)
         self.assertEqual(3 * num_folders, len(folder_trs))
         self.assertEqual(3 * num_files, len(file_trs))
-
-    def testPostDisallowsAfterPowerLogin(self):
-        self.powerLogin()
-        response = self.post()
-        self.assertEqual(405, response.status_code)
 
 
 class PKAssetViewTests(SingleAssetViewTests):
@@ -1798,7 +1705,7 @@ class PKAssetViewTests(SingleAssetViewTests):
         self.asset.trashed = True
         self.asset.save()
 
-    def kwargs(self):
+    def getKwargs(self):
         return {'pk': self.asset.pk}
 
 
@@ -1826,11 +1733,11 @@ class AssetSubFolderRestoreFileViewTests(AssetSubMixin, AssetFolderRestoreFileVi
     pass
 
 
-class AssetRemoveViewTests(SpecificAssetMixin, PKAssetViewTests, ViewTestCase):
+class AssetRemoveViewTests(PostRedirectsMixin, SpecificAssetMixin, PKAssetViewTests, ViewTestCase):
     view_name = 'asset_remove'
 
-    def substring(self):
-        return self.path()
+    def getPattern(self):
+        return self.getPath()
 
     def testExists(self):
         self.assertSource(True)
