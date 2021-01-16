@@ -1184,7 +1184,7 @@ class UploadAssetViewTests(PostRedirectsMixin, PostUploadViewTests, ViewTestCase
         })
 
 
-class UploadAssetConfirmViewTests(GetRedirectsMixin, PostDisallowsMixin, UploadViewTests, ViewTestCase):
+class UploadAssetConfirmViewTests(PostDisallowsMixin, GetRedirectsMixin, UploadViewTests, ViewTestCase):
     view_name = 'upload_asset_confirm'
 
     def create(self, parent):
@@ -1435,7 +1435,7 @@ class SpecificAssetMixin(GetAcceptsMixin):
         self.assertIn(self.getPattern(), self.read(h2))
 
 
-class AssetUpdateMixin(PostRedirectsMixin):
+class AssetUpdateMixin:
     def testKeeps(self):
         self.assertSource(True)
         self.assertTarget(False)
@@ -1450,7 +1450,7 @@ class AssetFileMixin:
     Asset = FileAsset
 
 
-class AssetMoveViewTests(AssetUpdateMixin, SpecificAssetMixin, PathAssetViewTests):
+class AssetMoveViewTests(PostRedirectsMixin, SpecificAssetMixin, PathAssetViewTests):
     view_name = 'asset_move'
 
     def getTargetParent(self):
@@ -1475,7 +1475,50 @@ class AssetMoveFileMixin(AssetFileMixin):
     view_name = 'asset_move_file'
 
 
-class AssetMoveNameViewTests(AssetMoveViewTests, ViewTestCase):
+class AssetMoveNothingViewTests(AssetMoveViewTests, ViewTestCase):
+    def testKeeps(self):
+        self.assertSource(True)
+        self.assertTarget(True)
+
+    def testPosts(self):
+        self.assertPosts()
+        self.assertSource(True)
+        self.assertTarget(True)
+
+
+class AssetMoveNothingFileViewTests(AssetMoveFileMixin, AssetMoveNothingViewTests):
+    pass
+
+
+class AssetFolderMoveNothingViewTests(AssetFolderMixin, AssetMoveNothingViewTests):
+    def getTargetParent(self):
+        return self.grand_parent
+
+    def getTargetNames(self):
+        return [self.grand_parent_name]
+
+
+class AssetFolderMoveNothingFileViewTests(AssetMoveFileMixin, AssetFolderMoveNothingViewTests):
+    pass
+
+
+class AssetSubFolderMoveNothingViewTests(AssetSubMixin, AssetFolderMoveNothingViewTests):
+    def getTargetParent(self):
+        return self.parent
+
+    def getTargetNames(self):
+        return [self.grand_parent_name, self.parent_name]
+
+
+class AssetSubFolderMoveNothingFileViewTests(AssetMoveFileMixin, AssetSubFolderMoveNothingViewTests):
+    pass
+
+
+class AssetMoveSomethingViewTests(AssetUpdateMixin, AssetMoveViewTests):
+    pass
+
+
+class AssetMoveNameViewTests(AssetMoveSomethingViewTests, ViewTestCase):
     def getTargetName(self):
         return self.other_name
 
@@ -1484,7 +1527,7 @@ class AssetMoveNameFileViewTests(AssetMoveFileMixin, AssetMoveNameViewTests):
     pass
 
 
-class AssetMoveDownOneViewTests(AssetMoveViewTests, ViewTestCase):
+class AssetMoveDownOneViewTests(AssetMoveSomethingViewTests, ViewTestCase):
     def getTargetParent(self):
         return self.grand_parent
 
@@ -1496,7 +1539,7 @@ class AssetMoveDownOneFileViewTests(AssetMoveFileMixin, AssetMoveDownOneViewTest
     pass
 
 
-class AssetMoveDownTwoViewTests(AssetMoveViewTests, ViewTestCase):
+class AssetMoveDownTwoViewTests(AssetMoveSomethingViewTests, ViewTestCase):
     def getTargetParent(self):
         return self.parent
 
@@ -1508,7 +1551,7 @@ class AssetMoveDownTwoFileViewTests(AssetMoveFileMixin, AssetMoveDownTwoViewTest
     pass
 
 
-class AssetFolderMoveViewTests(AssetFolderMixin, AssetMoveViewTests):
+class AssetFolderMoveViewTests(AssetFolderMixin, AssetMoveSomethingViewTests):
     pass
 
 
@@ -1646,7 +1689,7 @@ class AssetSubFolderMoveDownTwoFileViewTests(AssetMoveFileMixin, AssetSubFolderM
     pass
 
 
-class AssetRecycleMixin(GetDisallowsMixin, AssetUpdateMixin):
+class AssetRecycleMixin(AssetUpdateMixin, PostRedirectsMixin, GetDisallowsMixin):
     def assertTarget(self, expected):
         self.assertEqual(expected, self.existsBase(not self.trashed))
 
