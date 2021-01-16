@@ -1,7 +1,8 @@
 from django.contrib.auth import get_user_model
 from django.core import mail
+from django.urls import reverse
 
-from . import reverse, AcceptanceSyncTestCase
+from . import AcceptanceSyncTestCase
 
 User = get_user_model()
 
