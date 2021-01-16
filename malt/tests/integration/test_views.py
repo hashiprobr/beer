@@ -73,11 +73,10 @@ class ViewTests:
         return None
 
     def assertURL(self, actual, url, query=None):
-        prefix = url.rstrip('/')
         if query is None:
-            expected = prefix
+            expected = url
         else:
-            expected = '{}?{}'.format(prefix, urlencode(query, safe='/'))
+            expected = '{}?{}'.format(url, urlencode(query, safe='/'))
         self.assertEqual(expected, actual)
 
     def assertView(self, actual, view_name, kwargs=None, query=None):
