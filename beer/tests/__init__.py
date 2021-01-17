@@ -53,7 +53,7 @@ class IntegrationTestCase(FilesMixin, ClearMixin, TestCase):
 
 
 class ViewTestCase(IntegrationTestCase):
-    def reverse(self, urlconf=None, args=None, kwargs=None, current_app=None, query=None):
+    def url(self, urlconf=None, args=None, kwargs=None, current_app=None, query=None):
         url = reverse(self.view_name, urlconf, args, kwargs, current_app)
         if query is not None:
             url = '{}?{}'.format(url, urlencode(query, safe='/'))
@@ -66,7 +66,7 @@ class ViewTestCase(IntegrationTestCase):
         return BeautifulSoup(content, 'html.parser')
 
     def get(self, urlconf=None, args=None, kwargs=None, current_app=None, query=None):
-        return self.client.get(self.reverse(urlconf, args, kwargs, current_app, query))
+        return self.client.get(self.url(urlconf, args, kwargs, current_app, query))
 
     def get_status(self, urlconf=None, args=None, kwargs=None, current_app=None, query=None):
         response = self.get(urlconf, args, kwargs, current_app, query)
@@ -89,7 +89,7 @@ class ViewTestCase(IntegrationTestCase):
         return self.build_html(content)
 
     def post(self, urlconf=None, args=None, kwargs=None, current_app=None, query=None, data=None):
-        return self.client.post(self.reverse(urlconf, args, kwargs, current_app, query), data)
+        return self.client.post(self.url(urlconf, args, kwargs, current_app, query), data)
 
     def post_status(self, urlconf=None, args=None, kwargs=None, current_app=None, query=None, data=None):
         response = self.post(urlconf, args, kwargs, current_app, query, data)
@@ -210,17 +210,17 @@ class AcceptanceTestCase:
         cls.driver.quit()
         super().tearDownClass()
 
-    def reverse(self, view_name, urlconf=None, args=None, kwargs=None, current_app=None, query=None):
+    def url(self, view_name, urlconf=None, args=None, kwargs=None, current_app=None, query=None):
         url = self.live_server_url + reverse(view_name, urlconf, args, kwargs, current_app)
         if query is not None:
             url = '{}?{}'.format(url, urlencode(query, safe='/'))
         return url
 
     def at(self, view_name, urlconf=None, args=None, kwargs=None, current_app=None, query=None):
-        return self.driver.at(self.reverse(view_name, urlconf, args, kwargs, current_app, query))
+        return self.driver.at(self.url(view_name, urlconf, args, kwargs, current_app, query))
 
     def get(self, view_name, urlconf=None, args=None, kwargs=None, current_app=None, query=None):
-        self.driver.get(self.reverse(view_name, urlconf, args, kwargs, current_app, query))
+        self.driver.get(self.url(view_name, urlconf, args, kwargs, current_app, query))
 
     def open(self):
         self.driver.execute_script("window.open('about:blank', '_blank');")
