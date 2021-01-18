@@ -1,4 +1,4 @@
-{% extends 'malt/asset/change.html' %}
+{% extends 'malt/asset/single.html' %}
 
 {% block subbody %}
     <h2>
@@ -7,7 +7,7 @@
         {% else %}
             Merge
         {% endif %}
-        {{ path }}?
+        {{ path }} with {{ name }}?
     </h2>
     <p>
         Please be aware that this operation is irreversible.
@@ -15,6 +15,7 @@
     <form method="post">
         {% csrf_token %}
         <input type="hidden" name="overwrite" value="">
+        <input type="hidden" name="pk" value="{{ pk }}">
         <input type="submit" value="Confirm">
     </form>
 {% endblock %}

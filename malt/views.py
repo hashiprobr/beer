@@ -8,6 +8,7 @@ from django.core.paginator import EmptyPage, Paginator
 from django.db import models, transaction
 from django.http import HttpResponseNotFound, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
+from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.views import generic
 from django.views.generic.base import ContextMixin, TemplateResponseMixin
@@ -349,10 +350,6 @@ class AssetFormView(AssetViewMixin, FormView):
         self.update(kwargs, asset)
         return kwargs
 
-    def form_valid(self, form):
-        names = self.process(form)
-        return redirect(self.get_url(names))
-
 
 class AssetFilterMixin:
     def get_filter(self, Asset, **kwargs):
@@ -366,9 +363,9 @@ class AssetManageView(AssetFilterMixin, AssetFormView):
     def update(self, kwargs, asset):
         kwargs['parent'] = asset
 
-    def process(self, form):
+    def form_valid(self, form):
         FolderAsset.objects.create(user=form.user, parent=form.parent, name=form.name)
-        return form.names
+        return redirect(self.get_url(form.names))
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -386,23 +383,82 @@ class AssetManageView(AssetFilterMixin, AssetFormView):
         return context
 
 
+class AssetOverwriteMixin:
+    def overwrite(self, user, source, target, is_file):
+        if is_file:
+            target.uid = source.uid
+            target.active = source.active
+            target.save()
+        else:
+            self.merge(user, source, target, False)
+            self.merge(user, source, target, True)
+        source.delete()
+
+    def merge(self, user, source, target, is_file):
+        if is_file:
+            Asset = FileAsset
+        else:
+            Asset = FolderAsset
+        for source_child in Asset.objects.filter(user=user, parent=source):
+            if source_child.trashed:
+                source_child.parent = target
+                source_child.save()
+            else:
+                try:
+                    target_child = Asset.objects.get(user=user, parent=target, name=source_child.name, trashed=False)
+                except Asset.DoesNotExist:
+                    source_child.parent = target
+                    source_child.save()
+                else:
+                    self.overwrite(user, source_child, target_child, is_file)
+
+
 class AssetFileMixin:
     Asset = FileAsset
 
 
-class AssetMoveView(AssetFormView):
+class AssetMoveView(AssetOverwriteMixin, AssetFormView):
     form_class = AssetMoveForm
     template_name = 'malt/asset/move.html'
+
+    def redirect(self, names):
+        return redirect(self.get_url(names[:-1]))
+
+    @transaction.atomic
+    def post(self, request, *args, **kwargs):
+        is_file = self.Asset is FileAsset
+
+        if 'overwrite' in request.POST:
+            names, source = self.get_objects()
+            target = get_object_or_404(self.Asset, pk=request.POST['pk'])
+            self.overwrite(request.user, source, target, is_file)
+            return self.redirect(names)
+        else:
+            form = self.get_form()
+
+            if form.is_valid():
+                if form.parent == form.asset.parent and form.name == form.asset.name:
+                    return self.redirect(form.names)
+
+                try:
+                    asset = self.Asset.objects.get(user=form.user, parent=form.parent, name=form.name, trashed=False)
+                except self.Asset.DoesNotExist:
+                    form.asset.parent = form.parent
+                    form.asset.name = form.name
+                    form.asset.save()
+                    return self.redirect(form.names)
+
+                context = self.get_context_data(**kwargs)
+                context['is_file'] = is_file
+                context['path'] = form.path
+                context['pk'] = asset.pk
+                return TemplateResponse(request=request, template=['malt/asset/move_confirm.html'], context=context, using=self.template_engine)
+            else:
+                return self.form_invalid(form)
 
     def update(self, kwargs, asset):
         kwargs['asset'] = asset
         kwargs['initial']['path'] = self.kwargs['path']
-
-    def process(self, form):
-        form.asset.parent = form.parent
-        form.asset.name = form.name
-        form.asset.save()
-        return form.names[:-1]
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -455,40 +511,13 @@ class AssetChangeFileMixin:
     model = FileAsset
 
 
-class AssetRestoreView(AssetChangeMixin, TemplateResponseMixin, SingleObjectMixin, generic.View):
+class AssetRestoreView(AssetChangeMixin, AssetOverwriteMixin, TemplateResponseMixin, SingleObjectMixin, generic.View):
     template_name = 'malt/asset/restore.html'
-
-    def overwrite(self, user, source, target, is_file):
-        if is_file:
-            target.uid = source.uid
-            target.active = source.active
-            target.save()
-        else:
-            self.merge(user, source, target, False)
-            self.merge(user, source, target, True)
-        source.delete()
-
-    def merge(self, user, source, target, is_file):
-        if is_file:
-            Asset = FileAsset
-        else:
-            Asset = FolderAsset
-        for source_child in Asset.objects.filter(user=user, parent=source):
-            if source_child.trashed:
-                source_child.parent = target
-                source_child.save()
-            else:
-                try:
-                    target_child = Asset.objects.get(user=user, parent=target, name=source_child.name, trashed=False)
-                except Asset.DoesNotExist:
-                    source_child.parent = target
-                    source_child.save()
-                else:
-                    self.overwrite(user, source_child, target_child, is_file)
 
     @transaction.atomic
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
+
         names = self.object.names()
         parent = None
         for name in names:
@@ -496,6 +525,7 @@ class AssetRestoreView(AssetChangeMixin, TemplateResponseMixin, SingleObjectMixi
                 parent = FolderAsset.objects.get(user=request.user, parent=parent, name=name, trashed=False)
             except FolderAsset.DoesNotExist:
                 parent = FolderAsset.objects.create(user=request.user, parent=parent, name=name)
+
         try:
             object = self.model.objects.get(user=request.user, parent=parent, name=self.object.name, trashed=False)
         except self.model.DoesNotExist:
@@ -503,10 +533,13 @@ class AssetRestoreView(AssetChangeMixin, TemplateResponseMixin, SingleObjectMixi
             self.object.trashed = False
             self.object.save()
             return redirect(self.get_success_url())
-        is_file = isinstance(self.object, FileAsset)
+
+        is_file = self.Asset is FileAsset
+
         if 'overwrite' in request.POST:
             self.overwrite(request.user, self.object, object, is_file)
             return redirect(self.get_success_url())
+
         context = self.get_context_data(**kwargs)
         context['is_file'] = is_file
         context['path'] = '/'.join([*names, self.object.name])

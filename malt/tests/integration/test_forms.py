@@ -672,12 +672,6 @@ class AssetMoveFormTests(AssetFormTests):
     def testValidWithOwnPath(self):
         self.assertValid([self.parent_name, self.asset_name])
 
-    def testNotValidWithSamePathAndFalseTrashed(self):
-        self.assertNotValid([self.parent_name, self.other_name])
-
-    def testValidWithSamePathAndTrueTrashed(self):
-        self.assertValid([self.parent_name, self.trash_name])
-
     def testNotValidWithEmptyPath(self):
         self.assertNotValid([self.empty_name])
 

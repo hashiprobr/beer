@@ -85,10 +85,6 @@ class AssetForm(forms.Form):
         self.names = kwargs.pop('names')
         super().__init__(*args, **kwargs)
 
-    def validate_unique(self):
-        if self.Asset.objects.filter(user=self.user, parent=self.parent, name=self.name, trashed=False).exists():
-            raise ValidationError('An asset with that path already exists.')
-
 
 class AssetAddForm(AssetForm):
     def __init__(self, *args, **kwargs):
@@ -100,7 +96,8 @@ class AssetAddForm(AssetForm):
         data = super().clean()
         if 'name' in data:
             self.name = data['name']
-            self.validate_unique()
+            if self.Asset.objects.filter(user=self.user, parent=self.parent, name=self.name, trashed=False).exists():
+                raise ValidationError('An asset with that path already exists.')
         return data
 
 
@@ -112,11 +109,14 @@ class AssetMoveForm(AssetForm):
 
     def clean(self):
         data = super().clean()
+
         if 'path' in data:
-            path = data['path']
-            if path.startswith('/') or path.endswith('/'):
+            self.path = data['path']
+            if self.path.startswith('/') or self.path.endswith('/'):
                 raise ValidationError({'path': 'This value cannot start or end with slashes.'})
-            names = path.split('/')
+
+            names = self.path.split('/')
+
             self.parent = None
             for name in names[:-1]:
                 try:
@@ -125,14 +125,14 @@ class AssetMoveForm(AssetForm):
                     raise ValidationError('The parent does not exist.')
                 if self.parent == self.asset:
                     raise ValidationError('The asset cannot be moved inside itself.')
+
             self.name = names[-1]
             for validator in self.Asset.name.field.validators:
                 try:
                     validator(self.name)
                 except ValidationError as error:
                     raise ValidationError(error.messages[0])
-            if self.parent != self.asset.parent or self.name != self.asset.name:
-                self.validate_unique()
+
         return data
 
 
@@ -152,15 +152,19 @@ class YeastForm(forms.Form):
 
     def clean(self):
         data = super().clean()
+
         if len(data) == len(self.old_meta) - 1:
             self.meta = data.copy()
             self.meta['user'] = self.old_meta['user']
+
             if self.meta != self.old_meta:
                 kwargs = self.Yeast.get_all_read_kwargs(self.meta, self.active)
                 if self.Yeast.Model.objects.filter(**kwargs).exists():
                     raise ValidationError('An yeast with that path already exists.')
+
             try:
                 self.kwargs = self.Yeast.get_all_write_kwargs(self.user, self.meta, self.active)
             except YeastError as error:
                 raise ValidationError(error)
+
         return data
