@@ -32,49 +32,6 @@ PAGE_SIZE = 50
 CSRF_KEY = 'csrfmiddlewaretoken'
 
 
-class UserIsSuperMixin(UserPassesTestMixin):
-    def test_func(self):
-        return self.request.user.is_superuser
-
-
-class UserIsPowerMixin(UserPassesTestMixin):
-    def test_func(self):
-        return power_cache.get(self.request.user)
-
-
-class UserIsOwnerMixin(UserPassesTestMixin):
-    def test_func(self):
-        return self.is_owned()
-
-
-class UserIsMemberMixin(UserIsOwnerMixin):
-    pass
-
-
-class AssetMixin:
-    Asset = FolderAsset
-
-    def get_objects(self, path):
-        if path:
-            names = path.split('/')
-            parent = None
-            for name in names[:-1]:
-                parent = get_object_or_404(FolderAsset, user=self.request.user, parent=parent, name=name, trashed=False)
-            asset = get_object_or_404(self.Asset, user=self.request.user, parent=parent, name=names[-1], trashed=False)
-        else:
-            names = []
-            asset = None
-        return names, asset
-
-
-class AssetPathMixin:
-    def get_url(self, names):
-        if names:
-            return reverse('asset_manage_folder', kwargs={'path': '/'.join(names)})
-        else:
-            return reverse('asset_manage')
-
-
 class MaltMixin:
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -91,7 +48,17 @@ class FormView(MaltMixin, generic.FormView):
     pass
 
 
-class UserViewMixin(LoginRequiredMixin, UserIsSuperMixin):
+class SuperMixin(LoginRequiredMixin, UserPassesTestMixin):
+    def test_func(self):
+        return self.request.user.is_superuser
+
+
+class PowerMixin(LoginRequiredMixin, UserPassesTestMixin):
+    def test_func(self):
+        return power_cache.get(self.request.user)
+
+
+class UserViewMixin(SuperMixin):
     def get_suffix(self):
         if self.request.GET:
             return '?' + self.request.GET.urlencode()
@@ -195,11 +162,31 @@ class UserDemoteView(UserChangeView):
         PowerUser.objects.filter(user=user).delete()
 
 
-class UploadMixin(LoginRequiredMixin, UserIsPowerMixin):
-    pass
+class AssetMixin:
+    Asset = FolderAsset
+
+    def get_objects(self, path):
+        if path:
+            names = path.split('/')
+            parent = None
+            for name in names[:-1]:
+                parent = get_object_or_404(FolderAsset, user=self.request.user, parent=parent, name=name, trashed=False)
+            asset = get_object_or_404(self.Asset, user=self.request.user, parent=parent, name=names[-1], trashed=False)
+        else:
+            names = []
+            asset = None
+        return names, asset
 
 
-class UploadManageView(UploadMixin, AssetMixin, generic.View):
+class AssetPathMixin:
+    def get_url(self, names):
+        if names:
+            return reverse('asset_manage_folder', kwargs={'path': '/'.join(names)})
+        else:
+            return reverse('asset_manage')
+
+
+class UploadManageView(AssetMixin, PowerMixin, generic.View):
     def post(self, request, *args, **kwargs):
         body = request.POST.dict()
 
@@ -248,7 +235,7 @@ class UploadManageView(UploadMixin, AssetMixin, generic.View):
         return HttpResponseNotFound()
 
 
-class UploadCodeView(UploadMixin, MaltMixin, TemplateResponseMixin, ContextMixin, generic.View):
+class UploadCodeView(PowerMixin, MaltMixin, TemplateResponseMixin, ContextMixin, generic.View):
     template_name = 'malt/error.html'
 
     def post(self, request, *args, **kwargs):
@@ -274,7 +261,7 @@ class UploadCodeView(UploadMixin, MaltMixin, TemplateResponseMixin, ContextMixin
         return redirect(url)
 
 
-class UploadAssetView(UploadMixin, generic.View):
+class UploadAssetView(PowerMixin, generic.View):
     def post(self, request, *args, **kwargs):
         if settings.CONTAINED:
             return HttpResponseNotFound()
@@ -309,7 +296,7 @@ class UploadAssetView(UploadMixin, generic.View):
         return redirect('{}?{}'.format(url, urlencode({'key': key}, safe='/')))
 
 
-class UploadAssetConfirmView(UploadMixin, AssetPathMixin, generic.View):
+class UploadAssetConfirmView(AssetPathMixin, PowerMixin, generic.View):
     def get(self, request, *args, **kwargs):
         try:
             key = collapse(request.GET['key'])
@@ -327,11 +314,7 @@ class UploadAssetConfirmView(UploadMixin, AssetPathMixin, generic.View):
         return redirect(self.get_url(asset.names()))
 
 
-class PowerMixin(LoginRequiredMixin, UserIsPowerMixin):
-    pass
-
-
-class AssetViewMixin(PowerMixin, AssetMixin, AssetPathMixin):
+class AssetViewMixin(AssetPathMixin, AssetMixin, PowerMixin):
     objects = None
 
     def get_objects(self):
@@ -564,18 +547,6 @@ class AssetRemoveFileView(AssetChangeFileMixin, AssetRemoveView):
     pass
 
 
-class PrivateMixin(LoginRequiredMixin, UserIsOwnerMixin):
-    pass
-
-
-class ProtectedMixin(LoginRequiredMixin, UserIsMemberMixin):
-    pass
-
-
-class PublicMixin(LoginRequiredMixin):
-    pass
-
-
 class YeastMixin:
     owned = None
     active = None
@@ -712,27 +683,37 @@ class YeastPublishView(WriteYeastMixin, TemplateView):
         return redirect(reverse(self.Yeast.name, kwargs=self.kwargs))
 
 
+class OwnerMixin(LoginRequiredMixin, UserPassesTestMixin):
+    def get_test_func(self):
+        return self.is_owned
+
+
+class MemberMixin(LoginRequiredMixin, UserPassesTestMixin):
+    def test_func(self):
+        return self.is_owned() or True
+
+
 class CalendarMixin(YeastMixin):
     Yeast = CalendarYeast
 
 
-class CalendarView(PrivateMixin, CalendarMixin, TemplateView):
+class CalendarView(OwnerMixin, CalendarMixin, TemplateView):
     template_name = 'malt/yeast/calendar.html'
 
 
-class CalendarMoveView(PrivateMixin, CalendarMixin, YeastMoveView):
+class CalendarMoveView(OwnerMixin, CalendarMixin, YeastMoveView):
     pass
 
 
-class CalendarRemoveView(PrivateMixin, CalendarMixin, YeastRemoveView):
+class CalendarRemoveView(OwnerMixin, CalendarMixin, YeastRemoveView):
     pass
 
 
-class CalendarPublishView(PrivateMixin, CalendarMixin, YeastPublishView):
+class CalendarPublishView(OwnerMixin, CalendarMixin, YeastPublishView):
     pass
 
 
-class IndexView(PublicMixin, TemplateView):
+class IndexView(LoginRequiredMixin, TemplateView):
     template_name = 'malt/index.html'
 
     def get_context_data(self, **kwargs):
