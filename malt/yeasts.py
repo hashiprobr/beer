@@ -1,7 +1,7 @@
 import datetime
 
-from malt.models import Calendar, Course, CalendarCancelation
-from malt.brewing import YAMLYeast
+from .models import Calendar, Course, CalendarCancelation
+from .brewing import YAMLYeast
 
 
 class CalendarYeast(YAMLYeast):

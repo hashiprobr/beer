@@ -1,8 +1,7 @@
 from beer.tests import IntegrationTestCase
 
-from malt.tests.integration.test_brewing import YeastTests
-
 from ...yeasts import CalendarYeast, CourseYeast
+from .test_brewing import YeastTests
 
 
 class CalendarYeastTests(YeastTests, IntegrationTestCase):
