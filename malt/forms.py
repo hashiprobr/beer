@@ -1,6 +1,8 @@
 from django import forms
 from django.core.exceptions import ValidationError
 
+from beer.utils import split
+
 from .models import FolderAsset
 from .brewing import YeastError
 
@@ -115,7 +117,7 @@ class AssetMoveForm(AssetForm):
             if self.path.startswith('/') or self.path.endswith('/'):
                 raise ValidationError({'path': 'This value cannot start or end with slashes.'})
 
-            names = self.path.split('/')
+            names = split(self.path)
 
             self.parent = None
             for name in names[:-1]:

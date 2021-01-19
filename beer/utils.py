@@ -10,6 +10,14 @@ def collapse(value):
     return ' '.join(value.strip().split())
 
 
+def split(value):
+    return value.split('/')
+
+
+def join(*args):
+    return '/'.join(args)
+
+
 def build_urlpatterns():
     urlpatterns = []
 

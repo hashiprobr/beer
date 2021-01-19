@@ -15,7 +15,7 @@ from django.views.generic.base import ContextMixin, TemplateResponseMixin
 from django.views.generic.detail import SingleObjectMixin, BaseDetailView
 
 from beer import public_storage
-from beer.utils import collapse
+from beer.utils import collapse, split, join
 
 from .models import PowerUser, FolderAsset, FileAsset
 from .forms import UserForm, AssetAddForm, AssetMoveForm, YeastForm
@@ -167,7 +167,7 @@ class AssetMixin:
 
     def get_objects(self, path):
         if path:
-            names = path.split('/')
+            names = split(path)
             parent = None
             for name in names[:-1]:
                 parent = get_object_or_404(FolderAsset, user=self.request.user, parent=parent, name=name, trashed=False)
@@ -181,7 +181,7 @@ class AssetMixin:
 class AssetPathMixin:
     def get_url(self, names):
         if names:
-            return reverse('asset_manage_folder', kwargs={'path': '/'.join(names)})
+            return reverse('asset_manage_folder', kwargs={'path': join(names)})
         else:
             return reverse('asset_manage')
 
@@ -303,7 +303,7 @@ class UploadAssetConfirmView(AssetPathMixin, PowerMixin, generic.View):
         except KeyError:
             return HttpResponseBadRequest()
 
-        paths = key.split('/')
+        paths = split(key)
 
         asset = get_object_or_404(FileAsset, user=request.user, uid=paths[-1])
 
@@ -445,7 +445,7 @@ class AssetMoveView(AssetOverwriteMixin, AssetFormView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        names = self.kwargs['path'].split('/')
+        names = split(self.kwargs['path'])
         context['name'] = names.pop()
         context['parent_url'] = self.get_url(names)
         if names:
@@ -525,7 +525,7 @@ class AssetRestoreView(AssetChangeMixin, AssetOverwriteMixin, TemplateResponseMi
 
         context = self.get_context_data(**kwargs)
         context['is_file'] = is_file
-        context['path'] = '/'.join([*names, self.object.name])
+        context['path'] = join([*names, self.object.name])
         return self.render_to_response(context)
 
 
@@ -539,7 +539,7 @@ class AssetRemoveView(AssetChangeMixin, generic.edit.DeleteView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         object = self.get_object()
-        context['path'] = '/'.join([*object.names(), object.name])
+        context['path'] = join([*object.names(), object.name])
         return context
 
 

@@ -9,6 +9,7 @@ from django.urls import reverse
 
 from beer import public_storage
 from beer.tests import ViewTestCase
+from beer.utils import join
 
 from ...models import PowerUser, FolderAsset, FileAsset
 from ...caches import power_cache
@@ -968,7 +969,7 @@ class UploadManageViewTests(PostAcceptsMixin, PostUploadViewTests, ViewTestCase)
     def update(self, data):
         data['method'] = 'asset'
         try:
-            data['path'] = '/'.join(data['path'])
+            data['path'] = join(data['path'])
         except KeyError:
             pass
 
@@ -1400,7 +1401,7 @@ class AssetFolderManageViewTests(AssetFolderMixin, AssetGrandParentMixin, AssetM
     view_name = 'asset_manage_folder'
 
     def getKwargs(self):
-        return {'path': '/'.join(self.getNames())}
+        return {'path': join(self.getNames())}
 
 
 class AssetSubFolderManageViewTests(AssetSubMixin, AssetParentMixin, AssetFolderManageViewTests):
@@ -1417,7 +1418,7 @@ class SingleAssetViewTests(AssetParentMixin, AssetViewTests):
         self.asset = self.Asset.objects.create(user=self.user, parent=self.getParent(), name=self.name)
 
     def getPath(self):
-        return '/'.join([*self.getNames(), self.name])
+        return join([*self.getNames(), self.name])
 
 
 class PathAssetViewTests(SingleAssetViewTests):
@@ -1464,7 +1465,7 @@ class AssetMoveViewTests(PostRedirectsMixin, SpecificAssetMixin, PathAssetViewTe
 
     def getData(self):
         return {
-            'path': '/'.join([*self.getTargetNames(), self.getTargetName()]),
+            'path': join([*self.getTargetNames(), self.getTargetName()]),
         }
 
     def assertTarget(self, expected):

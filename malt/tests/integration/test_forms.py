@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.core.files import File
 
 from beer.tests import IntegrationTestCase
+from beer.utils import join
 
 from ...models import FolderAsset, FileAsset
 from ...forms import UserForm, AssetAddForm, AssetMoveForm
@@ -647,7 +648,7 @@ class AssetMoveFormTests(AssetFormTests):
     def isValid(self, names):
         data = {}
         if names is not None:
-            data['path'] = '/'.join(names)
+            data['path'] = join(names)
         kwargs = {
             'Asset': self.Asset,
             'user': self.user,
