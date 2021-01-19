@@ -14,8 +14,8 @@ def split(value):
     return value.split('/')
 
 
-def join(*args):
-    return '/'.join(args)
+def join(value):
+    return '/'.join(value)
 
 
 def build_urlpatterns():
