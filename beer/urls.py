@@ -16,4 +16,4 @@ urlpatterns = [
     path('', include('malt.urls')),
 ]
 
-urlpatterns += build_urlpatterns()
+urlpatterns.extend(build_urlpatterns())

@@ -925,16 +925,15 @@ class UploadViewTests(PowerViewTests):
     parent_name = 'pn'
     name = 'n'
     empty_name = ''
-    white_name = ' \t\n'
     slash_name = 'n/n'
 
     key = 'k'
     empty_key = ''
-    white_key = ' \t\n'
 
     redirect_url = 'http://ur'
 
     uid = 'ui'
+    other_uid = 'oui'
 
     def setUp(self):
         self.upper_name = (FileAsset.name.field.max_length + 1) * 'n'
@@ -1025,12 +1024,6 @@ class UploadManageViewTests(PostAcceptsMixin, PostUploadViewTests, ViewTestCase)
     def testPostRejectsAssetWithEmptyName(self):
         self.assertPostRejectsAsset({
             'name': self.empty_name,
-            'path': [self.grand_parent_name, self.parent_name],
-        })
-
-    def testPostRejectsAssetWithWhiteName(self):
-        self.assertPostRejectsAsset({
-            'name': self.white_name,
             'path': [self.grand_parent_name, self.parent_name],
         })
 
@@ -1142,13 +1135,6 @@ class UploadAssetViewTests(PostRedirectsMixin, PostUploadViewTests, ViewTestCase
             'file': self.mock(),
         })
 
-    def testPostRejectsWithWhiteKey(self):
-        self.assertMissesOrRejects({
-            'key': self.white_key,
-            'success_action_redirect': self.redirect_url,
-            'file': self.mock(),
-        })
-
     def testPostRejectsWithoutRedirectURL(self):
         self.assertMissesOrRejects({
             'key': self.key,
@@ -1188,8 +1174,12 @@ class UploadAssetViewTests(PostRedirectsMixin, PostUploadViewTests, ViewTestCase
 class UploadAssetConfirmViewTests(PostDisallowsMixin, GetRedirectsMixin, UploadViewTests, ViewTestCase):
     view_name = 'upload_asset_confirm'
 
-    def create(self, parent):
-        file_asset = FileAsset.objects.create(user=self.user, parent=parent, name=self.name)
+    def create(self, parent, extend):
+        if extend:
+            name = self.name + '.e'
+        else:
+            name = self.name
+        file_asset = FileAsset.objects.create(user=self.user, parent=parent, name=name)
         file_asset.uid = self.uid
         file_asset.save()
         key = file_asset.key()
@@ -1198,48 +1188,86 @@ class UploadAssetConfirmViewTests(PostDisallowsMixin, GetRedirectsMixin, UploadV
         return file_asset
 
     def getData(self):
-        self.create(self.parent)
+        self.create(self.parent, False)
         return {
-            'key': self.uid,
+            'key': join([settings.PUBLIC_LOCATION, self.power_username, 'assets', self.uid]),
         }
 
-    def assertGets(self, parent):
-        file_asset = self.create(parent)
+    def assertGets(self, parent, extend):
+        file_asset = self.create(parent, extend)
         super().assertGets({
-            'key': self.uid,
+            'key': join([settings.PUBLIC_LOCATION, self.power_username, 'assets', self.uid]),
         })
         file_asset.refresh_from_db()
         self.assertTrue(file_asset.active)
 
     def testKeeps(self):
-        self.assertFalse(self.create(None).active)
-        self.assertFalse(self.create(self.grand_parent).active)
-        self.assertFalse(self.create(self.parent).active)
+        file_asset = self.create(None, False)
+        self.assertFalse(file_asset.active)
+        file_asset = self.create(self.grand_parent, False)
+        self.assertFalse(file_asset.active)
+        file_asset = self.create(self.parent, False)
+        self.assertFalse(file_asset.active)
+        file_asset = self.create(self.parent, True)
+        self.assertFalse(file_asset.active)
 
     def testGets(self):
-        self.assertGets(self.parent)
+        self.assertGets(self.parent, False)
 
     def testGetsWithNoneParent(self):
-        self.assertGets(None)
+        self.assertGets(None, False)
 
     def testGetsWithGrandParent(self):
-        self.assertGets(self.grand_parent)
+        self.assertGets(self.grand_parent, False)
+
+    def testGetsWithExtension(self):
+        self.assertGets(self.parent, True)
 
     def testGetMissesWithoutFileAsset(self):
         self.assertGetMisses({
-            'key': self.uid,
+            'key': join([settings.PUBLIC_LOCATION, self.power_username, 'assets', self.uid]),
         })
 
     def testGetRejectsWithoutKey(self):
-        self.create(self.parent)
+        self.create(self.parent, False)
         self.assertGetRejects({
-            'mock': self.uid,
+            'mock': join([settings.PUBLIC_LOCATION, self.power_username, 'assets', self.uid]),
         })
 
-    def testGetMissesWithWrongKey(self):
-        self.create(self.parent)
+    def testGetRejectsWithLowerKey(self):
+        self.create(self.parent, False)
+        self.assertGetRejects({
+            'key': join([settings.PUBLIC_LOCATION, self.power_username, 'assets']),
+        })
+
+    def testGetRejectsWithUpperKey(self):
+        self.create(self.parent, False)
+        self.assertGetRejects({
+            'key': join([settings.PUBLIC_LOCATION, self.power_username, 'assets', self.uid, self.other_uid]),
+        })
+
+    def testGetRejectsWithWrongLocation(self):
+        self.create(self.parent, False)
+        self.assertGetRejects({
+            'key': join([settings.PRIVATE_LOCATION, self.power_username, 'assets', self.uid]),
+        })
+
+    def testGetRejectsWithWrongUsername(self):
+        self.create(self.parent, False)
+        self.assertGetRejects({
+            'key': join([settings.PUBLIC_LOCATION, self.super_username, 'assets', self.uid]),
+        })
+
+    def testGetRejectsWithWrongFoldername(self):
+        self.create(self.parent, False)
+        self.assertGetRejects({
+            'key': join([settings.PUBLIC_LOCATION, self.power_username, 'mock', self.uid]),
+        })
+
+    def testGetMissesWithWrongFilename(self):
+        self.create(self.parent, False)
         self.assertGetMisses({
-            'key': 'mock',
+            'key': join([settings.PUBLIC_LOCATION, self.power_username, 'assets', self.other_uid]),
         })
 
 

@@ -27,11 +27,11 @@ def build_urlpatterns():
         else:
             prefix = ''
 
-        urlpatterns += static('{}{}/'.format(settings.STATIC_URL, prefix), document_root=root)
+        urlpatterns.extend(static('{}{}/'.format(settings.STATIC_URL, prefix), document_root=root))
 
-    urlpatterns += static(PublicLocalStorage.base_url, document_root=PublicLocalStorage.location)
+    urlpatterns.extend(static(PublicLocalStorage.base_url, document_root=PublicLocalStorage.location))
 
-    urlpatterns += static(PrivateLocalStorage.base_url, document_root=PrivateLocalStorage.location)
+    urlpatterns.extend(static(PrivateLocalStorage.base_url, document_root=PrivateLocalStorage.location))
 
     return urlpatterns
 

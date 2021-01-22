@@ -10,27 +10,38 @@ from ...models import FolderAsset, FileAsset
 User = get_user_model()
 
 
-class FileAssetPostDeleteTests(IntegrationTestCase):
+class FileAssetSignalTests(IntegrationTestCase):
     def setUp(self):
         user = User.objects.create_user('u')
-        grand_parent = FolderAsset.objects.create(user=user, parent=None, name='gp')
-        parent = FolderAsset.objects.create(user=user, parent=grand_parent, name='p')
-        self.file_asset = FileAsset.objects.create(user=user, parent=parent, name='f')
-        self.key = self.file_asset.key()
-        public_storage.save(self.key, BytesIO(b'c'))
+        grand_parent = FolderAsset.objects.create(user=user, parent=None, name='gpn')
+        parent = FolderAsset.objects.create(user=user, parent=grand_parent, name='pn')
+        self.file_asset = FileAsset.objects.create(user=user, parent=parent, name='n')
+        key = self.file_asset.key()
+        file = BytesIO(b'c')
+        public_storage.save(key, file)
 
-    def assertExists(self):
-        self.assertTrue(public_storage.exists(self.key))
+    def exists(self, key):
+        return public_storage.exists(key)
 
-    def assertDoesNotExist(self):
-        self.assertFalse(public_storage.exists(self.key))
+    def assertExists(self, key):
+        self.assertTrue(self.exists(key))
 
-    def assertDeletes(self):
-        self.file_asset.delete()
-        self.assertDoesNotExist()
+    def assertDoesNotExist(self, key):
+        self.assertFalse(self.exists(key))
 
     def testExists(self):
-        self.assertExists()
+        key = self.file_asset.key()
+        self.assertExists(key)
 
     def testDeletes(self):
-        self.assertDeletes()
+        key = self.file_asset.key()
+        self.file_asset.delete()
+        self.assertDoesNotExist(key)
+
+    def testExtends(self):
+        key = self.file_asset.key()
+        self.file_asset.name = 'n.e'
+        self.file_asset.save()
+        self.assertDoesNotExist(key)
+        key = self.file_asset.key()
+        self.assertExists(key)

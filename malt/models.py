@@ -112,7 +112,12 @@ class FileAsset(Asset):
     objects = FileAssetManager()
 
     def key(self):
-        return '{}/assets/{}'.format(self.user.get_username(), self.uid)
+        index = self.name.rfind('.')
+        if index > 0:
+            uid = self.uid + self.name[index:]
+        else:
+            uid = self.uid
+        return '{}/assets/{}'.format(self.user.get_username(), uid)
 
     def url(self):
         return public_storage.url(self.key())

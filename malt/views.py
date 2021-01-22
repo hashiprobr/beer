@@ -15,7 +15,7 @@ from django.views.generic.base import ContextMixin, TemplateResponseMixin
 from django.views.generic.detail import SingleObjectMixin, BaseDetailView
 
 from beer import public_storage
-from beer.utils import collapse, split, join
+from beer.utils import split, join
 
 from .models import PowerUser, FolderAsset, FileAsset
 from .forms import UserForm, AssetAddForm, AssetMoveForm, YeastForm
@@ -98,7 +98,7 @@ class UserManageView(UserViewMixin, FormView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         try:
-            filter = collapse(self.request.GET['filter'])
+            filter = self.request.GET['filter']
         except KeyError:
             filter = ''
         if filter:
@@ -191,8 +191,8 @@ class UploadManageView(AssetMixin, PowerMixin, generic.View):
         body = request.POST.dict()
 
         try:
-            method = collapse(body.pop('method'))
-            name = collapse(body.pop('name'))
+            method = body.pop('method')
+            name = body.pop('name')
         except KeyError:
             return HttpResponseBadRequest()
 
@@ -203,6 +203,7 @@ class UploadManageView(AssetMixin, PowerMixin, generic.View):
         if method == 'asset':
             if not name:
                 return HttpResponseBadRequest('This field is required.')
+
             for validator in FileAsset.name.field.validators:
                 try:
                     validator(name)
@@ -210,7 +211,7 @@ class UploadManageView(AssetMixin, PowerMixin, generic.View):
                    return HttpResponseBadRequest(error)
 
             try:
-                path = collapse(body['path'])
+                path = body['path']
             except KeyError:
                 return HttpResponseBadRequest()
 
@@ -222,6 +223,7 @@ class UploadManageView(AssetMixin, PowerMixin, generic.View):
                 asset = FileAsset.objects.create(user=request.user, parent=parent, name=name)
 
             key = asset.key()
+
             redirect_url = '{}://{}{}'.format(request.scheme, request.get_host(), reverse('upload_asset_confirm'))
 
             body = public_storage.post(key, redirect_url)
@@ -242,6 +244,7 @@ class UploadCodeView(PowerMixin, MaltMixin, TemplateResponseMixin, ContextMixin,
         brewery = Brewery(request.user, [])
 
         files = request.FILES
+
         if request.skip:
             files = None
 
@@ -267,15 +270,15 @@ class UploadAssetView(PowerMixin, generic.View):
             return HttpResponseNotFound()
 
         try:
-            key = collapse(request.POST['key'])
-            url = collapse(request.POST['success_action_redirect'])
+            key = request.POST['key']
+            url = request.POST['success_action_redirect']
         except KeyError:
             return HttpResponseBadRequest()
 
         if not key:
             return HttpResponseBadRequest()
 
-        if not url.startswith('http://'):
+        if not url.startswith('http://') and not url.startswith('https://'):
             return HttpResponseBadRequest()
 
         files = request.FILES
@@ -293,25 +296,47 @@ class UploadAssetView(PowerMixin, generic.View):
 
         public_storage.save(key, file)
 
-        return redirect('{}?{}'.format(url, urlencode({'key': key}, safe='/')))
+        query = {'key': '{}/{}'.format(settings.PUBLIC_LOCATION, key)}
+
+        return redirect('{}?{}'.format(url, urlencode(query, safe='/')))
 
 
 class UploadAssetConfirmView(AssetPathMixin, PowerMixin, generic.View):
     def get(self, request, *args, **kwargs):
         try:
-            key = collapse(request.GET['key'])
+            key = request.GET['key']
         except KeyError:
             return HttpResponseBadRequest()
 
-        paths = split(key)
+        try:
+            location, username, foldername, filename = split(key)
+        except ValueError:
+            return HttpResponseBadRequest()
 
-        asset = get_object_or_404(FileAsset, user=request.user, uid=paths[-1])
+        if location != settings.PUBLIC_LOCATION:
+            return HttpResponseBadRequest()
 
-        if not asset.active and public_storage.exists(asset.key()):
+        if username != request.user.get_username():
+            return HttpResponseBadRequest()
+
+        if foldername != 'assets':
+            return HttpResponseBadRequest()
+
+        index = filename.rfind('.')
+        if index == -1:
+            uid = filename
+        else:
+            uid = filename[:index]
+
+        asset = get_object_or_404(FileAsset, user=request.user, uid=uid)
+        key = asset.key()
+        names = asset.names()
+
+        if not asset.active and public_storage.exists(key):
             asset.active = True
             asset.save()
 
-        return redirect(self.get_url(asset.names()))
+        return redirect(self.get_url(names))
 
 
 class AssetViewMixin(AssetPathMixin, AssetMixin, PowerMixin):

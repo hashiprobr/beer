@@ -23,6 +23,11 @@ class OverwriteStorage:
 
 
 class LocalStorage(OverwriteStorage, FileSystemStorage):
+    def move(self, old_name, name):
+        src = os.path.join(self.location, old_name)
+        dst = os.path.join(self.location, name)
+        shutil.move(src, dst)
+
     def clear(self):
         try:
             shutil.rmtree(self.location)
@@ -49,6 +54,15 @@ class PrivateLocalStorage(LocalStorage):
 
 
 class RemoteStorage(OverwriteStorage, S3Boto3Storage):
+    def move(self, old_name, name):
+        src = {
+            'Bucket': self.bucket_name,
+            'Key': '{}/{}'.format(self.location, old_name),
+        }
+        dst = '{}/{}'.format(self.location, name)
+        self.bucket.copy(src, dst)
+        self.delete(old_name)
+
     def clear(self):
         self.bucket.objects.delete()
 
