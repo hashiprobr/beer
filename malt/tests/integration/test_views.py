@@ -174,11 +174,11 @@ class GetDisallowsMixin:
 
 
 class GetGoodMixin:
-    def assertGetMisses(self, query):
+    def assertGetMisses(self, query=None):
         self.goodLogin()
         self.assertGetStatus(query, 404)
 
-    def assertGetRejects(self, query):
+    def assertGetRejects(self, query=None):
         self.goodLogin()
         self.assertGetStatus(query, 400)
 
@@ -221,11 +221,11 @@ class PostDisallowsMixin:
 
 
 class PostGoodMixin:
-    def assertPostMisses(self, data):
+    def assertPostMisses(self, data=None):
         self.goodLogin()
         self.assertPostStatus(data, 404)
 
-    def assertPostRejects(self, data):
+    def assertPostRejects(self, data=None):
         self.goodLogin()
         self.assertPostStatus(data, 400)
 
@@ -1777,11 +1777,22 @@ class PKAssetViewTests(SingleAssetViewTests):
         self.asset.save()
 
     def getKwargs(self):
-        return {'pk': self.asset.pk}
+        return {'pk': self.getPK()}
+
+    def getPK(self):
+        return self.asset.pk
 
 
-class AssetRestoreViewTests(AssetRecycleMixin, PKAssetViewTests, ViewTestCase):
+class AssetRestoreMixin:
     view_name = 'asset_restore'
+
+
+class AssetRestoreFileMixin(AssetFileMixin):
+    view_name = 'asset_restore_file'
+
+
+class AssetRestoreViewTests(AssetRestoreMixin, AssetRecycleMixin, PKAssetViewTests, ViewTestCase):
+    pass
 
 
 class AssetFolderRestoreViewTests(AssetFolderMixin, AssetRestoreViewTests):
@@ -1792,8 +1803,8 @@ class AssetSubFolderRestoreViewTests(AssetSubMixin, AssetFolderRestoreViewTests)
     pass
 
 
-class AssetRestoreFileViewTests(AssetFileMixin, AssetRestoreViewTests):
-    view_name = 'asset_restore_file'
+class AssetRestoreFileViewTests(AssetRestoreFileMixin, AssetRestoreViewTests):
+    pass
 
 
 class AssetFolderRestoreFileViewTests(AssetFolderMixin, AssetRestoreFileViewTests):
@@ -1804,9 +1815,15 @@ class AssetSubFolderRestoreFileViewTests(AssetSubMixin, AssetFolderRestoreFileVi
     pass
 
 
-class AssetRemoveViewTests(PostRedirectsMixin, SpecificAssetMixin, PKAssetViewTests, ViewTestCase):
+class AssetRemoveMixin:
     view_name = 'asset_remove'
 
+
+class AssetRemoveFileMixin(AssetFileMixin):
+    view_name = 'asset_remove_file'
+
+
+class AssetRemoveViewTests(AssetRemoveMixin, PostRedirectsMixin, SpecificAssetMixin, PKAssetViewTests, ViewTestCase):
     def getPattern(self):
         return self.getPath()
 
@@ -1826,8 +1843,8 @@ class AssetSubFolderRemoveViewTests(AssetSubMixin, AssetFolderRemoveViewTests):
     pass
 
 
-class AssetRemoveFileViewTests(AssetFileMixin, AssetRemoveViewTests):
-    view_name = 'asset_remove_file'
+class AssetRemoveFileViewTests(AssetRemoveFileMixin, AssetRemoveViewTests):
+    pass
 
 
 class AssetFolderRemoveFileViewTests(AssetFolderMixin, AssetRemoveFileViewTests):
@@ -1835,4 +1852,84 @@ class AssetFolderRemoveFileViewTests(AssetFolderMixin, AssetRemoveFileViewTests)
 
 
 class AssetSubFolderRemoveFileViewTests(AssetSubMixin, AssetFolderRemoveFileViewTests):
+    pass
+
+
+class AlterPKAssetViewTests(PostGoodMixin, PKAssetViewTests):
+    def setUp(self):
+        super().setUp()
+        alter_user = User.objects.create_user('au')
+        PowerUser.objects.create(user=alter_user)
+        self.alter_grand_parent = FolderAsset.objects.create(user=alter_user, parent=None, name=self.grand_parent_name)
+        self.alter_parent = FolderAsset.objects.create(user=alter_user, parent=self.alter_grand_parent, name=self.parent_name)
+        self.alter_asset = self.Asset.objects.create(user=alter_user, parent=self.getAlterParent(), name=self.name)
+        self.alter_asset.trashed = True
+        self.alter_asset.save()
+
+    def getPK(self):
+        return self.alter_asset.pk
+
+    def getAlterParent(self):
+        return None
+
+    def testPostMisses(self):
+        self.assertPostMisses()
+
+
+class AssetAlterFolderMixin(AssetFolderMixin):
+    def getAlterParent(self):
+        return self.alter_grand_parent
+
+
+class AssetAlterSubMixin(AssetSubMixin):
+    def getAlterParent(self):
+        return self.alter_parent
+
+
+class AssetAlterRestoreViewTests(AssetRestoreMixin, GetDisallowsMixin, AlterPKAssetViewTests, ViewTestCase):
+    pass
+
+
+class AssetAlterFolderRestoreViewTests(AssetAlterFolderMixin, AssetAlterRestoreViewTests):
+    pass
+
+
+class AssetAlterSubFolderRestoreViewTests(AssetAlterSubMixin, AssetAlterFolderRestoreViewTests):
+    pass
+
+
+class AssetAlterRestoreFileViewTests(AssetRestoreFileMixin, AssetAlterRestoreViewTests):
+    pass
+
+
+class AssetAlterFolderRestoreFileViewTests(AssetAlterFolderMixin, AssetAlterRestoreFileViewTests):
+    pass
+
+
+class AssetAlterSubFolderRestoreFileViewTests(AssetAlterSubMixin, AssetAlterFolderRestoreFileViewTests):
+    pass
+
+
+class AssetAlterRemoveViewTests(AssetRemoveMixin, GetGoodMixin, AlterPKAssetViewTests, ViewTestCase):
+    def testGetMisses(self):
+        self.assertGetMisses()
+
+
+class AssetAlterFolderRemoveViewTests(AssetAlterFolderMixin, AssetAlterRemoveViewTests):
+    pass
+
+
+class AssetAlterSubFolderRemoveViewTests(AssetAlterSubMixin, AssetAlterFolderRemoveViewTests):
+    pass
+
+
+class AssetAlterRemoveFileViewTests(AssetRemoveFileMixin, AssetAlterRemoveViewTests):
+    pass
+
+
+class AssetAlterFolderRemoveFileViewTests(AssetAlterFolderMixin, AssetAlterRemoveFileViewTests):
+    pass
+
+
+class AssetAlterSubFolderRemoveFileViewTests(AssetAlterSubMixin, AssetAlterFolderRemoveFileViewTests):
     pass

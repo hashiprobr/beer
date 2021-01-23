@@ -6,7 +6,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.exceptions import ValidationError
 from django.core.paginator import EmptyPage, Paginator
 from django.db import models, transaction
-from django.http import HttpResponseNotFound, HttpResponseBadRequest, JsonResponse
+from django.http import Http404, HttpResponseNotFound, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
 from django.urls import reverse
@@ -510,6 +510,12 @@ class AssetRecycleView(AssetFilterMixin, PowerMixin, TemplateView):
 
 class AssetChangeMixin(PowerMixin, MaltMixin):
     model = FolderAsset
+
+    def get_object(self):
+        object = super().get_object()
+        if object.user != self.request.user:
+            raise Http404()
+        return object
 
     def get_success_url(self):
         return reverse('asset_recycle')
